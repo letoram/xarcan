@@ -94,7 +94,7 @@ if  test "x$GCC" = xyes ; then
 fi
 
 dnl Check for dtrace program (needed to build Xserver dtrace probes)
-dnl Also checks for <sys/sdt.h>, since some Linux distros have an 
+dnl Also checks for <sys/sdt.h>, since some Linux distros have an
 dnl ISDN trace program named dtrace
 AC_ARG_WITH(dtrace, AS_HELP_STRING([--with-dtrace=PATH],
 	     [Enable dtrace probes (default: enabled if dtrace found)]),
@@ -114,7 +114,7 @@ if test "x$WDTRACE" = "xyes" -o "x$WDTRACE" = "xauto" ; then
 	fi
 fi
 if test "x$WDTRACE" != "xno" ; then
-  AC_DEFINE(XSERVER_DTRACE, 1, 
+  AC_DEFINE(XSERVER_DTRACE, 1,
       [Define to 1 if the DTrace Xserver provider probes should be built in.])
 
 # Solaris/OpenSolaris require dtrace -G to build dtrace probe information into
@@ -188,7 +188,7 @@ b = bswap16(a);
     	if test "$SYS_ENDIAN_BSWAP" = "yes" ; then
 		USE_SYS_ENDIAN_H=yes
 		BSWAP=bswap
-	else	
+	else
 	    	if test "$SYS_ENDIAN__SWAP" = "yes" ; then
 			USE_SYS_ENDIAN_H=yes
 			BSWAP=__swap
@@ -198,13 +198,13 @@ b = bswap16(a);
 	fi
 
 	if test "$USE_SYS_ENDIAN_H" = "yes" ; then
-	    AC_DEFINE([USE_SYS_ENDIAN_H], 1, 
+	    AC_DEFINE([USE_SYS_ENDIAN_H], 1,
 		[Define to use byteswap macros from <sys/endian.h>])
-	    AC_DEFINE_UNQUOTED([bswap_16], ${BSWAP}16, 
+	    AC_DEFINE_UNQUOTED([bswap_16], ${BSWAP}16,
 			[Define to 16-bit byteswap macro])
-	    AC_DEFINE_UNQUOTED([bswap_32], ${BSWAP}32, 
+	    AC_DEFINE_UNQUOTED([bswap_32], ${BSWAP}32,
 			[Define to 32-bit byteswap macro])
-	    AC_DEFINE_UNQUOTED([bswap_64], ${BSWAP}64, 
+	    AC_DEFINE_UNQUOTED([bswap_64], ${BSWAP}64,
 			[Define to 64-bit byteswap macro])
 	fi
 fi
@@ -273,7 +273,7 @@ AC_CACHE_CHECK([for SYSV IPC],
 #include <sys/shm.h>
 #include <sys/stat.h>
 ]],[[
-{ 
+{
     int id;
     id = shmget(IPC_PRIVATE, 512, S_IRUSR | S_IWUSR);
     if (id < 0) return -1;
@@ -285,12 +285,12 @@ if test "x$ac_cv_sysv_ipc" = xyes; then
 	AC_DEFINE(HAVE_SYSV_IPC, 1, [Define to 1 if SYSV IPC is available])
 fi
 
-dnl OpenBSD /dev/xf86 aperture driver 
+dnl OpenBSD /dev/xf86 aperture driver
 if test -c /dev/xf86 ; then
 	AC_DEFINE(HAS_APERTURE_DRV, 1, [System has /dev/xf86 aperture driver])
 fi
 
-dnl BSD APM support 
+dnl BSD APM support
 AC_CHECK_HEADER([machine/apmvar.h],[
 	AC_CHECK_HEADER([sys/event.h],
 		ac_cv_BSD_KQUEUE_APM=yes,
@@ -298,7 +298,7 @@ AC_CHECK_HEADER([machine/apmvar.h],[
 
 AM_CONDITIONAL(BSD_APM, [test "x$ac_cv_BSD_APM" = xyes])
 AM_CONDITIONAL(BSD_KQUEUE_APM, [test "x$ac_cv_BSD_KQUEUE_APM" = xyes])
-	
+
 dnl glibc backtrace support check
 AC_CHECK_HEADER([execinfo.h],[
     AC_CHECK_LIB(c, backtrace, [
@@ -336,7 +336,7 @@ case $host_cpu in
 		*netbsd*)	AC_DEFINE(USE_I386_IOPL)
 				SYS_LIBS=-li386
 				;;
-		*openbsd*)	AC_DEFINE(USE_I386_IOPL) 
+		*openbsd*)	AC_DEFINE(USE_I386_IOPL)
 				SYS_LIBS=-li386
 				;;
 	esac
@@ -656,6 +656,8 @@ dnl kdrive and its subsystems
 AC_ARG_ENABLE(kdrive,         AS_HELP_STRING([--enable-kdrive], [Build kdrive servers (default: no)]), [KDRIVE=$enableval], [KDRIVE=no])
 AC_ARG_ENABLE(xephyr,         AS_HELP_STRING([--enable-xephyr], [Build the kdrive Xephyr server (default: auto)]), [XEPHYR=$enableval], [XEPHYR=auto])
 AC_ARG_ENABLE(xfake,          AS_HELP_STRING([--enable-xfake], [Build the kdrive 'fake' server (default: auto)]), [XFAKE=$enableval], [XFAKE=auto])
+AC_ARG_ENABLE(xarcan,         AS_HELP_STRING([--enable-xarcan], [Build the kdrive 'arcan' server (default: auto)]), [XARCAN=$enableval], [XARCAN=auto])
+AC_ARG_ENABLE(xarcan-accel,   AS_HELP_STRING([--enable-xarcan-accel], [Build the kdrive 'arcan' server with acceleration (default: auto)]), [XARCAN_ACCEL=$enableval], [XARCAN_ACCEL=auto])
 AC_ARG_ENABLE(xfbdev,         AS_HELP_STRING([--enable-xfbdev], [Build the kdrive framebuffer device server (default: auto)]), [XFBDEV=$enableval], [XFBDEV=auto])
 dnl kdrive options
 AC_ARG_ENABLE(kdrive-kbd,     AS_HELP_STRING([--enable-kdrive-kbd], [Build kbd driver for kdrive (default: auto)]), [KDRIVE_KBD=$enableval], [KDRIVE_KBD=auto])
@@ -667,7 +669,7 @@ AC_ARG_ENABLE(xshmfence,      AS_HELP_STRING([--disable-xshmfence], [Disable xsh
 
 dnl chown/chmod to be setuid root as part of build
 dnl Replaces InstallXserverSetUID in imake
-AC_ARG_ENABLE(install-setuid, 
+AC_ARG_ENABLE(install-setuid,
     AS_HELP_STRING([--enable-install-setuid],
        [Install Xorg server as owned by root with setuid bit (default: auto)]),
     [SETUID=$enableval], [SETUID=auto])
@@ -750,7 +752,7 @@ case $host_os in
 				               [xorg_cv_Carbon_framework=yes],
 				               [xorg_cv_Carbon_framework=no])
 			        LDFLAGS=$save_LDFLAGS])
-                
+
 			if test "X$xorg_cv_Carbon_framework" = Xyes; then
 				XQUARTZ=yes
 			else
@@ -2005,9 +2007,9 @@ if test "x$XORG" = xyes; then
 			AC_MSG_ERROR([This release no longer supports Solaris versions older than Solaris 8.])
 		fi
 		AC_CHECK_DECL([_LP64], [SOLARIS_64="yes"], [SOLARIS_64="no"])
-			
+
 		case $host_cpu in
-		  sparc*)	
+		  sparc*)
 			SOLARIS_INOUT_ARCH="sparcv8plus"
 			;;
 		  i*86|x86_64*)
@@ -2457,13 +2459,13 @@ if test "$KDRIVE" = yes; then
     # Xephyr needs nanosleep() which is in librt on Solaris
     AC_CHECK_FUNC([nanosleep], [],
         AC_CHECK_LIB([rt], [nanosleep], XEPHYR_LIBS="$XEPHYR_LIBS -lrt"))
-    
+
     # damage shadow extension glx (NOTYET) fb mi
     KDRIVE_INC='-I$(top_srcdir)/hw/kdrive/src'
     KDRIVE_PURE_INCS="$KDRIVE_INC $MIEXT_SYNC_INC $MIEXT_DAMAGE_INC $MIEXT_SHADOW_INC $XEXT_INC $FB_INC $MI_INC"
     KDRIVE_OS_INC='-I$(top_srcdir)/hw/kdrive/linux'
     KDRIVE_INCS="$KDRIVE_PURE_INCS $KDRIVE_OS_INC"
-    
+
     KDRIVE_CFLAGS="$XSERVER_CFLAGS -DHAVE_KDRIVE_CONFIG_H $TSLIB_CFLAGS"
 
     KDRIVE_PURE_LIBS="$FB_LIB $MI_LIB $FIXES_LIB $XEXT_LIB $DBE_LIB $RECORD_LIB $GLX_LIBS $RANDR_LIB $RENDER_LIB $DAMAGE_LIB $DRI3_LIB $PRESENT_LIB $MIEXT_SYNC_LIB $MIEXT_DAMAGE_LIB $MIEXT_SHADOW_LIB $XI_LIB $XKB_LIB $XKB_STUB_LIB $COMPOSITE_LIB $OS_LIB"
@@ -2493,6 +2495,24 @@ AM_CONDITIONAL(KDRIVEFBDEV, [test "x$XFBDEV" = xyes])
 AM_CONDITIONAL(XEPHYR, [test "x$KDRIVE" = xyes && test "x$XEPHYR" = xyes])
 AM_CONDITIONAL(BUILD_KDRIVEFBDEVLIB, [test "x$KDRIVE" = xyes && test "x$KDRIVEFBDEVLIB" = xyes])
 AM_CONDITIONAL(XFAKESERVER, [test "x$KDRIVE" = xyes && test "x$XFAKE" = xyes])
+AM_CONDITIONAL(XARCANSERVER, [test "x$KDRIVE" = xyes && test "x$XARCAN" = xyes])
+
+if test "x$XARCAN_ACCEL" = xno; then
+XARCANMODULES="arcan-shmif"
+else
+AC_DEFINE(XARCAN_HAS_EXT, 1, [Have arcan-shmif-ext])
+XARCANMODULES="arcan-shmif-ext"
+fi
+
+PKG_CHECK_MODULES(XARCANMODULES, [$XARCANMODULES], [have_xarcan=yes], [have_xarcan=no])
+AC_MSG_CHECKING([whether to build Kdrive arcan])
+if test "x$XARCAN" = xyes; then
+	if test "xhave_xarcan" = xno; then
+		AC_MSG_ERROR([Xarcan build explicitly requested, but required modules not found.])
+	fi
+	XARCAN_LIBS="$XARCANMODULES"
+fi
+AC_MSG_RESULT([$XARCAN])
 
 dnl Xwayland DDX
 
@@ -2531,7 +2551,7 @@ fi
 
 
 dnl and the rest of these are generic, so they're in config.h
-dnl 
+dnl
 dnl though, thanks to the passing of some significant amount of time, the
 dnl above is probably a complete fallacy, and you should not rely on it.
 dnl but this is still actually better than imake, honest. -daniels
@@ -2673,6 +2693,7 @@ hw/xquartz/xpr/Makefile
 hw/kdrive/Makefile
 hw/kdrive/ephyr/Makefile
 hw/kdrive/ephyr/man/Makefile
+hw/kdrive/arcan/Makefile
 hw/kdrive/fake/Makefile
 hw/kdrive/fbdev/Makefile
 hw/kdrive/linux/Makefile

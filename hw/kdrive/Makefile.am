@@ -2,6 +2,10 @@ if BUILD_KDRIVEFBDEVLIB
 FBDEV_SUBDIRS = fbdev
 endif
 
+if XARCANSERVER
+XARCAN_SUBDIRS = arcan
+endif
+
 if XFAKESERVER
 XFAKE_SUBDIRS = fake
 endif
@@ -16,6 +20,7 @@ endif
 
 SERVER_SUBDIRS = 		\
 	$(FBDEV_SUBDIRS)	\
+	$(XARCAN_SUBDIRS)  \
 	$(XEPHYR_SUBDIRS)       \
 	$(XFAKE_SUBDIRS)
 
@@ -24,7 +29,7 @@ SUBDIRS =			\
 	$(LINUX_SUBDIRS)	\
 	$(SERVER_SUBDIRS)
 
-DIST_SUBDIRS = fbdev ephyr src linux fake
+DIST_SUBDIRS = fbdev ephyr src linux fake arcan
 
 relink:
 	$(AM_V_at)for i in $(SERVER_SUBDIRS) ; do $(MAKE) -C $$i relink || exit 1 ; done
