@@ -28,6 +28,7 @@
 #include <kdrive-config.h>
 
 #include "kdrive.h"
+#include "damage.h"
 
 #ifdef RANDR
 #include "randrstr.h"
@@ -43,6 +44,7 @@ typedef struct _arcanScrPriv {
     Rotation randr;
     Bool shadow;
 		ScreenBlockHandlerProcPtr BlockHandler;
+    DamagePtr damage;
 } arcanScrPriv;
 
 typedef struct _arcanInput {

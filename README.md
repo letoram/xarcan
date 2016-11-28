@@ -13,7 +13,8 @@ Compilation
 ====
 Normal autohell style compilation. Relevant compilation flags are:
     --enable-kdrive --enable-xarcan --disable-xorg --disable-xwayland
-		--disable-xfvb --enable-glamor --enable-glx --no-create --no-recursion
+    --disable-xvfb --enable-glamor --enable-glx --no-create --no-recursion
+    make -C ./src/hw/kdrive/arcan
 
 Though a ton of other X features (e.g. fonts etc.) could also be disabled,
 if you find a better set of compilation options for a feature- complete yet
@@ -23,6 +24,10 @@ Use
 ====
 From a terminal with access to connection primitives (env: ARCAN\_CONNPATH),
 just run hw/kdrive/arcan/Xarcan to start bridging connections.
+
+For multiple instances, you can add :1 (and set DISPLAY=:1 etc. accordingly)
+and so one, forcing size with -screen 800x600 -no-dynamic. The title and
+identiy can be scriptably controlled with -aident identstr -atitle titlestr
 
 Limitations
 ====
@@ -41,9 +46,12 @@ TODO
 There are still a number of TODOs before all X clients can be successfully
 bridged, here are the current big points:
 
-- [ ] Damage- Regions
+- [x] Damage- Regions
 - [ ] Framebuffer-GL handle mapping
 - [ ] Randr/DISPLAYHINT resizing
+- [ ] Touch Input Mapping
+- [ ] Joystick Input Mapping
+- [ ] Gamma Control Bridging
 - [ ] Synchronization
         - [ ] Accelerated Cursor
         - [ ] Glamor/dri3

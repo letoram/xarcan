@@ -94,8 +94,7 @@ arcanScreenInitialize(KdScreenInfo * screen, arcanScrPriv * scrpriv)
 
 #define Mask(o,l)   (((1 << l) - 1) << o)
     screen->rate = 60;
-    screen->fb.shadow = true;
-    screen->fb.depth = 24;
+    screen->fb.depth = 32;
     screen->fb.bitsPerPixel = 32;
     screen->fb.redMask = SHMIF_RGBA(0xff, 0x00, 0x00, 0x00);
     screen->fb.greenMask = SHMIF_RGBA(0x00, 0xff, 0x00, 0x00);
@@ -275,6 +274,56 @@ arcanScreenInit(KdScreenInfo * screen)
     return TRUE;
 }
 
+static void arcanInternalDamageRedisplay(ScreenPtr pScreen)
+{
+    KdScreenPriv(pScreen);
+    KdScreenInfo *screen = pScreenPriv->screen;
+    arcanScrPriv *scrpriv = screen->driver;
+    RegionPtr region = DamageRegion(scrpriv->damage);
+    BoxPtr box;
+
+    if (!RegionNotEmpty(region))
+        return;
+
+    box = RegionExtents(region);
+    scrpriv->acon->dirty.x1 = box->x1;
+    scrpriv->acon->dirty.x2 = box->x2;
+    scrpriv->acon->dirty.y1 = box->y1;
+    scrpriv->acon->dirty.y2 = box->y2;
+
+    arcan_shmif_signal(scrpriv->acon, SHMIF_SIGVID | SHMIF_SIGBLK_NONE );
+		DamageEmpty(scrpriv->damage);
+}
+
+static Bool arcanSetInternalDamage(ScreenPtr pScreen)
+{
+    KdScreenPriv(pScreen);
+    KdScreenInfo *screen = pScreenPriv->screen;
+    arcanScrPriv *scrpriv = screen->driver;
+    PixmapPtr pPixmap = NULL;
+
+    scrpriv->damage = DamageCreate((DamageReportFunc) 0,
+                                   (DamageDestroyFunc) 0,
+                                   DamageReportNone, TRUE, pScreen, pScreen);
+
+    pPixmap = (*pScreen->GetScreenPixmap) (pScreen);
+
+    DamageRegister(&pPixmap->drawable, scrpriv->damage);
+    DamageSetReportAfterOp(scrpriv->damage, TRUE);
+
+    return TRUE;
+}
+
+static void arcanUnsetInternalDamage(ScreenPtr pScreen)
+{
+    KdScreenPriv(pScreen);
+    KdScreenInfo *screen = pScreenPriv->screen;
+    arcanScrPriv *scrpriv = screen->driver;
+
+    DamageDestroy(scrpriv->damage);
+    scrpriv->damage = NULL;
+}
+
 void *
 arcanWindowLinear(ScreenPtr pScreen,
                  CARD32 row,
@@ -336,16 +385,6 @@ arcanUnmapFramebuffer(KdScreenInfo * screen)
     free(priv->base);
     priv->base = NULL;
     return TRUE;
-}
-
-Bool
-arcanSetShadow(ScreenPtr pScreen)
-{
-    KdScreenPriv(pScreen);
-    KdScreenInfo *screen = pScreenPriv->screen;
-    arcanScrPriv *scrpriv = screen->driver;
-
-    return KdShadowSet(pScreen, scrpriv->randr, NULL, arcanWindowLinear);
 }
 
 static int
@@ -487,12 +526,12 @@ arcanRandRSetConfig(ScreenPtr pScreen,
     if (!arcanMapFramebuffer(screen))
         goto bail4;
 
-    KdShadowUnset(screen->pScreen);
-
-    if (!arcanSetShadow(screen->pScreen))
-        goto bail4;
+    arcanUnsetInternalDamage(pScreen);
 
     arcanSetScreenSizes(screen->pScreen);
+
+    if (!arcanSetInternalDamage(screen->pScreen))
+        goto bail4;
 
     /*
      * Set frame buffer mapping
@@ -553,11 +592,16 @@ arcanScreenBlockHandler(ScreenPtr pScreen, void* timeout)
  * This one is rather unfortunate as it seems to be called 'whenever'
  * and we don't know the synch- state of the contents in the buffer
  */
+
     pScreen->BlockHandler = scrpriv->BlockHandler;
-    arcan_shmif_signal(scrpriv->acon, SHMIF_SIGVID | SHMIF_SIGBLK_NONE );
     (*pScreen->BlockHandler)(pScreen, timeout);
     scrpriv->BlockHandler = pScreen->BlockHandler;
     pScreen->BlockHandler = arcanScreenBlockHandler;
+
+    if (scrpriv->damage)
+        arcanInternalDamageRedisplay(pScreen);
+    else
+        arcan_shmif_signal(scrpriv->acon, SHMIF_SIGVID | SHMIF_SIGBLK_NONE );
 }
 
 Bool
@@ -580,9 +624,6 @@ arcanFinishInitScreen(ScreenPtr pScreen)
     KdScreenInfo *screen = pScreenPriv->screen;
     arcanScrPriv *scrpriv = screen->driver;
 
-    if (!shadowSetup(pScreen))
-        return FALSE;
-
 #ifdef RANDR
     if (!arcanRandRInit(pScreen))
         return FALSE;
@@ -597,7 +638,7 @@ arcanFinishInitScreen(ScreenPtr pScreen)
 Bool
 arcanCreateResources(ScreenPtr pScreen)
 {
-    return arcanSetShadow(pScreen);
+    return arcanSetInternalDamage(pScreen);
 }
 
 void
@@ -654,7 +695,6 @@ arcanScreenFini(KdScreenInfo * screen)
 {
         struct arcan_shmif_cont* con = arcan_shmif_primary(SHMIF_INPUT);
         con->user = NULL;
-        printf("screen finish\n");
 }
 
 static Status
@@ -719,11 +759,17 @@ arcanCardFini(KdCardInfo * card)
 void
 arcanCloseScreen(ScreenPtr pScreen)
 {
+    arcanUnsetInternalDamage(pScreen);
 }
 
 void
 arcanPutColors(ScreenPtr pScreen, int n, xColorItem * pdefs)
 {
+/*
+ * FIXME:
+ * should probably forward some cmap_entry thing and invalidate
+ * the entire region. Somewhat unsure how this actually works
+ */
 }
 
 void
