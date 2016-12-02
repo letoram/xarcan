@@ -72,9 +72,12 @@ Bool
 arcanScreenInitialize(KdScreenInfo * screen, arcanScrPriv * scrpriv)
 {
     static struct arcan_shmif_initial* init;
+    scrpriv->acon->hints = SHMIF_RHINT_SUBREGION | SHMIF_RHINT_IGNORE_ALPHA;
     if (!screen->width || !screen->height) {
         screen->width = scrpriv->acon->w;
         screen->height = scrpriv->acon->h;
+/* we still need to synch the changes in display flags */
+        arcan_shmif_resize(scrpriv->acon, screen->width, screen->height);
     }
     else {
         if (!arcan_shmif_resize(scrpriv->acon, screen->width, screen->height)){
@@ -282,9 +285,26 @@ static void arcanInternalDamageRedisplay(ScreenPtr pScreen)
     RegionPtr region = DamageRegion(scrpriv->damage);
     BoxPtr box;
 
-    if (!RegionNotEmpty(region))
+/* Two complications here:
+ * 1. there seem to be no good synch- hook for knowing if there are any
+ * other pending updates and so on, we are just fumbling in the dark here.
+ *
+ * 2. two, if we have to early out because of a pending synch, we are not
+ * in control when we will be triggered the next time, meaning that some
+ * updates may have a notable delay. The option then is to make a CLOCKREQ
+ * for a vframe- deliver clock, and in the event handler check our damage
+ * and if so, try to synch again. Careful with the chances that I/O event
+ * loop (so our shmif_pool) are running in another thread.
+ */
+    if (!RegionNotEmpty(region) || scrpriv->acon->addr->vready)
         return;
 
+/*
+ * We don't use fine-grained dirty regions really, the data gathered gave
+ * quite few benefits as cases with many dirty regions quickly exceeded the
+ * magic ratio where subtex- update vs full texture update tipped in favor
+ * of the latter.
+ */
     box = RegionExtents(region);
     scrpriv->acon->dirty.x1 = box->x1;
     scrpriv->acon->dirty.x2 = box->x2;
@@ -304,7 +324,8 @@ static Bool arcanSetInternalDamage(ScreenPtr pScreen)
 
     scrpriv->damage = DamageCreate((DamageReportFunc) 0,
                                    (DamageDestroyFunc) 0,
-                                   DamageReportNone, TRUE, pScreen, pScreen);
+                                   DamageReportBoundingBox,
+                                   TRUE, pScreen, pScreen);
 
     pPixmap = (*pScreen->GetScreenPixmap) (pScreen);
 
