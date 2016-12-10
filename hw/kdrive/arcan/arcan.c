@@ -28,6 +28,14 @@
 #include <kdrive-config.h>
 #endif
 
+#ifdef GLAMOR
+#include "glamor.h"
+#include "glamor_context.h"
+#include "glamor_egl.h"
+#include "dri3.h"
+static int arcanGlamor = 1;
+#endif
+
 #include "arcan.h"
 #include <X11/keysym.h>
 
@@ -282,8 +290,13 @@ static void arcanInternalDamageRedisplay(ScreenPtr pScreen)
     KdScreenPriv(pScreen);
     KdScreenInfo *screen = pScreenPriv->screen;
     arcanScrPriv *scrpriv = screen->driver;
-    RegionPtr region = DamageRegion(scrpriv->damage);
+    RegionPtr region;
     BoxPtr box;
+
+    if (!pScreen)
+        return;
+
+    region = DamageRegion(scrpriv->damage);
 
 /* Two complications here:
  * 1. there seem to be no good synch- hook for knowing if there are any
@@ -311,6 +324,13 @@ static void arcanInternalDamageRedisplay(ScreenPtr pScreen)
     scrpriv->acon->dirty.y1 = box->y1;
     scrpriv->acon->dirty.y2 = box->y2;
 
+#ifdef GLAMOR
+    if (arcanGlamor){
+        printf("fixme, synch glamor drawing(maybe glamor_gbm_bo_from_pixmap)\n");
+        DamageEmpty(scrpriv->damage);
+    }
+    else
+#endif
     arcan_shmif_signal(scrpriv->acon, SHMIF_SIGVID | SHMIF_SIGBLK_NONE );
 		DamageEmpty(scrpriv->damage);
 }
@@ -343,6 +363,33 @@ static void arcanUnsetInternalDamage(ScreenPtr pScreen)
 
     DamageDestroy(scrpriv->damage);
     scrpriv->damage = NULL;
+}
+
+static
+Bool arcanGlamorCreateScreenResources(ScreenPtr pScreen)
+{
+#ifdef GLAMOR
+    KdScreenPriv(pScreen);
+    KdScreenInfo *screen = pScreenPriv->screen;
+    arcanScrPriv *scrpriv = screen->driver;
+    PixmapPtr oldpix, newpix;
+
+    oldpix = pScreen->GetScreenPixmap(pScreen);
+    pScreen->DestroyPixmap(oldpix);
+    newpix = pScreen->CreatePixmap(pScreen,
+                                   pScreen->width,
+                                   pScreen->height,
+                                   pScreen->rootDepth,
+                                   GLAMOR_CREATE_NO_LARGE);
+    scrpriv->tex = glamor_get_pixmap_texture(newpix);
+    glamor_set_screen_pixmap(newpix, NULL);
+/*
+ * Note: should we double buffer or something here?
+ */
+
+    return TRUE;
+#endif
+    return FALSE;
 }
 
 void *
@@ -547,6 +594,13 @@ arcanRandRSetConfig(ScreenPtr pScreen,
     if (!arcanMapFramebuffer(screen))
         goto bail4;
 
+#ifdef GLAMOR
+    if (arcanGlamor){
+        arcan_shmifext_make_current(scrpriv->acon);
+        arcanGlamorCreateScreenResources(pScreen);
+    }
+#endif
+
     arcanUnsetInternalDamage(pScreen);
 
     arcanSetScreenSizes(screen->pScreen);
@@ -602,6 +656,68 @@ arcanRandRInit(ScreenPtr pScreen)
 }
 #endif
 
+#ifdef GLAMOR
+static
+void arcanGlamorEglMakeCurrent(struct glamor_context *ctx)
+{
+    arcan_shmifext_make_current((struct arcan_shmif_cont*) ctx->ctx);
+}
+
+int glamor_egl_dri3_fd_name_from_tex(ScreenPtr screen,
+                                     PixmapPtr pixmap,
+                                     unsigned int tex,
+                                     Bool want_name, CARD16 *stride, CARD32 *size)
+{
+    return 0;
+}
+
+void arcanGlamorEnable(ScreenPtr pScreen)
+{
+}
+
+void arcanGlamorDisable(ScreenPtr pScreen)
+{
+}
+
+void arcanGlamorFini(ScreenPtr pScreen)
+{
+    KdScreenPriv(pScreen);
+    KdScreenInfo *screen = pScreenPriv->screen;
+    arcanScrPriv *scrpriv = screen->driver;
+/* arcan_shmifext_drop(scrpriv->acon); */
+    glamor_fini(pScreen);
+}
+
+Bool arcanGlamorInit(ScreenPtr pScreen)
+{
+    KdScreenPriv(pScreen);
+    KdScreenInfo *screen = pScreenPriv->screen;
+    arcanScrPriv *scrpriv = screen->driver;
+
+/* It may be better to create a subsurface that we escalate to GL, and map
+ * the placement of this surface relative to the display similar to old-style
+ * overlays. */
+
+    struct arcan_shmifext_setup defs = arcan_shmifext_defaults(scrpriv->acon);
+    defs.depth = 0;
+    defs.alpha = 0;
+/* for nouveau, I had to disable these and push to 2.1 - possible MESA bug */
+    defs.major = GLAMOR_GL_CORE_VER_MAJOR;
+    defs.major = GLAMOR_GL_CORE_VER_MINOR;
+    defs.mask = EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT_KHR;
+    defs.builtin_fbo = false;
+    if (SHMIFEXT_OK != arcan_shmifext_setup(scrpriv->acon, defs)){
+        ErrorF("xarcan/glamor::init() - Failed to extend to EGL context");
+        return FALSE;
+    }
+#ifdef XV
+/*    arcanGlamorXvInit(pScreen);  */
+#endif
+    return TRUE;
+}
+#endif
+
+#endif
 static void
 arcanScreenBlockHandler(ScreenPtr pScreen, void* timeout)
 {

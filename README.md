@@ -13,7 +13,7 @@ Compilation
 ====
 Normal autohell style compilation. Relevant compilation flags are:
     --enable-kdrive --enable-xarcan --disable-xorg --disable-xwayland
-    --disable-xvfb --enable-glamor --enable-glx --no-create --no-recursion
+    --disable-xvfb --enable-glamor --enable-glx
     make -C ./src/hw/kdrive/arcan
 
 Though a ton of other X features (e.g. fonts etc.) could also be disabled,
@@ -52,14 +52,12 @@ bridged, here are the current big points:
 - [ ] Touch Input Mapping
 - [ ] Joystick Input Mapping
 - [ ] Gamma Control Bridging
-- [ ] Synchronization
-        - [ ] Accelerated Cursor
-        - [ ] Glamor/dri3
-    - [ ] Normal drawing
-    - [ ] Xv
-    - [ ] GLX
-    - [ ] Clipboard Integration
-        - [ ] Pasteboard
-        - [ ] Text
-        - [ ] Bchunk
-        - [ ] Video
+- [ ] Accelerated Cursor
+- [ ] Glamor/dri3
+- [ ] Normal drawing
+- [ ] Xv
+- [ ] GLX
+- [ ] epoxy patching (or switch gl* calls to use agp-fenv)
+      -[ ] overridable lookup function (map to shmifext-)
+      -[ ] invalidate / replace
+- [ ] Clipboard Integration
