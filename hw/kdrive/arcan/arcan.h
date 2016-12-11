@@ -43,7 +43,8 @@ typedef struct _arcanScrPriv {
     struct arcan_shmif_cont * acon;
     Rotation randr;
     Bool shadow;
-		ScreenBlockHandlerProcPtr BlockHandler;
+    ScreenBlockHandlerProcPtr BlockHandler;
+    ScreenPtr screen;
     DamagePtr damage;
 } arcanScrPriv;
 
