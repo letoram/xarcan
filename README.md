@@ -27,7 +27,7 @@ just run hw/kdrive/arcan/Xarcan to start bridging connections.
 
 For multiple instances, you can add :1 (and set DISPLAY=:1 etc. accordingly)
 and so one, forcing size with -screen 800x600 -no-dynamic. The title and
-identiy can be scriptably controlled with -aident identstr -atitle titlestr
+identity can be scriptably controlled with -aident identstr -atitle titlestr
 
 Limitations
 ====
@@ -48,16 +48,22 @@ bridged, here are the current big points:
 
 - [x] Damage- Regions
 - [ ] Framebuffer-GL handle mapping
-- [ ] Randr/DISPLAYHINT resizing
+- [x] Randr/DISPLAYHINT resizing
 - [ ] Touch Input Mapping
 - [ ] Joystick Input Mapping
 - [ ] Gamma Control Bridging
+- [ ] Synchronization
 - [ ] Accelerated Cursor
 - [ ] Glamor/dri3
 - [ ] Normal drawing
 - [ ] Xv
 - [ ] GLX
-- [ ] epoxy patching (or switch gl* calls to use agp-fenv)
-      -[ ] overridable lookup function (map to shmifext-)
-      -[ ] invalidate / replace
+- [ ] epoxy patching (or switch gl calls to use agp-fenv)
+    - [ ] overridable lookup function (map to shmifext-)
+    - [ ] invalidate / replace
+- [ ] Gamma Translation
 - [ ] Clipboard Integration
+    - [ ] Pasteboard
+    - [ ] Text
+    - [ ] Bchunk
+    - [ ] Video

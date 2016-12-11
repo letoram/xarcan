@@ -198,6 +198,46 @@ TranslateInput(struct arcan_shmif_cont* con, arcan_ioevent* ev, int* x, int* y)
   }
 }
 
+#ifdef RANDR
+static Bool
+arcanRandRScreenResize(ScreenPtr pScreen,
+    CARD16 width, CARD16 height, CARD32 mmWidth, CARD32 mmHeight);
+#else
+static Bool
+arcanRandRScreenResize(ScreenPtr pScreen,
+    CARD16 width, CARD16 height, CARD32 mmWidth, CARD32 mmHeight)
+{
+    return false;
+}
+#endif
+
+static
+void
+arcanDisplayHint(struct arcan_shmif_cont* con,
+                 int w, int h, int fl, int rgb, float ppcm)
+{
+    arcanScrPriv* apriv = con->user;
+    printf("resize: %d %d\n", w, h);
+    if (w >= 640 && h >= 480 && (con->w != w || con->h != h) && !(fl & 1)){
+        RRScreenSetSizeRange(apriv->screen,
+            640, 480, PP_SHMPAGE_MAXW, PP_SHMPAGE_MAXH);
+        arcanRandRScreenResize(apriv->screen,
+            w, h,
+            ppcm > 0 ? (float)w / (0.1 * ppcm) : 0,
+            ppcm > 0 ? (float)h / (0.1 * ppcm) : 0
+        );
+        return;
+    }
+/* NOTE:
+ * on focus lost or window hidden, should we just stop synching and
+ * waiting for it to return?
+ */
+
+/*
+ * we do want to inject 'modifiers lost' if focus is lost.
+ */
+}
+
 void
 arcanFlushEvents(int fd, void* tag)
 {
@@ -218,11 +258,11 @@ arcanFlushEvents(int fd, void* tag)
             case TARGET_COMMAND_RESET:
             break;
             case TARGET_COMMAND_DISPLAYHINT:
-/* Check if dynamic- resize is accepted, and if so, reconfigure randr etc.
- * to take the new dimensions into account. */
+                arcanDisplayHint(con,
+                    ev.tgt.ioevs[0].iv, ev.tgt.ioevs[1].iv,
+                    ev.tgt.ioevs[2].iv, ev.tgt.ioevs[3].iv, ev.tgt.ioevs[4].iv);
             break;
             case TARGET_COMMAND_OUTPUTHINT:
-/* send / reset modifiers when we lose focus */
             break;
             case TARGET_COMMAND_NEWSEGMENT:
 /* grab clipboard and match with X clipboard integration here, this can
@@ -268,7 +308,7 @@ arcanScreenInit(KdScreenInfo * screen)
     }
 
     scrpriv->acon = con;
-        con->user = scrpriv;
+    con->user = scrpriv;
 
     if (!scrpriv->acon){
         free(scrpriv);
@@ -440,10 +480,10 @@ arcanSetScreenSizes(ScreenPtr pScreen)
     if (init && init->density > 0)
         ind = init->density * 0.1;
 
-        pScreen->width = inw;
-        pScreen->height = inh;
-        pScreen->mmWidth = (float) inw / ind;
-        pScreen->mmHeight = (float) inh / ind;
+    pScreen->width = inw;
+    pScreen->height = inh;
+    pScreen->mmWidth = (float) inw / ind;
+    pScreen->mmHeight = (float) inh / ind;
 }
 
 Bool
@@ -534,7 +574,7 @@ arcanRandRGetInfo(ScreenPtr pScreen, Rotation * rotations)
     Rotation randr;
     int n;
 
-    *rotations = 0;
+    *rotations = RR_Rotate_0;
 
     for (n = 0; n < pScreen->numDepths; n++)
         if (pScreen->allowedDepths[n].numVids)
@@ -551,6 +591,32 @@ arcanRandRGetInfo(ScreenPtr pScreen, Rotation * rotations)
     RRSetCurrentConfig(pScreen, randr, 0, pSize);
 
     return TRUE;
+}
+
+static Bool
+arcanRandRScreenResize(ScreenPtr pScreen,
+    CARD16 width, CARD16 height, CARD32 mmWidth, CARD32 mmHeight)
+{
+    KdScreenPriv(pScreen);
+    KdScreenInfo *screen = pScreenPriv->screen;
+    RRScreenSize size = {0};
+
+    if (width == screen->width && height == screen->height)
+        return FALSE;
+
+    size.width = width;
+    size.height = height;
+    size.mmWidth = mmWidth;
+    size.mmHeight = mmHeight;
+
+    if (arcanRandRSetConfig(pScreen, screen->randr, 0, &size)){
+        RROutputPtr output = RRFirstOutput(pScreen);
+        if (!output)
+            return FALSE;
+        RROutputSetModes(output, NULL, 0, 0);
+    }
+
+    return FALSE;
 }
 
 Bool
@@ -625,6 +691,8 @@ arcanRandRSetConfig(ScreenPtr pScreen,
     if (wasEnabled)
         KdEnableScreen(pScreen);
 
+    RRScreenSizeNotify(pScreen);
+
     return TRUE;
 
  bail4:
@@ -644,7 +712,11 @@ arcanRandRSetConfig(ScreenPtr pScreen,
 Bool
 arcanRandRInit(ScreenPtr pScreen)
 {
+    KdScreenPriv(pScreen);
     rrScrPrivPtr pScrPriv;
+    KdScreenInfo *screen = pScreenPriv->screen;
+    arcanScrPriv *scrpriv = screen->driver;
+    scrpriv->screen = pScreen;
 
     if (!RRScreenInit(pScreen))
         return FALSE;
@@ -652,6 +724,12 @@ arcanRandRInit(ScreenPtr pScreen)
     pScrPriv = rrGetScrPriv(pScreen);
     pScrPriv->rrGetInfo = arcanRandRGetInfo;
     pScrPriv->rrSetConfig = arcanRandRSetConfig;
+
+    RRScreenSetSizeRange(pScreen, 640, 480, PP_SHMPAGE_MAXW, PP_SHMPAGE_MAXH);
+
+#if RANDR_12_INTERFACE
+    pScrPriv->rrScreenSetSize = arcanRandRScreenResize;
+#endif
     return TRUE;
 }
 #endif
@@ -738,7 +816,7 @@ arcanScreenBlockHandler(ScreenPtr pScreen, void* timeout)
     if (scrpriv->damage)
         arcanInternalDamageRedisplay(pScreen);
     else
-        arcan_shmif_signal(scrpriv->acon, SHMIF_SIGVID | SHMIF_SIGBLK_NONE );
+        arcan_shmif_signal(scrpriv->acon, SHMIF_SIGVID | SHMIF_SIGBLK_NONE);
 }
 
 Bool

@@ -59,6 +59,9 @@ InitInput(int argc, char **argv)
     if (con){
         KdRegisterFd(con->epipe, (void*) arcanFlushEvents, con);
     }
+    else {
+        ErrorF("kdrive:arcan - No Primary Segment during InitInput\n");
+    }
 }
 
 void
