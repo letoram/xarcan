@@ -86,13 +86,54 @@ ddxUseMsg(void)
 {
     KdUseMsg();
     ErrorF("\nXarcan Option Usage:\n");
-    ErrorF("-aident [str] Set window dynamic identity\n");
-    ErrorF("-atitle [str] Set window static identity\n");
+    ErrorF("-nodynamic             Disable connection-controlled resize\n");
+    ErrorF("-aident [str]          Set window dynamic identity\n");
+    ErrorF("-atitle [str]          Set window static identity\n");
+    ErrorF("-glamor                Enable glamor rendering\n");
 }
 
 int
 ddxProcessArgument(int argc, char **argv, int i)
 {
+    if (strcmp(argv[i], "-glamor") == 0){
+		arcanGlamor = 1;
+        arcanFuncs.initAccel = arcanGlamorInit;
+        arcanFuncs.enableAccel = arcanGlamorEnable;
+        arcanFuncs.disableAccel = arcanGlamorDisable;
+        arcanFuncs.finiAccel = arcanGlamorFini;
+        return 1;
+    }
+    else if (strcmp(argv[i], "-aident") == 0){
+        if ((i+1) < argc){
+            return 2;
+        }
+        arcanConfigPriv.ident = strdup(argv[i+1]);
+        ddxUseMsg();
+        exit(1);
+    }
+    else if (strcmp(argv[i], "-atitle") == 0){
+        if ((i+1) < argc){
+            return 2;
+        }
+        arcanConfigPriv.title = strdup(argv[i+1]);
+        ddxUseMsg();
+        exit(1);
+    }
+    else if (strcmp(argv[i], "-nodynamic") == 0){
+        arcanConfigPriv.no_dynamic_resize = true;
+        return 1;
+    }
+/*
+ *  should incur a switch to a shadow framebuffer etc.
+    else if (strcmp(argv[i], "-dbuf") == 0){
+        arcanConfigPriv.double_buffer = true;
+        return 1;
+    }
+    else if (strcmp(argv[i], "-dbuf-txpass") == 0){
+        arcanConfigPriv.double_buffer_accel = true;
+        return 1;
+    }
+ */
     return KdProcessArgument(argc, argv, i);
 }
 

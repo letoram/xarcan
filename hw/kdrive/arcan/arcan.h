@@ -42,10 +42,16 @@ typedef struct _arcanPriv {
 typedef struct _arcanScrPriv {
     struct arcan_shmif_cont * acon;
     Rotation randr;
-    Bool shadow;
     ScreenBlockHandlerProcPtr BlockHandler;
+    CreateScreenResourcesProcPtr CreateScreenResources;
     ScreenPtr screen;
     DamagePtr damage;
+
+    Bool in_glamor;
+    int fd;
+    CARD16 stride;
+    CARD32 size;
+    int format;
 } arcanScrPriv;
 
 typedef struct _arcanInput {
@@ -56,10 +62,13 @@ typedef struct _arcanInput {
 typedef struct _arcanConfig {
 	const char* title;
 	const char* ident;
-	bool dynamic_size;
-	bool accel;
-	bool hwcursor;
+    Bool glamor;
+    Bool no_dynamic_resize;
+    Bool double_buffer;
+    Bool double_buffer_accel;
 } arcanConfig;
+
+extern int arcanGlamor;
 
 extern arcanInput arcanInputPriv;
 
