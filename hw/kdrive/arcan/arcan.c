@@ -33,9 +33,9 @@
 #include "glamor_context.h"
 #include "glamor_egl.h"
 #include "dri3.h"
-static int arcanGlamor = 1;
 #endif
 
+#define WANT_ARCAN_SHMIF_HELPER
 #include "arcan.h"
 #include <X11/keysym.h>
 
@@ -49,6 +49,9 @@ static int arcanGlamor = 1;
 
 arcanInput arcanInputPriv;
 arcanConfig arcanConfigPriv;
+int arcanGlamor;
+
+static uint8_t code_tbl[512];
 
 Bool
 arcanInitialize(KdCardInfo * card, arcanPriv * priv)
@@ -193,6 +196,7 @@ TranslateInput(struct arcan_shmif_cont* con, arcan_ioevent* ev, int* x, int* y)
         }
     }
     else if (ev->datatype == EVENT_IDATATYPE_TRANSLATED){
+        code_tbl[ev->input.translated.scancode % 512] = ev->input.translated.active;
         KdEnqueueKeyboardEvent(arcanInputPriv.ki, ev->input.translated.scancode,
             !ev->input.translated.active);
   }
@@ -217,7 +221,20 @@ arcanDisplayHint(struct arcan_shmif_cont* con,
                  int w, int h, int fl, int rgb, float ppcm)
 {
     arcanScrPriv* apriv = con->user;
-    printf("resize: %d %d\n", w, h);
+
+/* release on focus loss */
+    if (fl & 4){
+        for (size_t i = 0; i < sizeof(code_tbl) / sizeof(code_tbl[0]); i++){
+            if (code_tbl[i]){
+                KdEnqueueKeyboardEvent(arcanInputPriv.ki, i, 1);
+                code_tbl[i] = 0;
+            }
+        }
+    }
+
+    if (arcanConfigPriv.no_dynamic_resize)
+        return;
+
     if (w >= 640 && h >= 480 && (con->w != w || con->h != h) && !(fl & 1)){
         RRScreenSetSizeRange(apriv->screen,
             640, 480, PP_SHMPAGE_MAXW, PP_SHMPAGE_MAXH);
@@ -365,8 +382,9 @@ static void arcanInternalDamageRedisplay(ScreenPtr pScreen)
     scrpriv->acon->dirty.y2 = box->y2;
 
 #ifdef GLAMOR
-    if (arcanGlamor){
-        printf("fixme, synch glamor drawing(maybe glamor_gbm_bo_from_pixmap)\n");
+    if (scrpriv->in_glamor){
+        arcan_shmif_signalhandle(scrpriv->acon, SHMIF_SIGVID,
+            scrpriv->fd, scrpriv->stride, scrpriv->format);
         DamageEmpty(scrpriv->damage);
     }
     else
@@ -409,23 +427,49 @@ static
 Bool arcanGlamorCreateScreenResources(ScreenPtr pScreen)
 {
 #ifdef GLAMOR
+/* XWayland:
+ * 1. krokar CreateScreenResources och k;r
+ * 2. rootless? fbCreatePixmap,
+ *    annars, xwl_glamor_create_pixmap och sen set_screen_pixmap
+ *    sen SetRootClip
+ *
+ *    create_pixmap:
+ *     om ok, gbm_bo_create(...)
+ *     darefter xwl_glamor_create_pixmap_for_bo
+ *     annars glamor_create_pixmap:
+ *       - create_pixmap med GLAMOR_CREATE_PIXMAP_NO_TEXTURE
+ *       - satt context
+ *       eglCreateImageKHR + track
+ *
+ *       option: glamor_sharable_fd_from_pixmap
+ *
+ *       then we have front/back pixmaps
+ *       CREATE_PIXMAP_USAGE_SHARED
+ *
+ */
+
     KdScreenPriv(pScreen);
     KdScreenInfo *screen = pScreenPriv->screen;
     arcanScrPriv *scrpriv = screen->driver;
     PixmapPtr oldpix, newpix;
 
+	scrpriv->CreateScreenResources(pScreen);
     oldpix = pScreen->GetScreenPixmap(pScreen);
     pScreen->DestroyPixmap(oldpix);
     newpix = pScreen->CreatePixmap(pScreen,
                                    pScreen->width,
                                    pScreen->height,
                                    pScreen->rootDepth,
-                                   GLAMOR_CREATE_NO_LARGE);
-    scrpriv->tex = glamor_get_pixmap_texture(newpix);
+                                   CREATE_PIXMAP_USAGE_SHARED);
+
+
     glamor_set_screen_pixmap(newpix, NULL);
-/*
- * Note: should we double buffer or something here?
- */
+    scrpriv->fd = glamor_fd_from_pixmap(pScreen, newpix,
+        &scrpriv->stride, &scrpriv->size);
+    if (-1 == scrpriv->fd){
+        ErrorF("arcanGlamorCreateScreenResources() -- couldn't get dri3-fd");
+        return FALSE;
+    }
 
     return TRUE;
 #endif
@@ -455,10 +499,14 @@ arcanMapFramebuffer(KdScreenInfo * screen)
     KdComputePointerMatrix(&m, scrpriv->randr, screen->width, screen->height);
     KdSetPointerMatrix(&m);
 
-    screen->fb.byteStride = scrpriv->acon->stride;
-    screen->fb.pixelStride = scrpriv->acon->pitch;
-    screen->fb.frameBuffer = (CARD8 *) (scrpriv->acon->vidp);
-
+    if (scrpriv->in_glamor){
+        screen->fb.frameBuffer = NULL;
+    }
+    else {
+        screen->fb.byteStride = scrpriv->acon->stride;
+        screen->fb.pixelStride = scrpriv->acon->pitch;
+        screen->fb.frameBuffer = (CARD8 *) (scrpriv->acon->vidp);
+    }
     return TRUE;
 }
 
@@ -660,16 +708,17 @@ arcanRandRSetConfig(ScreenPtr pScreen,
     if (!arcanMapFramebuffer(screen))
         goto bail4;
 
+    arcanUnsetInternalDamage(pScreen);
+
+    arcanSetScreenSizes(screen->pScreen);
+
 #ifdef GLAMOR
     if (arcanGlamor){
         arcan_shmifext_make_current(scrpriv->acon);
         arcanGlamorCreateScreenResources(pScreen);
     }
+    else{
 #endif
-
-    arcanUnsetInternalDamage(pScreen);
-
-    arcanSetScreenSizes(screen->pScreen);
 
     if (!arcanSetInternalDamage(screen->pScreen))
         goto bail4;
@@ -688,6 +737,7 @@ arcanRandRSetConfig(ScreenPtr pScreen,
     /* set the subpixel order */
 
     KdSetSubpixelOrder(pScreen, scrpriv->randr);
+    }
     if (wasEnabled)
         KdEnableScreen(pScreen);
 
@@ -746,25 +796,69 @@ int glamor_egl_dri3_fd_name_from_tex(ScreenPtr screen,
                                      unsigned int tex,
                                      Bool want_name, CARD16 *stride, CARD32 *size)
 {
+    printf("glamor_egl_dri3_fd_name_from_tex\n");
     return 0;
+}
+
+void
+glamor_egl_screen_init(ScreenPtr pScreen, struct glamor_context *glamor_ctx)
+{
+    KdScreenPriv(pScreen);
+    KdScreenInfo *screen = pScreenPriv->screen;
+    arcanScrPriv *scrpriv = screen->driver;
+    uintptr_t egl_disp = 0, egl_ctx = 0;
+    arcan_shmifext_egl_meta(scrpriv->acon, &egl_disp, NULL, &egl_ctx);
+
+    glamor_ctx->ctx = (void*)(scrpriv->acon);
+		    (EGLContext) egl_ctx;
+    glamor_ctx->display = (EGLDisplay) egl_disp;
+    glamor_ctx->make_current = arcanGlamorEglMakeCurrent;
+    arcan_shmifext_make_current(scrpriv->acon);
+/*
+ * something when this is done breaks damage regions
+ * glamor_enable_dri3(pScreen);
+ */
 }
 
 void arcanGlamorEnable(ScreenPtr pScreen)
 {
-}
+    KdScreenPriv(pScreen);
+    KdScreenInfo *screen = pScreenPriv->screen;
+    arcanScrPriv *scrpriv = screen->driver;
+    scrpriv->in_glamor = TRUE;
+ }
 
 void arcanGlamorDisable(ScreenPtr pScreen)
 {
-}
+    KdScreenPriv(pScreen);
+    KdScreenInfo *screen = pScreenPriv->screen;
+    arcanScrPriv *scrpriv = screen->driver;
+    scrpriv->in_glamor = FALSE;
+ }
 
 void arcanGlamorFini(ScreenPtr pScreen)
 {
     KdScreenPriv(pScreen);
     KdScreenInfo *screen = pScreenPriv->screen;
     arcanScrPriv *scrpriv = screen->driver;
-/* arcan_shmifext_drop(scrpriv->acon); */
+    arcan_shmifext_drop(scrpriv->acon);
     glamor_fini(pScreen);
 }
+
+static int dri3Open(ClientPtr client,
+                    ScreenPtr screen,
+                    RRProviderPtr provider,
+                    int *pfd)
+{
+/* provide the client with access to our render-node fd */
+    printf("dri3Open\n");
+    return BadAlloc;
+}
+
+static dri3_screen_info_rec dri3_info = {
+    .version = 1,
+    .open_client = dri3Open
+};
 
 Bool arcanGlamorInit(ScreenPtr pScreen)
 {
@@ -779,10 +873,12 @@ Bool arcanGlamorInit(ScreenPtr pScreen)
     struct arcan_shmifext_setup defs = arcan_shmifext_defaults(scrpriv->acon);
     defs.depth = 0;
     defs.alpha = 0;
-/* for nouveau, I had to disable these and push to 2.1 - possible MESA bug */
+/* with MESA, setting these (31, core profile) results in a failure deep in DRI2
+ * with screen->max_gl_core_version == 0 *
     defs.major = GLAMOR_GL_CORE_VER_MAJOR;
-    defs.major = GLAMOR_GL_CORE_VER_MINOR;
+    defs.minor = GLAMOR_GL_CORE_VER_MINOR;
     defs.mask = EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT_KHR;
+ */
     defs.builtin_fbo = false;
     if (SHMIFEXT_OK != arcan_shmifext_setup(scrpriv->acon, defs)){
         ErrorF("xarcan/glamor::init() - Failed to extend to EGL context");
@@ -791,11 +887,34 @@ Bool arcanGlamorInit(ScreenPtr pScreen)
 #ifdef XV
 /*    arcanGlamorXvInit(pScreen);  */
 #endif
+
+    if (glamor_init(pScreen, GLAMOR_USE_EGL_SCREEN)){
+        scrpriv->in_glamor = TRUE;
+        scrpriv->fd = -1;
+    }
+    else {
+        ErrorF("arcanGlamorInit() - failed to initialize glamor");
+        goto bail;
+    }
+
+    if (!dri3_screen_init(pScreen, &dri3_info)){
+        ErrorF("arcanGlamorInit() - failed to set DRI3");
+        arcan_shmifext_drop(scrpriv->acon);
+        goto bail;
+    }
+
+    scrpriv->CreateScreenResources = pScreen->CreateScreenResources;
+    pScreen->CreateScreenResources = arcanGlamorCreateScreenResources;
+
     return TRUE;
+bail:
+    arcan_shmifext_drop(scrpriv->acon);
+    scrpriv->in_glamor = FALSE;
+    scrpriv->fd = -1;
+    return FALSE;
 }
 #endif
 
-#endif
 static void
 arcanScreenBlockHandler(ScreenPtr pScreen, void* timeout)
 {
