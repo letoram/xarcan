@@ -26,7 +26,8 @@ From a terminal with access to connection primitives (env: ARCAN\_CONNPATH),
 just run hw/kdrive/arcan/Xarcan to start bridging connections.
 
 For multiple instances, you can add :1 (and set DISPLAY=:1 etc. accordingly)
-and so one, forcing size with -screen 800x600 -no-dynamic. The title and
+and so one, forcing size with -screen 800x600 -no-dynamic and enable glamor
+(GL rendering with handle passing( using -glamor (see issues). The title and
 identity can be scriptably controlled with -aident identstr -atitle titlestr
 
 Limitations
@@ -41,23 +42,35 @@ arcan appls like durden employ will not work here. The server only uses the
 raw OS keycodes mapped into the sanity absorbing black chasm that is Xkb. Use
 the normal Xserver arguments to pick whatever layout you need.
 
+Issues
+====
+There is still lots to do, the reasons Glamor/GLX are marked as p and not x
+right now:
+
+* GLX seem to pick software only here (0ad/glxgears really slow), might
+  be my MESA build/config but not sure.
+
+* glamor/glx restarts doesn't clean up properly and may SIGSEGV.
+
+* glamor buffer formats seem to mismatch (swapped R/B channels with broken
+  alpha).
+
 TODO
 ====
 There are still a number of TODOs before all X clients can be successfully
 bridged, here are the current big points:
+(x - done, p - partial)
 
 - [x] Damage- Regions
-- [ ] Framebuffer-GL handle mapping
 - [x] Randr/DISPLAYHINT resizing
 - [ ] Touch Input Mapping
 - [ ] Joystick Input Mapping
 - [ ] Gamma Control Bridging
-- [ ] Synchronization
+- [ ] Display-correct Synchronization timing
+  - [ ] DRI2-shmif-framebuffer-GL handle mapping
 - [ ] Accelerated Cursor
-- [ ] Glamor/dri3
-- [ ] Normal drawing
-- [ ] Xv
-- [ ] GLX
+- [p] Glamor/dri3
+- [p] GLX
 - [ ] epoxy patching (or switch gl calls to use agp-fenv)
     - [ ] overridable lookup function (map to shmifext-)
     - [ ] invalidate / replace
