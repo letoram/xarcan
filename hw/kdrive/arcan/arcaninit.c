@@ -24,6 +24,7 @@
 #include <kdrive-config.h>
 #endif
 #include "arcan.h"
+#include "glx_extinit.h"
 
 void
 InitCard(char *name)
@@ -31,9 +32,30 @@ InitCard(char *name)
     KdCardInfoAdd(&arcanFuncs, 0);
 }
 
+static const ExtensionModule arcanExtensions[] = {
+#ifdef GLXEXT
+	{ GlxExtensionInit, "GLX", &noGlxExtension }
+#endif
+};
+
 void
 InitOutput(ScreenInfo * pScreenInfo, int argc, char **argv)
 {
+    int depths[] = {1, 4, 8, 15, 16, 24, 32};
+    int bpp[] = {1, 8, 8, 16, 16, 32, 32};
+
+    for (int i = 0; i < 7; i++){
+        pScreenInfo->formats[i].depth = depths[i];
+        pScreenInfo->formats[i].bitsPerPixel = bpp[i];
+        pScreenInfo->formats[i].scanlinePad = BITMAP_SCANLINE_PAD;
+    }
+    pScreenInfo->imageByteOrder = IMAGE_BYTE_ORDER;
+    pScreenInfo->bitmapScanlineUnit = BITMAP_SCANLINE_UNIT;
+    pScreenInfo->bitmapScanlinePad = BITMAP_SCANLINE_PAD;
+    pScreenInfo->bitmapBitOrder = BITMAP_BIT_ORDER;
+    pScreenInfo->numPixmapFormats = ARRAY_SIZE(depths);
+
+    LoadExtensionList(arcanExtensions, ARRAY_SIZE(arcanExtensions), TRUE);
     KdInitOutput(pScreenInfo, argc, argv);
 }
 

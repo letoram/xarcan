@@ -48,7 +48,7 @@ typedef struct _arcanScrPriv {
     DamagePtr damage;
 
     Bool in_glamor;
-    int fd;
+    int tex;
     CARD16 stride;
     CARD32 size;
     int format;
