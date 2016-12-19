@@ -14,11 +14,12 @@ Compilation
 Normal autohell style compilation. Relevant compilation flags are:
     --enable-kdrive --enable-xarcan --disable-xorg --disable-xwayland
     --disable-xvfb --enable-glamor --enable-glx
-    make -C ./src/hw/kdrive/arcan
 
-Though a ton of other X features (e.g. fonts etc.) could also be disabled,
-if you find a better set of compilation options for a feature- complete yet
-tiny X server, send patches to this document :)
+pkg\_info need to find the normal arcan-shmif, arcan-shmifext libraries.
+
+Though a ton of other X features, could/should also be disabled.
+If you find a better set of compilation options for a feature- complete yet
+tiny X server, let me know.
 
 Use
 ====
@@ -35,7 +36,8 @@ Limitations
 The strategy used here is to contain all X clients within one logical window,
 for mapping single- client windows to corresponding Arcan primitives, the plan
 is still to go through Wayland/XWayland, though that is still somewhat
-uncertain.
+uncertain. The exception is if a DRI3 client goes full-screen, then the buffer
+we passed should switch to that one immediately.
 
 One big limitation is that the keyboard mapping/remapping features that some
 arcan appls like durden employ will not work here. The server only uses the
@@ -44,16 +46,20 @@ the normal Xserver arguments to pick whatever layout you need.
 
 Issues
 ====
-There is still lots to do, the reasons Glamor/GLX are marked as p and not x
+There is still lots to do. The reasons Glamor/GLX are marked as p and not x
 right now:
 
 * GLX seem to pick software only here (0ad/glxgears really slow), might
-  be my MESA build/config but not sure.
+  be my MESA build/config but not sure. If not, there's failures (crash amdgpu)
+	and missing opc on intel for 148:4 and 148:2.
 
-* glamor/glx restarts doesn't clean up properly and may SIGSEGV.
+* Lifecycle management during glamor, glx and randr resize is UAF prone, the
+  chaining-modifying callback pScreen "API" style really doesn't help.
 
-* glamor buffer formats seem to mismatch (swapped R/B channels with broken
-  alpha).
+* glamor buffer ouput formats seem to mismatch (swapped R/B channels with
+  broken alpha), can be worked around shader-side, but it should be fixed.
+	Somewhat weird that the format we get out from the bo seem to mismatch
+	on the other side, mesa bug?
 
 TODO
 ====

@@ -41,9 +41,11 @@ typedef struct _arcanPriv {
 
 typedef struct _arcanScrPriv {
     struct arcan_shmif_cont * acon;
+    struct arcan_shmif_initial init;
     Rotation randr;
     ScreenBlockHandlerProcPtr BlockHandler;
     CreateScreenResourcesProcPtr CreateScreenResources;
+    CloseScreenProcPtr CloseHandler;
     ScreenPtr screen;
     DamagePtr damage;
 
@@ -55,13 +57,13 @@ typedef struct _arcanScrPriv {
 } arcanScrPriv;
 
 typedef struct _arcanInput {
-	KdKeyboardInfo * ki;
-	KdPointerInfo * pi;
+    KdKeyboardInfo * ki;
+    KdPointerInfo * pi;
 } arcanInput;
 
 typedef struct _arcanConfig {
-	const char* title;
-	const char* ident;
+    const char* title;
+    const char* ident;
     Bool glamor;
     Bool no_dynamic_resize;
     Bool double_buffer;
