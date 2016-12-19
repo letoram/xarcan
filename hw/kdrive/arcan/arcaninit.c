@@ -26,9 +26,22 @@
 #include "arcan.h"
 #include "glx_extinit.h"
 
+static inline void trace(const char* msg, ...)
+{
+#ifdef ARCAN_TRACE
+    va_list args;
+    va_start( args, msg );
+        vfprintf(stderr,  msg, args );
+        fprintf(stderr, "\n");
+    va_end( args);
+    fflush(stderr);
+#endif
+}
+
 void
 InitCard(char *name)
 {
+    trace("ArcanInit:InitCard");
     KdCardInfoAdd(&arcanFuncs, 0);
 }
 
@@ -44,6 +57,7 @@ InitOutput(ScreenInfo * pScreenInfo, int argc, char **argv)
     int depths[] = {1, 4, 8, 15, 16, 24, 32};
     int bpp[] = {1, 8, 8, 16, 16, 32, 32};
 
+    trace("ArcanInit:InitOutput");
     for (int i = 0; i < 7; i++){
         pScreenInfo->formats[i].depth = depths[i];
         pScreenInfo->formats[i].bitsPerPixel = bpp[i];
@@ -66,6 +80,7 @@ InitInput(int argc, char **argv)
     KdPointerInfo* pi;
     KdKeyboardInfo* ki;
 
+    trace("ArcanInit:InitInput");
     KdAddPointerDriver(&arcanPointerDriver);
     pi = KdParsePointer("arcan");
     KdAddPointer(pi);
@@ -90,6 +105,7 @@ void
 CloseInput(void)
 {
     struct arcan_shmif_cont* con = arcan_shmif_primary(SHMIF_INPUT);
+    trace("ArcanInit:CloseInput");
     if (con){
         KdUnregisterFd(con, con->epipe, FALSE);
     }

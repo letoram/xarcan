@@ -29,6 +29,8 @@
 #endif
 
 #ifdef GLAMOR
+#define MESA_EGL_NO_X11_HEADERS
+#include <gbm.h>
 #include "glamor.h"
 #include "glamor_context.h"
 #include "glamor_egl.h"
@@ -52,10 +54,24 @@ arcanConfig arcanConfigPriv;
 int arcanGlamor;
 
 static uint8_t code_tbl[512];
+static struct arcan_shmif_initial* arcan_init;
+
+static inline void trace(const char* msg, ...)
+{
+#ifdef ARCAN_TRACE
+    va_list args;
+    va_start( args, msg );
+        vfprintf(stderr,  msg, args );
+        fprintf(stderr, "\n");
+    va_end( args);
+    fflush(stderr);
+#endif
+}
 
 Bool
 arcanInitialize(KdCardInfo * card, arcanPriv * priv)
 {
+    trace("arcanInitialize");
     priv->base = 0;
     priv->bytes_per_line = 0;
     return TRUE;
@@ -65,6 +81,7 @@ Bool
 arcanCardInit(KdCardInfo * card)
 {
     arcanPriv *priv;
+    trace("arcanCardInit");
 
     priv = (arcanPriv *) malloc(sizeof(arcanPriv));
     if (!priv)
@@ -82,8 +99,9 @@ arcanCardInit(KdCardInfo * card)
 Bool
 arcanScreenInitialize(KdScreenInfo * screen, arcanScrPriv * scrpriv)
 {
-    static struct arcan_shmif_initial* init;
     scrpriv->acon->hints = SHMIF_RHINT_SUBREGION | SHMIF_RHINT_IGNORE_ALPHA;
+    trace("arcanScreenInitialize");
+
     if (!screen->width || !screen->height) {
         screen->width = scrpriv->acon->w;
         screen->height = scrpriv->acon->h;
@@ -98,12 +116,12 @@ arcanScreenInitialize(KdScreenInfo * screen, arcanScrPriv * scrpriv)
     }
 
 /* default guess, we cache this between screen init/deinit */
-        if (!init)
-            arcan_shmif_initial(scrpriv->acon, &init);
+        if (!arcan_init)
+            arcan_shmif_initial(scrpriv->acon, &arcan_init);
 
-        if (init->density > 0){
-            screen->width_mm = (float)screen->width / (0.1 * init->density);
-            screen->height_mm = (float)screen->height / (0.1 * init->density);
+        if (arcan_init->density > 0){
+            screen->width_mm = (float)screen->width / (0.1 * arcan_init->density);
+            screen->height_mm = (float)screen->height / (0.1 * arcan_init->density);
         }
 
 #define Mask(o,l)   (((1 << l) - 1) << o)
@@ -309,6 +327,7 @@ arcanScreenInit(KdScreenInfo * screen)
 {
     arcanScrPriv *scrpriv;
     struct arcan_shmif_cont* con = arcan_shmif_primary(SHMIF_INPUT);
+    trace("arcanScreenInit");
     if (!con)
         return FALSE;
 
@@ -354,19 +373,10 @@ static void arcanInternalDamageRedisplay(ScreenPtr pScreen)
 
     region = DamageRegion(scrpriv->damage);
 
-/* Two complications here:
- * 1. there seem to be no good synch- hook for knowing if there are any
- * other pending updates and so on, we are just fumbling in the dark here.
- *
- * 2. two, if we have to early out because of a pending synch, we are not
- * in control when we will be triggered the next time, meaning that some
- * updates may have a notable delay. The option then is to make a CLOCKREQ
- * for a vframe- deliver clock, and in the event handler check our damage
- * and if so, try to synch again. Careful with the chances that I/O event
- * loop (so our shmif_pool) are running in another thread.
- */
     if (!RegionNotEmpty(region) || scrpriv->acon->addr->vready)
         return;
+
+    trace("arcanInternalDamageRedisplay");
 
 /*
  * We don't use fine-grained dirty regions really, the data gathered gave
@@ -386,13 +396,15 @@ static void arcanInternalDamageRedisplay(ScreenPtr pScreen)
  */
 #ifdef GLAMOR
     if (scrpriv->in_glamor){
+        trace("arcanInternalDamageRedisplay:signal-glamor");
         arcan_shmifext_signal(scrpriv->acon, 0,
             SHMIF_SIGVID | SHMIF_SIGBLK_NONE, scrpriv->tex);
-        DamageEmpty(scrpriv->damage);
     }
-    else
+    else{
 #endif
-    arcan_shmif_signal(scrpriv->acon, SHMIF_SIGVID | SHMIF_SIGBLK_NONE );
+        arcan_shmif_signal(scrpriv->acon, SHMIF_SIGVID | SHMIF_SIGBLK_NONE );
+        trace("arcanInternalDamageRedisplay:signal");
+    }
     DamageEmpty(scrpriv->damage);
 }
 
@@ -402,6 +414,7 @@ static Bool arcanSetInternalDamage(ScreenPtr pScreen)
     KdScreenInfo *screen = pScreenPriv->screen;
     arcanScrPriv *scrpriv = screen->driver;
     PixmapPtr pPixmap = NULL;
+    trace("arcanSetInternalDamage");
 
     scrpriv->damage = DamageCreate((DamageReportFunc) 0,
                                    (DamageDestroyFunc) 0,
@@ -421,6 +434,7 @@ static void arcanUnsetInternalDamage(ScreenPtr pScreen)
     KdScreenPriv(pScreen);
     KdScreenInfo *screen = pScreenPriv->screen;
     arcanScrPriv *scrpriv = screen->driver;
+    trace("arcanUnsetInternalDamage");
 
     DamageDestroy(scrpriv->damage);
     scrpriv->damage = NULL;
@@ -430,6 +444,7 @@ static
 int arcanSetPixmapVisitWindow(WindowPtr window, void *data)
 {
     ScreenPtr screen = window->drawable.pScreen;
+    trace("arcanSetPixmapVisitWindow");
     if (screen->GetWindowPixmap(window) == data){
         screen->SetWindowPixmap(window, screen->GetScreenPixmap(screen));
         return WT_WALKCHILDREN;
@@ -441,50 +456,38 @@ static
 Bool arcanGlamorCreateScreenResources(ScreenPtr pScreen)
 {
 #ifdef GLAMOR
-/* XWayland:
- * 1. krokar CreateScreenResources och k;r
- * 2. rootless? fbCreatePixmap,
- *    annars, xwl_glamor_create_pixmap och sen set_screen_pixmap
- *    sen SetRootClip
- *
- *    create_pixmap:
- *     om ok, gbm_bo_create(...)
- *     darefter xwl_glamor_create_pixmap_for_bo
- *     annars glamor_create_pixmap:
- *       - create_pixmap med GLAMOR_CREATE_PIXMAP_NO_TEXTURE
- *       - satt context
- *       eglCreateImageKHR + track
- *
- *       option: glamor_sharable_fd_from_pixmap
- *
- *       then we have front/back pixmaps
- *       CREATE_PIXMAP_USAGE_SHARED
- *
- */
-
     KdScreenPriv(pScreen);
     KdScreenInfo *screen = pScreenPriv->screen;
     arcanScrPriv *scrpriv = screen->driver;
     PixmapPtr oldpix, newpix;
 
+    trace("arcanGlamorCreateScreenResources");
     scrpriv->CreateScreenResources(pScreen);
+
+
     oldpix = pScreen->GetScreenPixmap(pScreen);
+/*
     pScreen->DestroyPixmap(oldpix);
+ */
+
     newpix = pScreen->CreatePixmap(pScreen,
                                    pScreen->width,
                                    pScreen->height,
                                    pScreen->rootDepth,
-                                   CREATE_PIXMAP_USAGE_SHARED);
-    pScreen->SetScreenPixmap(newpix);
-    if (pScreen->root && pScreen->SetWindowPixmap)
-        TraverseTree(pScreen->root, arcanSetPixmapVisitWindow, oldpix);
+                                   CREATE_PIXMAP_USAGE_BACKING_PIXMAP);
 
-    glamor_set_screen_pixmap(newpix, NULL);
-    scrpriv->tex = glamor_get_pixmap_texture(newpix);
+    if (newpix){
+        if (pScreen->root && pScreen->SetWindowPixmap)
+            TraverseTree(pScreen->root, arcanSetPixmapVisitWindow, oldpix);
+
+        pScreen->SetScreenPixmap(newpix);
+        glamor_set_screen_pixmap(newpix, NULL);
+        scrpriv->tex = glamor_get_pixmap_texture(newpix);
+    }
 
     return TRUE;
 #endif
-    return FALSE;
+   return FALSE;
 }
 
 void *
@@ -507,6 +510,7 @@ arcanMapFramebuffer(KdScreenInfo * screen)
     arcanScrPriv *scrpriv = screen->driver;
     KdPointerMatrix m;
 
+    trace("arcanMapFramebuffer");
     KdComputePointerMatrix(&m, scrpriv->randr, screen->width, screen->height);
     KdSetPointerMatrix(&m);
 
@@ -528,16 +532,15 @@ arcanSetScreenSizes(ScreenPtr pScreen)
     KdScreenInfo *screen = pScreenPriv->screen;
     arcanScrPriv *scrpriv = screen->driver;
     float ind = ARCAN_SHMPAGE_DEFAULT_PPCM * 0.1;
-    struct arcan_shmif_initial* init;
     int inw, inh;
 
 /* default guess */
-    arcan_shmif_initial(scrpriv->acon, &init);
+    trace("arcanSetScreenSizes");
     inw = scrpriv->acon->w;
     inh = scrpriv->acon->h;
 
-    if (init && init->density > 0)
-        ind = init->density * 0.1;
+    if (arcan_init && arcan_init->density > 0)
+        ind = arcan_init->density * 0.1;
 
     pScreen->width = inw;
     pScreen->height = inh;
@@ -549,6 +552,7 @@ Bool
 arcanUnmapFramebuffer(KdScreenInfo * screen)
 {
     arcanPriv *priv = screen->card->driver;
+    trace("arcanUnmapFramebuffer");
     free(priv->base);
     priv->base = NULL;
     return TRUE;
@@ -563,6 +567,7 @@ ArcanInit(void)
         return 0;
 
 /* windisplay.c */
+    trace("ArcanInit");
     if (_XSERVTransIsListening("local")){
         snprintf(dispstr, 512, "%s:%d", display, 0);
     }
@@ -593,23 +598,27 @@ ArcanInit(void)
 static void
 ArcanEnable(void)
 {
+    trace("ArcanEnable");
 }
 
 static Bool
 ArcanSpecialKey(KeySym sym)
 {
+    trace("ArcanSpecialKey");
     return FALSE;
 }
 
 static void
 ArcanDisable(void)
 {
+    trace("ArcanDisable");
 }
 
 static void
 ArcanFini(void)
 {
     struct arcan_shmif_cont* con = arcan_shmif_primary(SHMIF_INPUT);
+    trace("ArcanFini");
     if (con){
         arcan_shmif_drop(con);
     }
@@ -633,6 +642,7 @@ arcanRandRGetInfo(ScreenPtr pScreen, Rotation * rotations)
     Rotation randr;
     int n;
 
+    trace("ArcanRandRGetInfo");
     *rotations = RR_Rotate_0;
 
     for (n = 0; n < pScreen->numDepths; n++)
@@ -663,6 +673,7 @@ arcanRandRScreenResize(ScreenPtr pScreen,
     if (width == screen->width && height == screen->height)
         return FALSE;
 
+    trace("ArcanRandRScreenResize");
     size.width = width;
     size.height = height;
     size.mmWidth = mmWidth;
@@ -695,6 +706,7 @@ arcanRandRSetConfig(ScreenPtr pScreen,
 
 /* Ignore rotations etc. If those are desired properties, it will happen on
  * a higher level. */
+    trace("ArcanRandRSetConfig");
     newwidth = pSize->height;
     newheight = pSize->width;
 
@@ -782,6 +794,7 @@ arcanRandRInit(ScreenPtr pScreen)
     if (!RRScreenInit(pScreen))
         return FALSE;
 
+    trace("ArcanRandRInit");
     pScrPriv = rrGetScrPriv(pScreen);
     pScrPriv->rrGetInfo = arcanRandRGetInfo;
     pScrPriv->rrSetConfig = arcanRandRSetConfig;
@@ -799,6 +812,7 @@ arcanRandRInit(ScreenPtr pScreen)
 static
 void arcanGlamorEglMakeCurrent(struct glamor_context *ctx)
 {
+    trace("ArcanGlamorEglMakeCurrent");
     arcan_shmifext_make_current((struct arcan_shmif_cont*) ctx->ctx);
 }
 
@@ -813,6 +827,7 @@ int glamor_egl_dri3_fd_name_from_tex(ScreenPtr pScreen,
     size_t dstr;
     int fmt, fd;
 
+    trace("(arcan) glamor_egl_dri3_fd_name_from_tex");
     *size = pixmap->drawable.width * (*stride);
 
 /* size? there is a glamor_gbm_bo_from_pixmap() but these do not
@@ -837,6 +852,7 @@ glamor_egl_screen_init(ScreenPtr pScreen, struct glamor_context *glamor_ctx)
     uintptr_t egl_disp = 0, egl_ctx = 0;
     arcan_shmifext_egl_meta(scrpriv->acon, &egl_disp, NULL, &egl_ctx);
 
+    trace("(Arcan) glamor_egl_screen_init");
     glamor_ctx->ctx = (void*)(scrpriv->acon);
     glamor_ctx->display = (EGLDisplay) egl_disp;
     glamor_ctx->make_current = arcanGlamorEglMakeCurrent;
@@ -852,6 +868,7 @@ void arcanGlamorEnable(ScreenPtr pScreen)
     KdScreenPriv(pScreen);
     KdScreenInfo *screen = pScreenPriv->screen;
     arcanScrPriv *scrpriv = screen->driver;
+    trace("ArcanGlamorEnable");
     scrpriv->in_glamor = TRUE;
  }
 
@@ -860,7 +877,10 @@ void arcanGlamorDisable(ScreenPtr pScreen)
     KdScreenPriv(pScreen);
     KdScreenInfo *screen = pScreenPriv->screen;
     arcanScrPriv *scrpriv = screen->driver;
-    scrpriv->in_glamor = FALSE;
+    trace("ArcanGlamorDisable");
+    if (scrpriv){
+        scrpriv->in_glamor = FALSE;
+    }
  }
 
 void arcanGlamorFini(ScreenPtr pScreen)
@@ -868,8 +888,97 @@ void arcanGlamorFini(ScreenPtr pScreen)
     KdScreenPriv(pScreen);
     KdScreenInfo *screen = pScreenPriv->screen;
     arcanScrPriv *scrpriv = screen->driver;
-    arcan_shmifext_drop(scrpriv->acon);
+    trace("ArcanGlamorFini");
+    if (scrpriv){
+        arcan_shmifext_drop(scrpriv->acon);
+    }
     glamor_fini(pScreen);
+}
+
+/*
+ * Only support GBM
+ */
+static int dri3FdFromPixmap(ScreenPtr pScreen, PixmapPtr pixmap,
+                            CARD16 *stride, CARD32 *size)
+{
+    trace("ArcanDRI3FdFromPixmap");
+/*
+ *  1. get the pixmap structure
+ *  2. extract BO
+ *  gbm_bo_get_stride,
+ *  pixmap->drawable.width * *stride,
+ *  return gbm_bo_get_fd(bo);
+ */
+    return -1;
+}
+
+static PixmapPtr dri3PixmapFromFd(ScreenPtr pScreen, int fd,
+                            CARD16 w, CARD16 h, CARD16 stride,
+                            CARD8 depth, CARD8 bpp)
+{
+    KdScreenPriv(pScreen);
+    KdScreenInfo *screen = pScreenPriv->screen;
+    arcanScrPriv *scrpriv = screen->driver;
+    PixmapPtr pixmap;
+    struct gbm_bo *bo;
+    struct gbm_import_fd_data data = {
+        .fd = fd, .width = w, .height = h, .stride = stride };
+
+    trace("ArcanDRI3PixmapFromFD(%d, %d, %d, %d, %d)",
+                                 (int)w, (int)h,
+                                 (int)stride, (int)depth,
+                                 (int)bpp );
+
+    if (!w || !h || bpp != BitsPerPixel(depth) ||
+        stride < w * h * (bpp / 8)){
+        trace("ArcanDRI3PixmapFromFD()::Bad arguments");
+        return NULL;
+    }
+
+/*  data.format = gbm_format_for_depth(depth); */
+    if (bo == NULL){
+        trace("ArcanDRI3PixmapFromFD()::Couldn't import BO");
+        return NULL;
+    }
+
+/* Unfortunately shmifext- don't expose the buffer-import setup yet,
+ * waiting for the whole GBM v Streams to sort itself out, so just
+ * replicate that code once more. */
+    pixmap = glamor_create_pixmap(pScreen,
+                                  gbm_bo_get_width(bo),
+                                  gbm_bo_get_height(bo),
+                                  depth,
+                                  GLAMOR_CREATE_PIXMAP_NO_TEXTURE);
+    if (pixmap == NULL) {
+        return NULL;
+    }
+
+    arcan_shmifext_make_current(scrpriv->acon);
+
+/* Could probably do more sneaky things here to forward this buffer
+ * to arcan as its own window/source to cut down on the dedicated
+ * fullscreen stuff.
+    xwl_pixmap->bo = bo;
+    xwl_pixmap->buffer = NULL;
+    xwl_pixmap->image = eglCreateImageKHR(xwl_screen->egl_display,
+                                          xwl_screen->egl_context,
+                                          EGL_NATIVE_PIXMAP_KHR,
+                                          xwl_pixmap->bo, NULL);
+
+    glGenTextures(1, &xwl_pixmap->texture);
+    glBindTexture(GL_TEXTURE_2D, xwl_pixmap->texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, xwl_pixmap->image);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    xwl_pixmap_set_private(pixmap, xwl_pixmap);
+
+    glamor_set_pixmap_texture(pixmap, xwl_pixmap->texture);
+    glamor_set_pixmap_type(pixmap, GLAMOR_TEXTURE_DRM);
+ */
+    return pixmap;
 }
 
 static int dri3Open(ClientPtr client,
@@ -881,6 +990,7 @@ static int dri3Open(ClientPtr client,
     KdScreenInfo *screen = pScreenPriv->screen;
     arcanScrPriv *scrpriv = screen->driver;
     int fd = arcan_shmifext_dev(scrpriv->acon);
+    trace("ArcanDri3Open(%d)", fd);
     if (-1 != fd){
         *pfd = dup(fd);
         return Success;
@@ -890,7 +1000,9 @@ static int dri3Open(ClientPtr client,
 
 static dri3_screen_info_rec dri3_info = {
     .version = 1,
-    .open_client = dri3Open
+    .open_client = dri3Open,
+    .pixmap_from_fd = dri3PixmapFromFd,
+    .fd_from_pixmap = dri3FdFromPixmap
 };
 
 Bool arcanGlamorInit(ScreenPtr pScreen)
@@ -909,6 +1021,7 @@ Bool arcanGlamorInit(ScreenPtr pScreen)
     defs.major = GLAMOR_GL_CORE_VER_MAJOR;
     defs.minor = GLAMOR_GL_CORE_VER_MINOR;
     defs.mask  = EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT_KHR;
+    trace("arcanGlamorInit");
 
     defs.builtin_fbo = false;
     if (SHMIFEXT_OK != arcan_shmifext_setup(scrpriv->acon, defs)){
@@ -961,10 +1074,13 @@ arcanScreenBlockHandler(ScreenPtr pScreen, void* timeout)
     arcanScrPriv *scrpriv = screen->driver;
 
 /*
- * This one is rather unfortunate as it seems to be called 'whenever'
- * and we don't know the synch- state of the contents in the buffer
+ * This one is rather unfortunate as it seems to be called 'whenever' and we
+ * don't know the synch- state of the contents in the buffer. At the same
+ * time, it doesn't trigger when idle- so we can't just skip synching and wait
+ * for the next one. The other option is to pop a CLOCKREQ and accept the slight
+ * latency when synch does not align.
  */
-
+//    trace("arcanScreenBlockHandler(%lld)",(long long) currentTime.milliseconds);
     pScreen->BlockHandler = scrpriv->BlockHandler;
     (*pScreen->BlockHandler)(pScreen, timeout);
     scrpriv->BlockHandler = pScreen->BlockHandler;
@@ -979,6 +1095,7 @@ arcanScreenBlockHandler(ScreenPtr pScreen, void* timeout)
 Bool
 arcanCreateColormap(ColormapPtr pmap)
 {
+    trace("arcanCreateColormap");
     return fbInitializeColormap(pmap);
 }
 
@@ -986,7 +1103,14 @@ Bool
 arcanInitScreen(ScreenPtr pScreen)
 {
     pScreen->CreateColormap = arcanCreateColormap;
+    trace("arcanInitScreen");
+    return TRUE;
+}
 
+static Bool
+arcanCloseScreenWrap(ScreenPtr pScreen)
+{
+    arcanCloseScreen(pScreen);
     return TRUE;
 }
 
@@ -997,11 +1121,14 @@ arcanFinishInitScreen(ScreenPtr pScreen)
     KdScreenInfo *screen = pScreenPriv->screen;
     arcanScrPriv *scrpriv = screen->driver;
 
+    trace("arcanFinishInitScreen");
 #ifdef RANDR
     if (!arcanRandRInit(pScreen))
         return FALSE;
 #endif
 
+    scrpriv->CloseHandler = pScreen->CloseScreen;
+    pScreen->CloseScreen = arcanCloseScreenWrap;
     scrpriv->BlockHandler = pScreen->BlockHandler;
     pScreen->BlockHandler = arcanScreenBlockHandler;
 
@@ -1011,12 +1138,14 @@ arcanFinishInitScreen(ScreenPtr pScreen)
 Bool
 arcanCreateResources(ScreenPtr pScreen)
 {
+    trace("arcanCreateResources");
     return arcanSetInternalDamage(pScreen);
 }
 
 void
 arcanPreserve(KdCardInfo * card)
 {
+    trace("arcanPreserve");
 }
 
 Bool
@@ -1026,6 +1155,7 @@ arcanEnable(ScreenPtr pScreen)
     KdScreenInfo *screen = pScreenPriv->screen;
     arcanScrPriv *scrpriv = screen->driver;
 
+    trace("arcanEnable");
     arcan_shmif_enqueue(scrpriv->acon, &(arcan_event){
         .ext.kind = ARCAN_EVENT(VIEWPORT),
         .ext.viewport = {
@@ -1039,35 +1169,37 @@ arcanEnable(ScreenPtr pScreen)
 Bool
 arcanDPMS(ScreenPtr pScreen, int mode)
 {
+    trace("arcanDPMS");
     return TRUE;
 }
 
 void
 arcanDisable(ScreenPtr pScreen)
 {
-    KdScreenPriv(pScreen);
-    KdScreenInfo *screen = pScreenPriv->screen;
-    arcanScrPriv *scrpriv = screen->driver;
-
-    arcan_shmif_enqueue(scrpriv->acon, &(arcan_event){
+    trace("arcanDisable");
+/*
+ * arcan_shmif_enqueue(scrpriv->acon, &(arcan_event){
         .ext.kind = ARCAN_EVENT(VIEWPORT),
         .ext.viewport = {
             .invisible = false
         }
     });
+ */
 }
 
 void
 arcanRestore(KdCardInfo * card)
 {
 /* NOOP */
+    trace("arcanRestore");
 }
 
 void
 arcanScreenFini(KdScreenInfo * screen)
 {
-        struct arcan_shmif_cont* con = arcan_shmif_primary(SHMIF_INPUT);
-        con->user = NULL;
+    struct arcan_shmif_cont* con = arcan_shmif_primary(SHMIF_INPUT);
+    con->user = NULL;
+    trace("arcanScreenFini");
 }
 
 static Status
@@ -1075,7 +1207,7 @@ ArcanKeyboardInit(KdKeyboardInfo * ki)
 {
     ki->minScanCode = 0;
     ki->maxScanCode = 247;
-        arcanInputPriv.ki = ki;
+    arcanInputPriv.ki = ki;
 
     return Success;
 }
@@ -1102,6 +1234,7 @@ ArcanKeyboardLeds(KdKeyboardInfo * ki, int leds)
 {
 /* we need a provision to signal this, can probably use the input-
  * event used by remoting */
+    trace("arcanKeyboardLeds(%d)", leds);
 }
 
 static void
@@ -1125,6 +1258,7 @@ arcanCardFini(KdCardInfo * card)
 {
     arcanPriv *priv = card->driver;
 
+    trace("arcanCardFini");
     free(priv->base);
     free(priv);
 }
@@ -1132,7 +1266,21 @@ arcanCardFini(KdCardInfo * card)
 void
 arcanCloseScreen(ScreenPtr pScreen)
 {
+    KdScreenPriv(pScreen);
+    KdScreenInfo *screen = pScreenPriv->screen;
+    arcanScrPriv *scrpriv = screen->driver;
+
+    trace("arcanCloseScreen");
+    if (!scrpriv)
+        return;
+
     arcanUnsetInternalDamage(pScreen);
+    arcan_shmifext_drop(scrpriv->acon);
+
+    scrpriv->acon->user = NULL;
+    pScreen->CloseScreen = NULL;
+    free(scrpriv);
+    screen->driver = NULL;
 }
 
 void
@@ -1143,6 +1291,7 @@ arcanPutColors(ScreenPtr pScreen, int n, xColorItem * pdefs)
  * should probably forward some cmap_entry thing and invalidate
  * the entire region. Somewhat unsure how this actually works
  */
+    trace("arcanPutColors");
 }
 
 void
@@ -1154,12 +1303,13 @@ arcanGetColors(ScreenPtr pScreen, int n, xColorItem * pdefs)
         pdefs->blue = 8;
         pdefs++;
     }
+    trace("arcanGetColors");
 }
 
 static Status
 MouseInit(KdPointerInfo * pi)
 {
-        arcanInputPriv.pi = pi;
+    arcanInputPriv.pi = pi;
     return Success;
 }
 
@@ -1187,5 +1337,5 @@ KdPointerDriver arcanPointerDriver = {
     MouseEnable,
     MouseDisable,
     MouseFini,
-        NULL
+    NULL
 };

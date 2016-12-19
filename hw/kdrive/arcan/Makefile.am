@@ -15,7 +15,10 @@ libarcan_la_SOURCES =	\
 	arcan.c		\
 	arcan.h
 
-GLAMOR_LIB = $(top_builddir)/glamor/libglamor.la
+if GLAMOR_EGL
+GLAMOR_LIB = $(top_builddir)/glamor/libglamor.la $(GBM_LIBS)
+endif
+
 Xarcan_LDADD = 						\
 	libarcan.la					\
 	$(XARCANMODULES_LIBS)                           \
