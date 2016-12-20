@@ -39,6 +39,12 @@ typedef struct _arcanPriv {
     int bytes_per_line;
 } arcanPriv;
 
+struct pixmap_ext {
+    struct gbm_bo *bo;
+    void *image;
+    unsigned int texture;
+};
+
 typedef struct _arcanScrPriv {
     struct arcan_shmif_cont * acon;
     struct arcan_shmif_initial init;

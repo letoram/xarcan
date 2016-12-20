@@ -920,7 +920,10 @@ static PixmapPtr dri3PixmapFromFd(ScreenPtr pScreen, int fd,
     KdScreenInfo *screen = pScreenPriv->screen;
     arcanScrPriv *scrpriv = screen->driver;
     PixmapPtr pixmap;
+    uintptr_t adisp, actx;
+    uintptr_t dev;
     struct gbm_bo *bo;
+    struct pixmap_ext *ext_pixmap;
     struct gbm_import_fd_data data = {
         .fd = fd, .width = w, .height = h, .stride = stride };
 
@@ -929,13 +932,39 @@ static PixmapPtr dri3PixmapFromFd(ScreenPtr pScreen, int fd,
                                  (int)stride, (int)depth,
                                  (int)bpp );
 
+    if (!scrpriv->in_glamor){
+        trace("ArcanDRI3PixmapFromFD()::Not in GLAMOR state");
+        return NULL;
+    }
+
     if (!w || !h || bpp != BitsPerPixel(depth) ||
-        stride < w * h * (bpp / 8)){
+        stride < w * (bpp / 8)){
         trace("ArcanDRI3PixmapFromFD()::Bad arguments");
         return NULL;
     }
 
-/*  data.format = gbm_format_for_depth(depth); */
+    switch (depth){
+    case 16:
+        data.format = GBM_FORMAT_RGB565;
+    break;
+    case 24:
+        data.format = GBM_FORMAT_XRGB8888;
+    break;
+    case 32:
+        data.format = GBM_FORMAT_ARGB8888;
+    break;
+    default:
+        ErrorF("ArcanDRI3PixmapFromFD()::unknown input format");
+        return NULL;
+    break;
+    }
+
+    if (-1 == arcan_shmifext_dev(scrpriv->acon, &dev)){
+        trace("ArcanDRI3PixmapFromFD()::Couldn't get device handle");
+    }
+
+    bo = gbm_bo_import((struct gbm_device*)dev, GBM_BO_IMPORT_FD,
+                       &data, GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
     if (bo == NULL){
         trace("ArcanDRI3PixmapFromFD()::Couldn't import BO");
         return NULL;
@@ -950,34 +979,43 @@ static PixmapPtr dri3PixmapFromFd(ScreenPtr pScreen, int fd,
                                   depth,
                                   GLAMOR_CREATE_PIXMAP_NO_TEXTURE);
     if (pixmap == NULL) {
+        trace("ArcanDRI3PixmapFromFD()::Couldn't create pixmap from BO");
+        gbm_bo_destroy(bo);
         return NULL;
     }
 
-    arcan_shmifext_make_current(scrpriv->acon);
-
 /* Could probably do more sneaky things here to forward this buffer
  * to arcan as its own window/source to cut down on the dedicated
- * fullscreen stuff.
-    xwl_pixmap->bo = bo;
-    xwl_pixmap->buffer = NULL;
-    xwl_pixmap->image = eglCreateImageKHR(xwl_screen->egl_display,
-                                          xwl_screen->egl_context,
-                                          EGL_NATIVE_PIXMAP_KHR,
-                                          xwl_pixmap->bo, NULL);
+ * fullscreen stuff. */
+    arcan_shmifext_make_current(scrpriv->acon);
+    ext_pixmap = malloc(sizeof(struct pixmap_ext));
+    if (!ext_pixmap){
+        trace("ArcanDRI3PixmapFromFD()::Couldn't allocate pixmap metadata");
+        gbm_bo_destroy(bo);
+        glamor_destroy_pixmap(pixmap);
+        return NULL;
+    }
 
-    glGenTextures(1, &xwl_pixmap->texture);
-    glBindTexture(GL_TEXTURE_2D, xwl_pixmap->texture);
+    arcan_shmifext_egl_meta(scrpriv->acon, &adisp, NULL, &actx);
+    ext_pixmap->bo = bo;
+    ext_pixmap->image = eglCreateImageKHR((EGLDisplay) adisp,
+                                          (EGLContext) actx,
+                                          EGL_NATIVE_PIXMAP_KHR,
+                                          ext_pixmap->bo, NULL);
+
+    glGenTextures(1, &ext_pixmap->texture);
+    glBindTexture(GL_TEXTURE_2D, ext_pixmap->texture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-    glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, xwl_pixmap->image);
+    glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, ext_pixmap->image);
     glBindTexture(GL_TEXTURE_2D, 0);
 
-    xwl_pixmap_set_private(pixmap, xwl_pixmap);
-
-    glamor_set_pixmap_texture(pixmap, xwl_pixmap->texture);
+/* FIXME: resource cleanup isn't correct here, it's the DIX set
+ * private etc. dance */
+    glamor_set_pixmap_texture(pixmap, ext_pixmap->texture);
     glamor_set_pixmap_type(pixmap, GLAMOR_TEXTURE_DRM);
- */
+    
     return pixmap;
 }
 
