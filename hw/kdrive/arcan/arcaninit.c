@@ -128,6 +128,7 @@ ddxUseMsg(void)
     ErrorF("-aident [str]          Set window dynamic identity\n");
     ErrorF("-atitle [str]          Set window static identity\n");
     ErrorF("-glamor                Enable glamor rendering\n");
+    ErrorF("-nodri3                Disable DRI3- support\n");
 }
 
 int
@@ -139,6 +140,10 @@ ddxProcessArgument(int argc, char **argv, int i)
         arcanFuncs.enableAccel = arcanGlamorEnable;
         arcanFuncs.disableAccel = arcanGlamorDisable;
         arcanFuncs.finiAccel = arcanGlamorFini;
+        return 1;
+    }
+    else if (strcmp(argv[i], "-nodri3") == 0){
+        arcanConfigPriv.no_dri3 = true;
         return 1;
     }
     else if (strcmp(argv[i], "-aident") == 0){

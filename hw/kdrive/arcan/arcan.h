@@ -64,6 +64,7 @@ typedef struct _arcanInput {
 typedef struct _arcanConfig {
     const char* title;
     const char* ident;
+    Bool no_dri3;
     Bool glamor;
     Bool no_dynamic_resize;
     Bool double_buffer;

@@ -989,7 +989,12 @@ static int dri3Open(ClientPtr client,
     KdScreenPriv(pScreen);
     KdScreenInfo *screen = pScreenPriv->screen;
     arcanScrPriv *scrpriv = screen->driver;
-    int fd = arcan_shmifext_dev(scrpriv->acon);
+    int fd;
+
+    if (arcanConfigPriv.no_dri3)
+        return BadAlloc;
+
+    fd = arcan_shmifext_dev(scrpriv->acon, NULL);
     trace("ArcanDri3Open(%d)", fd);
     if (-1 != fd){
         *pfd = dup(fd);
