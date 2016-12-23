@@ -54,9 +54,9 @@ static const ExtensionModule arcanExtensions[] = {
 void
 InitOutput(ScreenInfo * pScreenInfo, int argc, char **argv)
 {
+/*
     int depths[] = {1, 4, 8, 15, 16, 24, 32};
     int bpp[] = {1, 8, 8, 16, 16, 32, 32};
-
     trace("ArcanInit:InitOutput");
     for (int i = 0; i < 7; i++){
         pScreenInfo->formats[i].depth = depths[i];
@@ -68,8 +68,12 @@ InitOutput(ScreenInfo * pScreenInfo, int argc, char **argv)
     pScreenInfo->bitmapScanlinePad = BITMAP_SCANLINE_PAD;
     pScreenInfo->bitmapBitOrder = BITMAP_BIT_ORDER;
     pScreenInfo->numPixmapFormats = ARRAY_SIZE(depths);
-
-    LoadExtensionList(arcanExtensions, ARRAY_SIZE(arcanExtensions), TRUE);
+ */
+    static bool gotext;
+    if (!gotext){
+        LoadExtensionList(arcanExtensions, ARRAY_SIZE(arcanExtensions), TRUE);
+        gotext = true;
+    }
     KdInitOutput(pScreenInfo, argc, argv);
 }
 
