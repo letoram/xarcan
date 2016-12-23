@@ -376,7 +376,9 @@ static void arcanInternalDamageRedisplay(ScreenPtr pScreen)
     if (!RegionNotEmpty(region) || scrpriv->acon->addr->vready)
         return;
 
+/*
     trace("arcanInternalDamageRedisplay");
+ */
 
 /*
  * We don't use fine-grained dirty regions really, the data gathered gave
@@ -396,16 +398,21 @@ static void arcanInternalDamageRedisplay(ScreenPtr pScreen)
  */
 #ifdef GLAMOR
     if (scrpriv->in_glamor){
-        trace("arcanInternalDamageRedisplay:signal-glamor");
+/*      trace("arcanInternalDamageRedisplay:signal-glamor"); */
         arcan_shmifext_signal(scrpriv->acon, 0,
             SHMIF_SIGVID | SHMIF_SIGBLK_NONE, scrpriv->tex);
     }
     else{
 #endif
         arcan_shmif_signal(scrpriv->acon, SHMIF_SIGVID | SHMIF_SIGBLK_NONE );
-        trace("arcanInternalDamageRedisplay:signal");
+/*      trace("arcanInternalDamageRedisplay:signal"); */
     }
     DamageEmpty(scrpriv->damage);
+}
+
+static void onDamageDestroy(DamagePtr damage, void *closure)
+{
+    trace("OnArcanDamageDestroy(%p)", damage);
 }
 
 static Bool arcanSetInternalDamage(ScreenPtr pScreen)
@@ -414,13 +421,13 @@ static Bool arcanSetInternalDamage(ScreenPtr pScreen)
     KdScreenInfo *screen = pScreenPriv->screen;
     arcanScrPriv *scrpriv = screen->driver;
     PixmapPtr pPixmap = NULL;
-    trace("arcanSetInternalDamage");
 
     scrpriv->damage = DamageCreate((DamageReportFunc) 0,
-                                   (DamageDestroyFunc) 0,
+                                   (DamageDestroyFunc) onDamageDestroy,
                                    DamageReportBoundingBox,
                                    TRUE, pScreen, pScreen);
 
+    trace("arcanSetInternalDamage(%p)", scrpriv->damage);
     pPixmap = (*pScreen->GetScreenPixmap) (pScreen);
 
     DamageRegister(&pPixmap->drawable, scrpriv->damage);
@@ -434,8 +441,9 @@ static void arcanUnsetInternalDamage(ScreenPtr pScreen)
     KdScreenPriv(pScreen);
     KdScreenInfo *screen = pScreenPriv->screen;
     arcanScrPriv *scrpriv = screen->driver;
-    trace("arcanUnsetInternalDamage");
+    trace("arcanUnsetInternalDamage(%p)", scrpriv->damage);
 
+/*  DamageUnregister(scrpriv->damage); */
     DamageDestroy(scrpriv->damage);
     scrpriv->damage = NULL;
 }
@@ -463,7 +471,6 @@ Bool arcanGlamorCreateScreenResources(ScreenPtr pScreen)
 
     trace("arcanGlamorCreateScreenResources");
     scrpriv->CreateScreenResources(pScreen);
-
 
     oldpix = pScreen->GetScreenPixmap(pScreen);
 /*
@@ -1015,7 +1022,7 @@ static PixmapPtr dri3PixmapFromFd(ScreenPtr pScreen, int fd,
  * private etc. dance */
     glamor_set_pixmap_texture(pixmap, ext_pixmap->texture);
     glamor_set_pixmap_type(pixmap, GLAMOR_TEXTURE_DRM);
-    
+
     return pixmap;
 }
 
@@ -1068,7 +1075,7 @@ Bool arcanGlamorInit(ScreenPtr pScreen)
 
     defs.builtin_fbo = false;
     if (SHMIFEXT_OK != arcan_shmifext_setup(scrpriv->acon, defs)){
-        ErrorF("xarcan/glamor::init() - EGL context failed, lowering version");
+        ErrorF("xarcan/glamor::init() - EGL context failed, lowering version\n");
         defs.major = 2;
         defs.minor = 1;
         defs.mask = 0;
@@ -1153,7 +1160,8 @@ arcanInitScreen(ScreenPtr pScreen)
 static Bool
 arcanCloseScreenWrap(ScreenPtr pScreen)
 {
-    arcanCloseScreen(pScreen);
+    trace("arcanCloseScreenWrap");
+/*  arcanCloseScreen(pScreen); */
     return TRUE;
 }
 
@@ -1321,9 +1329,10 @@ arcanCloseScreen(ScreenPtr pScreen)
     arcan_shmifext_drop(scrpriv->acon);
 
     scrpriv->acon->user = NULL;
-    pScreen->CloseScreen = NULL;
+    pScreen->CloseScreen = scrpriv->CloseHandler;
     free(scrpriv);
     screen->driver = NULL;
+    (*pScreen->CloseScreen)(pScreen);
 }
 
 void
