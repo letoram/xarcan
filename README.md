@@ -49,17 +49,25 @@ Issues
 There is still lots to do. The reasons Glamor/GLX are marked as p and not x
 right now:
 
-* GLX seem to pick software only here (0ad/glxgears really slow), might
-  be my MESA build/config but not sure. If not, there's failures (crash amdgpu)
-	and missing opc on intel for 148:4 and 148:2.
+* glamor buffer output formats seems broken in an interesting way, the
+  contents are correct except for the alpha channel that is 'mostly' all 0.
+	Can workaround in durden with target/video/shader/no_alpha right now.
+	Unsure if this is deep in the bowels of X or MESA.
 
-* Lifecycle management during glamor, glx and randr resize is UAF prone, the
-  chaining-modifying callback pScreen "API" style really doesn't help.
+* glamor with DRI3 gives interesting client crashes when the X server itself
+  is bound to a render-node rather than a card (at least on amdgpu), running
+	with -nodri3 works, but chances are you'll get the software path instead.
 
-* glamor buffer ouput formats seem to mismatch (swapped R/B channels with
-  broken alpha), can be worked around shader-side, but it should be fixed.
-	Somewhat weird that the format we get out from the bo seem to mismatch
-	on the other side, mesa bug?
+Notes
+====
+(might be wildly incorrect)
+
+It seems possible that the 2D rendering synchronization issues can be improved
+by switching to PRESENT and stop abusing the block handler.
+
+The RandR use seem to need more CRTC/Fake display information in order for
+both PRESENT and RRGetGamma/RRSetGamma to be invoked, and we need access to
+the gamma functions if the shmif-cont is negotiated to work with that.
 
 TODO
 ====

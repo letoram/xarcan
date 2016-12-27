@@ -56,6 +56,7 @@ int arcanGlamor;
 static uint8_t code_tbl[512];
 static struct arcan_shmif_initial* arcan_init;
 
+#define ARCAN_TRACE
 static inline void trace(const char* msg, ...)
 {
 #ifdef ARCAN_TRACE
@@ -66,6 +67,32 @@ static inline void trace(const char* msg, ...)
     va_end( args);
     fflush(stderr);
 #endif
+}
+
+static void setArcanMask(KdScreenInfo* screen)
+{
+    screen->rate = 60;
+    screen->fb.depth = 24;
+    screen->fb.bitsPerPixel = 32;
+		screen->fb.visuals = (1 << TrueColor) | (1 << DirectColor);
+    screen->fb.redMask = SHMIF_RGBA(0xff, 0x00, 0x00, 0x00);
+    screen->fb.greenMask = SHMIF_RGBA(0x00, 0xff, 0x00, 0x00);
+    screen->fb.blueMask = SHMIF_RGBA(0x00, 0x00, 0xff, 0x00);
+ }
+
+static void setGlamorMask(KdScreenInfo* screen)
+{
+    int bpc, green_bpc;
+    screen->rate = 60;
+		screen->fb.visuals = (1 << TrueColor) | (1 << DirectColor);
+    screen->fb.depth = 24;
+/* calculations used in xWayland and elsewhere */
+    bpc = 24 / 3;
+		green_bpc = 24 - 2 * bpc;
+    screen->fb.bitsPerPixel = 32;
+    screen->fb.blueMask = (1 << bpc) - 1;
+    screen->fb.greenMask = ((1 << green_bpc) - 1) << bpc;
+    screen->fb.redMask = screen->fb.blueMask << (green_bpc + bpc);
 }
 
 Bool
@@ -124,16 +151,11 @@ arcanScreenInitialize(KdScreenInfo * screen, arcanScrPriv * scrpriv)
             screen->height_mm = (float)screen->height / (0.1 * arcan_init->density);
         }
 
-#define Mask(o,l)   (((1 << l) - 1) << o)
-    screen->rate = 60;
-    screen->fb.depth = 24;
-    screen->fb.bitsPerPixel = 32;
-    screen->fb.redMask = SHMIF_RGBA(0xff, 0x00, 0x00, 0x00);
-    screen->fb.greenMask = SHMIF_RGBA(0x00, 0xff, 0x00, 0x00);
-    screen->fb.blueMask = SHMIF_RGBA(0x00, 0x00, 0xff, 0x00);
-    screen->fb.visuals = (1 << TrueColor) | (1 << DirectColor);
     scrpriv->randr = screen->randr;
-
+    if (arcanGlamor)
+        setGlamorMask(screen);
+    else
+        setArcanMask(screen);
     return arcanMapFramebuffer(screen);
 }
 
@@ -443,7 +465,7 @@ static void arcanUnsetInternalDamage(ScreenPtr pScreen)
     arcanScrPriv *scrpriv = screen->driver;
     trace("arcanUnsetInternalDamage(%p)", scrpriv->damage);
 
-/*  DamageUnregister(scrpriv->damage); */
+    DamageUnregister(scrpriv->damage);
     DamageDestroy(scrpriv->damage);
     scrpriv->damage = NULL;
 }
@@ -558,10 +580,11 @@ arcanSetScreenSizes(ScreenPtr pScreen)
 Bool
 arcanUnmapFramebuffer(KdScreenInfo * screen)
 {
-    arcanPriv *priv = screen->card->driver;
     trace("arcanUnmapFramebuffer");
-    free(priv->base);
+/*
+ * free(priv->base);
     priv->base = NULL;
+ */
     return TRUE;
 }
 
@@ -789,6 +812,18 @@ arcanRandRSetConfig(ScreenPtr pScreen,
     return FALSE;
 }
 
+static Bool
+arcanRandRSetGamma(ScreenPtr pScreen, RRCrtcPtr crtc)
+{
+	return false;
+}
+
+static Bool
+arcanRandRGetGamma(ScreenPtr pScreen, RRCrtcPtr crtc)
+{
+	return false;
+}
+
 Bool
 arcanRandRInit(ScreenPtr pScreen)
 {
@@ -810,6 +845,8 @@ arcanRandRInit(ScreenPtr pScreen)
 
 #if RANDR_12_INTERFACE
     pScrPriv->rrScreenSetSize = arcanRandRScreenResize;
+		pScrPriv->rrCrtcSetGamma = arcanRandRSetGamma;
+		pScrPriv->rrCrtcGetGamma = arcanRandRGetGamma;
 #endif
     return TRUE;
 }
@@ -1325,7 +1362,9 @@ arcanCloseScreen(ScreenPtr pScreen)
     if (!scrpriv)
         return;
 
-    arcanUnsetInternalDamage(pScreen);
+/*  ASAN reports UAF if we manually Unset @ Close
+ *  arcanUnsetInternalDamage(pScreen);
+ */
     arcan_shmifext_drop(scrpriv->acon);
 
     scrpriv->acon->user = NULL;
