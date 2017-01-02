@@ -1,6 +1,6 @@
 /*
  * Copyright © 2004 Keith Packard
- * Copyright © 2016 Bjorn Stahl
+ * Copyright © 2016-2017 Bjorn Stahl
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -35,6 +35,7 @@
 #include "glamor_context.h"
 #include "glamor_egl.h"
 #include "dri3.h"
+#include <drm_fourcc.h>
 #endif
 
 #define WANT_ARCAN_SHMIF_HELPER
@@ -55,6 +56,7 @@ int arcanGlamor;
 
 static uint8_t code_tbl[512];
 static struct arcan_shmif_initial* arcan_init;
+static DevPrivateKeyRec pixmap_private_key;
 
 #define ARCAN_TRACE
 static inline void trace(const char* msg, ...)
@@ -74,7 +76,7 @@ static void setArcanMask(KdScreenInfo* screen)
     screen->rate = 60;
     screen->fb.depth = 24;
     screen->fb.bitsPerPixel = 32;
-		screen->fb.visuals = (1 << TrueColor) | (1 << DirectColor);
+    screen->fb.visuals = (1 << TrueColor) | (1 << DirectColor);
     screen->fb.redMask = SHMIF_RGBA(0xff, 0x00, 0x00, 0x00);
     screen->fb.greenMask = SHMIF_RGBA(0x00, 0xff, 0x00, 0x00);
     screen->fb.blueMask = SHMIF_RGBA(0x00, 0x00, 0xff, 0x00);
@@ -84,11 +86,11 @@ static void setGlamorMask(KdScreenInfo* screen)
 {
     int bpc, green_bpc;
     screen->rate = 60;
-		screen->fb.visuals = (1 << TrueColor) | (1 << DirectColor);
+    screen->fb.visuals = (1 << TrueColor) | (1 << DirectColor);
     screen->fb.depth = 24;
 /* calculations used in xWayland and elsewhere */
     bpc = 24 / 3;
-		green_bpc = 24 - 2 * bpc;
+    green_bpc = 24 - 2 * bpc;
     screen->fb.bitsPerPixel = 32;
     screen->fb.blueMask = (1 << bpc) - 1;
     screen->fb.greenMask = ((1 << green_bpc) - 1) << bpc;
@@ -269,6 +271,7 @@ arcanDisplayHint(struct arcan_shmif_cont* con,
                 code_tbl[i] = 0;
             }
         }
+        KdEnqueuePointerEvent(arcanInputPriv.pi, KD_MOUSE_DELTA, 0, 0, 0);
     }
 
     if (arcanConfigPriv.no_dynamic_resize)
@@ -357,6 +360,10 @@ arcanScreenInit(KdScreenInfo * screen)
     if (!scrpriv)
         return FALSE;
 
+    if (!dixRegisterPrivateKey(&pixmap_private_key, PRIVATE_PIXMAP, 0)){
+        return FALSE;
+    }
+
 /* primary connection is a allocated once and then retained for the length of
  * the process */
     if (con->user){
@@ -364,6 +371,7 @@ arcanScreenInit(KdScreenInfo * screen)
         abort();
     }
 
+    scrpriv->pending_fd = -1;
     scrpriv->acon = con;
     con->user = scrpriv;
 
@@ -399,10 +407,6 @@ static void arcanInternalDamageRedisplay(ScreenPtr pScreen)
         return;
 
 /*
-    trace("arcanInternalDamageRedisplay");
- */
-
-/*
  * We don't use fine-grained dirty regions really, the data gathered gave
  * quite few benefits as cases with many dirty regions quickly exceeded the
  * magic ratio where subtex- update vs full texture update tipped in favor
@@ -414,20 +418,38 @@ static void arcanInternalDamageRedisplay(ScreenPtr pScreen)
     scrpriv->acon->dirty.y1 = box->y1;
     scrpriv->acon->dirty.y2 = box->y2;
 
-/*
- * This works, surprisingly, I'd assume we should need double buffered
- * visuals to scrpriv->tex but apparently not.
- */
+nodamage:
 #ifdef GLAMOR
     if (scrpriv->in_glamor){
-/*      trace("arcanInternalDamageRedisplay:signal-glamor"); */
-        arcan_shmifext_signal(scrpriv->acon, 0,
-            SHMIF_SIGVID | SHMIF_SIGBLK_NONE, scrpriv->tex);
+        int fd = -1;
+        size_t stride = 0;
+        int fourcc = 0;
+
+/* does glamor buffer somewhere internally? this does not seem to be
+ * plagued by tearing even though it likely should */
+        if (scrpriv->bo){
+            fd = gbm_bo_get_fd(scrpriv->bo);
+            stride = gbm_bo_get_stride(scrpriv->bo);
+            fourcc = DRM_FORMAT_XRGB8888;
+        }
+        else if (scrpriv->tex != -1){
+            uintptr_t disp;
+            arcan_shmifext_egl_meta(scrpriv->acon, &disp, NULL, NULL);
+            arcan_shmifext_gltex_handle(scrpriv->acon, disp,
+                                        scrpriv->tex, &fd, &stride, &fourcc);
+        }
+
+        arcan_shmif_signalhandle(scrpriv->acon,
+                                 SHMIF_SIGVID | SHMIF_SIGBLK_NONE,
+                                 fd, stride, fourcc);
+        if (-1 != scrpriv->pending_fd){
+            close(scrpriv->pending_fd);
+        }
+        scrpriv->pending_fd = fd;
     }
     else{
 #endif
-        arcan_shmif_signal(scrpriv->acon, SHMIF_SIGVID | SHMIF_SIGBLK_NONE );
-/*      trace("arcanInternalDamageRedisplay:signal"); */
+        arcan_shmif_signal(scrpriv->acon, SHMIF_SIGVID | SHMIF_SIGBLK_NONE);
     }
     DamageEmpty(scrpriv->damage);
 }
@@ -464,10 +486,11 @@ static void arcanUnsetInternalDamage(ScreenPtr pScreen)
     KdScreenInfo *screen = pScreenPriv->screen;
     arcanScrPriv *scrpriv = screen->driver;
     trace("arcanUnsetInternalDamage(%p)", scrpriv->damage);
-
-    DamageUnregister(scrpriv->damage);
-    DamageDestroy(scrpriv->damage);
-    scrpriv->damage = NULL;
+    if (scrpriv->damage){
+        DamageUnregister(scrpriv->damage);
+        DamageDestroy(scrpriv->damage);
+        scrpriv->damage = NULL;
+	  }
 }
 
 static
@@ -482,6 +505,93 @@ int arcanSetPixmapVisitWindow(WindowPtr window, void *data)
     return WT_DONTWALKCHILDREN;
 }
 
+#ifdef GLAMOR
+/*
+static
+int drmFmt(int depth)
+{
+    switch (depth){
+    case 16: return DRM_FORMAT_RGB565;
+    case 24: return DRM_FORMAT_XRGB8888;
+    case 32: return DRM_FORMAT_ARGB8888;
+    default:
+        return -1;
+    break;
+    }
+}*/
+
+static
+int gbmFmt(int depth)
+{
+    switch (depth){
+    case 16: return GBM_FORMAT_RGB565;
+    case 24: return GBM_FORMAT_XRGB8888;
+    case 32: return GBM_FORMAT_ARGB8888;
+    default:
+        return -1;
+    break;
+    }
+}
+
+static
+PixmapPtr boToPixmap(ScreenPtr pScreen, struct gbm_bo* bo, int depth)
+{
+    KdScreenPriv(pScreen);
+    KdScreenInfo *screen = pScreenPriv->screen;
+    arcanScrPriv *scrpriv = screen->driver;
+    PixmapPtr pixmap;
+    struct pixmap_ext *ext_pixmap;
+    uintptr_t adisp, actx;
+ /* Unfortunately shmifext- don't expose the buffer-import setup yet,
+ * waiting for the whole GBM v Streams to sort itself out, so just
+ * replicate that code once more. */
+    pixmap = glamor_create_pixmap(pScreen,
+                                  gbm_bo_get_width(bo),
+                                  gbm_bo_get_height(bo),
+                                  depth,
+                                  GLAMOR_CREATE_PIXMAP_NO_TEXTURE);
+
+    if (pixmap == NULL) {
+        trace("ArcanDRI3PixmapFromFD()::Couldn't create pixmap from BO");
+        gbm_bo_destroy(bo);
+        return NULL;
+    }
+
+/* Could probably do more sneaky things here to forward this buffer
+ * to arcan as its own window/source to cut down on the dedicated
+ * fullscreen stuff. */
+    arcan_shmifext_make_current(scrpriv->acon);
+    ext_pixmap = malloc(sizeof(struct pixmap_ext));
+    if (!ext_pixmap){
+        trace("ArcanDRI3PixmapFromFD()::Couldn't allocate pixmap metadata");
+        gbm_bo_destroy(bo);
+        glamor_destroy_pixmap(pixmap);
+        return NULL;
+    }
+
+    arcan_shmifext_egl_meta(scrpriv->acon, &adisp, NULL, &actx);
+    ext_pixmap->bo = bo;
+    ext_pixmap->image = eglCreateImageKHR((EGLDisplay) adisp,
+                                          (EGLContext) actx,
+                                          EGL_NATIVE_PIXMAP_KHR,
+                                          ext_pixmap->bo, NULL);
+
+    glGenTextures(1, &ext_pixmap->texture);
+    glBindTexture(GL_TEXTURE_2D, ext_pixmap->texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, ext_pixmap->image);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    dixSetPrivate(&pixmap->devPrivates, &pixmap_private_key, ext_pixmap);
+    glamor_set_pixmap_texture(pixmap, ext_pixmap->texture);
+    glamor_set_pixmap_type(pixmap, GLAMOR_TEXTURE_DRM);
+
+    return pixmap;
+}
+#endif
+
 static
 Bool arcanGlamorCreateScreenResources(ScreenPtr pScreen)
 {
@@ -489,29 +599,50 @@ Bool arcanGlamorCreateScreenResources(ScreenPtr pScreen)
     KdScreenPriv(pScreen);
     KdScreenInfo *screen = pScreenPriv->screen;
     arcanScrPriv *scrpriv = screen->driver;
-    PixmapPtr oldpix, newpix;
+    PixmapPtr oldpix, newpix = NULL;
+    uintptr_t dev;
+    int fmt;
 
     trace("arcanGlamorCreateScreenResources");
+/*
+ * unwrap or we might get some nasty recursive chaining
+ */
     scrpriv->CreateScreenResources(pScreen);
 
     oldpix = pScreen->GetScreenPixmap(pScreen);
-/*
-    pScreen->DestroyPixmap(oldpix);
- */
+    if (-1 == arcan_shmifext_dev(scrpriv->acon, &dev, false)){
+        trace("ArcanDRI3PixmapFromFD()::Couldn't get device handle");
+        return false;
+    }
 
-    newpix = pScreen->CreatePixmap(pScreen,
-                                   pScreen->width,
-                                   pScreen->height,
-                                   pScreen->rootDepth,
-                                   CREATE_PIXMAP_USAGE_BACKING_PIXMAP);
+    fmt = gbmFmt(pScreen->rootDepth);
+    if (-1 != fmt){
+        struct gbm_bo *bo = gbm_bo_create((struct gbm_device*) dev,
+                                          pScreen->width,
+                                          pScreen->height,
+                                          fmt,
+                                          GBM_BO_USE_SCANOUT |
+                                          GBM_BO_USE_RENDERING);
+        newpix = boToPixmap(pScreen, bo, pScreen->rootDepth);
+        scrpriv->bo = bo;
+    }
+    if (!newpix){
+        newpix = pScreen->CreatePixmap(pScreen,
+                                       pScreen->width,
+                                       pScreen->height,
+                                       pScreen->rootDepth,
+                                       CREATE_PIXMAP_USAGE_BACKING_PIXMAP);
+        scrpriv->bo = NULL;
+        scrpriv->tex = (newpix ? glamor_get_pixmap_texture(newpix) : -1);
+    }
 
     if (newpix){
-        if (pScreen->root && pScreen->SetWindowPixmap)
-            TraverseTree(pScreen->root, arcanSetPixmapVisitWindow, oldpix);
-
         pScreen->SetScreenPixmap(newpix);
         glamor_set_screen_pixmap(newpix, NULL);
-        scrpriv->tex = glamor_get_pixmap_texture(newpix);
+        SetRootClip(pScreen, ROOT_CLIP_FULL);
+
+        if (pScreen->root && pScreen->SetWindowPixmap)
+            TraverseTree(pScreen->root, arcanSetPixmapVisitWindow, oldpix);
     }
 
     return TRUE;
@@ -771,7 +902,6 @@ arcanRandRSetConfig(ScreenPtr pScreen,
         arcanGlamorCreateScreenResources(pScreen);
     }
 #endif
-
     /*
      * Set frame buffer mapping
      */
@@ -785,7 +915,6 @@ arcanRandRSetConfig(ScreenPtr pScreen,
 
     if (!arcanSetInternalDamage(screen->pScreen))
         goto bail4;
-
 
     /* set the subpixel order */
 
@@ -815,13 +944,13 @@ arcanRandRSetConfig(ScreenPtr pScreen,
 static Bool
 arcanRandRSetGamma(ScreenPtr pScreen, RRCrtcPtr crtc)
 {
-	return false;
+    return false;
 }
 
 static Bool
 arcanRandRGetGamma(ScreenPtr pScreen, RRCrtcPtr crtc)
 {
-	return false;
+    return false;
 }
 
 Bool
@@ -845,8 +974,8 @@ arcanRandRInit(ScreenPtr pScreen)
 
 #if RANDR_12_INTERFACE
     pScrPriv->rrScreenSetSize = arcanRandRScreenResize;
-		pScrPriv->rrCrtcSetGamma = arcanRandRSetGamma;
-		pScrPriv->rrCrtcGetGamma = arcanRandRGetGamma;
+    pScrPriv->rrCrtcSetGamma = arcanRandRSetGamma;
+    pScrPriv->rrCrtcGetGamma = arcanRandRGetGamma;
 #endif
     return TRUE;
 }
@@ -874,8 +1003,6 @@ int glamor_egl_dri3_fd_name_from_tex(ScreenPtr pScreen,
     trace("(arcan) glamor_egl_dri3_fd_name_from_tex");
     *size = pixmap->drawable.width * (*stride);
 
-/* size? there is a glamor_gbm_bo_from_pixmap() but these do not
- * seem to provide the format needed to go on. */
     if (arcan_shmifext_gltex_handle(scrpriv->acon, 0,
                                     tex, &fd, &dstr, &fmt)){
         *stride = dstr;
@@ -904,7 +1031,8 @@ glamor_egl_screen_init(ScreenPtr pScreen, struct glamor_context *glamor_ctx)
 /*
  * something when this is done breaks damage regions
  */
-    glamor_enable_dri3(pScreen);
+    if (!arcanConfigPriv.no_dri3)
+        glamor_enable_dri3(pScreen);
 }
 
 void arcanGlamorEnable(ScreenPtr pScreen)
@@ -939,21 +1067,18 @@ void arcanGlamorFini(ScreenPtr pScreen)
     glamor_fini(pScreen);
 }
 
-/*
- * Only support GBM
- */
 static int dri3FdFromPixmap(ScreenPtr pScreen, PixmapPtr pixmap,
                             CARD16 *stride, CARD32 *size)
 {
+    struct pixmap_ext *ext_pixmap = dixLookupPrivate(
+                                             &pixmap->devPrivates,
+                                             &pixmap_private_key);
     trace("ArcanDRI3FdFromPixmap");
-/*
- *  1. get the pixmap structure
- *  2. extract BO
- *  gbm_bo_get_stride,
- *  pixmap->drawable.width * *stride,
- *  return gbm_bo_get_fd(bo);
- */
-    return -1;
+
+    *stride = gbm_bo_get_stride(ext_pixmap->bo);
+    *size = pixmap->drawable.width * *stride;
+
+    return gbm_bo_get_fd(ext_pixmap->bo);
 }
 
 static PixmapPtr dri3PixmapFromFd(ScreenPtr pScreen, int fd,
@@ -963,11 +1088,9 @@ static PixmapPtr dri3PixmapFromFd(ScreenPtr pScreen, int fd,
     KdScreenPriv(pScreen);
     KdScreenInfo *screen = pScreenPriv->screen;
     arcanScrPriv *scrpriv = screen->driver;
-    PixmapPtr pixmap;
-    uintptr_t adisp, actx;
     uintptr_t dev;
     struct gbm_bo *bo;
-    struct pixmap_ext *ext_pixmap;
+    int gbm_fmt = gbmFmt(depth);
     struct gbm_import_fd_data data = {
         .fd = fd, .width = w, .height = h, .stride = stride };
 
@@ -987,23 +1110,12 @@ static PixmapPtr dri3PixmapFromFd(ScreenPtr pScreen, int fd,
         return NULL;
     }
 
-    switch (depth){
-    case 16:
-        data.format = GBM_FORMAT_RGB565;
-    break;
-    case 24:
-        data.format = GBM_FORMAT_XRGB8888;
-    break;
-    case 32:
-        data.format = GBM_FORMAT_ARGB8888;
-    break;
-    default:
+    if (-1 == gbm_fmt){
         ErrorF("ArcanDRI3PixmapFromFD()::unknown input format");
         return NULL;
-    break;
     }
 
-    if (-1 == arcan_shmifext_dev(scrpriv->acon, &dev)){
+    if (-1 == arcan_shmifext_dev(scrpriv->acon, &dev, false)){
         trace("ArcanDRI3PixmapFromFD()::Couldn't get device handle");
     }
 
@@ -1014,53 +1126,7 @@ static PixmapPtr dri3PixmapFromFd(ScreenPtr pScreen, int fd,
         return NULL;
     }
 
-/* Unfortunately shmifext- don't expose the buffer-import setup yet,
- * waiting for the whole GBM v Streams to sort itself out, so just
- * replicate that code once more. */
-    pixmap = glamor_create_pixmap(pScreen,
-                                  gbm_bo_get_width(bo),
-                                  gbm_bo_get_height(bo),
-                                  depth,
-                                  GLAMOR_CREATE_PIXMAP_NO_TEXTURE);
-    if (pixmap == NULL) {
-        trace("ArcanDRI3PixmapFromFD()::Couldn't create pixmap from BO");
-        gbm_bo_destroy(bo);
-        return NULL;
-    }
-
-/* Could probably do more sneaky things here to forward this buffer
- * to arcan as its own window/source to cut down on the dedicated
- * fullscreen stuff. */
-    arcan_shmifext_make_current(scrpriv->acon);
-    ext_pixmap = malloc(sizeof(struct pixmap_ext));
-    if (!ext_pixmap){
-        trace("ArcanDRI3PixmapFromFD()::Couldn't allocate pixmap metadata");
-        gbm_bo_destroy(bo);
-        glamor_destroy_pixmap(pixmap);
-        return NULL;
-    }
-
-    arcan_shmifext_egl_meta(scrpriv->acon, &adisp, NULL, &actx);
-    ext_pixmap->bo = bo;
-    ext_pixmap->image = eglCreateImageKHR((EGLDisplay) adisp,
-                                          (EGLContext) actx,
-                                          EGL_NATIVE_PIXMAP_KHR,
-                                          ext_pixmap->bo, NULL);
-
-    glGenTextures(1, &ext_pixmap->texture);
-    glBindTexture(GL_TEXTURE_2D, ext_pixmap->texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-    glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, ext_pixmap->image);
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-/* FIXME: resource cleanup isn't correct here, it's the DIX set
- * private etc. dance */
-    glamor_set_pixmap_texture(pixmap, ext_pixmap->texture);
-    glamor_set_pixmap_type(pixmap, GLAMOR_TEXTURE_DRM);
-
-    return pixmap;
+    return boToPixmap(pScreen, bo, depth);
 }
 
 static int dri3Open(ClientPtr client,
@@ -1076,10 +1142,10 @@ static int dri3Open(ClientPtr client,
     if (arcanConfigPriv.no_dri3)
         return BadAlloc;
 
-    fd = arcan_shmifext_dev(scrpriv->acon, NULL);
+    fd = arcan_shmifext_dev(scrpriv->acon, NULL, true);
     trace("ArcanDri3Open(%d)", fd);
     if (-1 != fd){
-        *pfd = dup(fd);
+        *pfd = fd;
         return Success;
     }
     return BadAlloc;
@@ -1128,18 +1194,19 @@ Bool arcanGlamorInit(ScreenPtr pScreen)
  */
 #endif
 
-    if (glamor_init(pScreen, GLAMOR_USE_EGL_SCREEN)){
+    if (glamor_init(pScreen, GLAMOR_USE_EGL_SCREEN | GLAMOR_NO_DRI3)){
         scrpriv->in_glamor = TRUE;
     }
     else {
         ErrorF("arcanGlamorInit() - failed to initialize glamor");
         goto bail;
     }
-
-    if (!dri3_screen_init(pScreen, &dri3_info)){
-        ErrorF("arcanGlamorInit() - failed to set DRI3");
-        arcan_shmifext_drop(scrpriv->acon);
-        goto bail;
+    if (!arcanConfigPriv.no_dri3){
+        if (!dri3_screen_init(pScreen, &dri3_info)){
+            ErrorF("arcanGlamorInit() - failed to set DRI3");
+            arcan_shmifext_drop(scrpriv->acon);
+            goto bail;
+        }
     }
 
     scrpriv->CreateScreenResources = pScreen->CreateScreenResources;

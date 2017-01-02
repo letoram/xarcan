@@ -45,6 +45,7 @@ struct pixmap_ext {
     unsigned int texture;
 };
 
+struct gbm_bo;
 typedef struct _arcanScrPriv {
     struct arcan_shmif_cont * acon;
     struct arcan_shmif_initial init;
@@ -54,9 +55,10 @@ typedef struct _arcanScrPriv {
     CloseScreenProcPtr CloseHandler;
     ScreenPtr screen;
     DamagePtr damage;
-
     Bool in_glamor;
+    struct gbm_bo* bo;
     int tex;
+    int pending_fd;
     CARD16 stride;
     CARD32 size;
     int format;

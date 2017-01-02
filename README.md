@@ -54,9 +54,17 @@ right now:
 	Can workaround in durden with target/video/shader/no_alpha right now.
 	Unsure if this is deep in the bowels of X or MESA.
 
+* if it is unsuably unstable, try running with -nodynamic
+
 * glamor with DRI3 gives interesting client crashes when the X server itself
   is bound to a render-node rather than a card (at least on amdgpu), running
 	with -nodri3 works, but chances are you'll get the software path instead.
+
+* resource management / cleanup is extremely error prone. Xorg uses a volatile
+  pattern of structures with callbacks that you attach-chain to, meaning that
+	execution goes all over the place and it's a pain to trace. Whenever someone
+	incorrectly chains or unchains, you get backtraces that are awful to figure
+	out.
 
 Notes
 ====
