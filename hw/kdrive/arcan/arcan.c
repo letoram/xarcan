@@ -35,7 +35,7 @@
 #include "glamor_context.h"
 #include "glamor_egl.h"
 #include "dri3.h"
-#include <drm_fourcc.h>
+#include <drm/drm_fourcc.h>
 #endif
 
 #define WANT_ARCAN_SHMIF_HELPER
@@ -58,7 +58,6 @@ static uint8_t code_tbl[512];
 static struct arcan_shmif_initial* arcan_init;
 static DevPrivateKeyRec pixmap_private_key;
 
-#define ARCAN_TRACE
 static inline void trace(const char* msg, ...)
 {
 #ifdef ARCAN_TRACE
@@ -490,11 +489,11 @@ static void arcanUnsetInternalDamage(ScreenPtr pScreen)
         DamageUnregister(scrpriv->damage);
         DamageDestroy(scrpriv->damage);
         scrpriv->damage = NULL;
-	  }
+    }
 }
 
 static
-int arcanSetPixmapVisitWindow(WindowPtr window, void *data)
+int ArcanSetPixmapVisitWindow(WindowPtr window, void *data)
 {
     ScreenPtr screen = window->drawable.pScreen;
     trace("arcanSetPixmapVisitWindow");
@@ -604,10 +603,6 @@ Bool arcanGlamorCreateScreenResources(ScreenPtr pScreen)
     int fmt;
 
     trace("arcanGlamorCreateScreenResources");
-/*
- * unwrap or we might get some nasty recursive chaining
- */
-    scrpriv->CreateScreenResources(pScreen);
 
     oldpix = pScreen->GetScreenPixmap(pScreen);
     if (-1 == arcan_shmifext_dev(scrpriv->acon, &dev, false)){
@@ -637,12 +632,14 @@ Bool arcanGlamorCreateScreenResources(ScreenPtr pScreen)
     }
 
     if (newpix){
+        trace("SetScreenPixmap(new)");
         pScreen->SetScreenPixmap(newpix);
         glamor_set_screen_pixmap(newpix, NULL);
-        SetRootClip(pScreen, ROOT_CLIP_FULL);
 
-        if (pScreen->root && pScreen->SetWindowPixmap)
-            TraverseTree(pScreen->root, arcanSetPixmapVisitWindow, oldpix);
+      if (pScreen->root && pScreen->SetWindowPixmap)
+            TraverseTree(pScreen->root, ArcanSetPixmapVisitWindow, oldpix);
+
+        SetRootClip(pScreen, ROOT_CLIP_FULL);
     }
 
     return TRUE;
@@ -902,6 +899,9 @@ arcanRandRSetConfig(ScreenPtr pScreen,
         arcanGlamorCreateScreenResources(pScreen);
     }
 #endif
+    if (!arcanSetInternalDamage(screen->pScreen))
+        goto bail4;
+
     /*
      * Set frame buffer mapping
      */
@@ -912,11 +912,6 @@ arcanRandRSetConfig(ScreenPtr pScreen,
                                     screen->fb.bitsPerPixel,
                                     screen->fb.byteStride,
                                     screen->fb.frameBuffer);
-
-    if (!arcanSetInternalDamage(screen->pScreen))
-        goto bail4;
-
-    /* set the subpixel order */
 
     KdSetSubpixelOrder(pScreen, scrpriv->randr);
 
@@ -974,8 +969,9 @@ arcanRandRInit(ScreenPtr pScreen)
 
 #if RANDR_12_INTERFACE
     pScrPriv->rrScreenSetSize = arcanRandRScreenResize;
-    pScrPriv->rrCrtcSetGamma = arcanRandRSetGamma;
+/*  pScrPriv->rrCrtcSetGamma = arcanRandRSetGamma;
     pScrPriv->rrCrtcGetGamma = arcanRandRGetGamma;
+ */
 #endif
     return TRUE;
 }
@@ -1169,6 +1165,7 @@ Bool arcanGlamorInit(ScreenPtr pScreen)
  * overlays. */
 
     struct arcan_shmifext_setup defs = arcan_shmifext_defaults(scrpriv->acon);
+    int errc;
     defs.depth = 0;
     defs.alpha = 0;
     defs.major = GLAMOR_GL_CORE_VER_MAJOR;
@@ -1177,8 +1174,10 @@ Bool arcanGlamorInit(ScreenPtr pScreen)
     trace("arcanGlamorInit");
 
     defs.builtin_fbo = false;
-    if (SHMIFEXT_OK != arcan_shmifext_setup(scrpriv->acon, defs)){
-        ErrorF("xarcan/glamor::init() - EGL context failed, lowering version\n");
+    errc = arcan_shmifext_setup(scrpriv->acon, defs);
+    if (errc != SHMIFEXT_OK){
+        ErrorF("xarcan/glamor::init() - EGL context failed (reason: %d), "
+               "lowering version\n", errc);
         defs.major = 2;
         defs.minor = 1;
         defs.mask = 0;

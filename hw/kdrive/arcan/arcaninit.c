@@ -94,6 +94,8 @@ InitInput(int argc, char **argv)
     KdAddKeyboard(ki);
 
     KdInitInput();
+    LogInit("yeahlog", ".old");
+		LogSetParameter(XLOG_FILE_VERBOSITY, 100000);
 
 /* Register won't work unless we're in init input state */
     con = arcan_shmif_primary(SHMIF_INPUT);

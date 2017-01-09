@@ -7,6 +7,8 @@ AM_CPPFLAGS = 					\
 	$(GLAMOR_CFLAGS)     \
 	$(GBM_CFLAGS)
 
+# add -DARCAN_TRACE for tracing
+
 noinst_LTLIBRARIES = libarcan.la
 
 bin_PROGRAMS = Xarcan
