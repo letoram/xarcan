@@ -221,8 +221,12 @@ AC_CHECK_FUNCS([backtrace ffs geteuid getuid issetugid getresuid \
 	mmap posix_fallocate seteuid shmctl64 strncasecmp vasprintf vsnprintf \
 	walkcontext setitimer poll epoll_create1])
 AC_CONFIG_LIBOBJ_DIR([os])
-AC_REPLACE_FUNCS([reallocarray strcasecmp strcasestr strlcat strlcpy strndup])
+AC_REPLACE_FUNCS([reallocarray strcasecmp strcasestr strlcat strlcpy strndup\
+	timingsafe_memcmp])
 AM_CONDITIONAL(POLL, [test "x$ac_cv_func_poll" = "xyes"])
+
+AC_CHECK_LIB([bsd], [arc4random_buf])
+AC_CHECK_FUNCS([arc4random_buf])
 
 AC_CHECK_DECLS([program_invocation_short_name], [], [], [[#include <errno.h>]])
 
@@ -655,14 +659,9 @@ AC_ARG_ENABLE(glamor,         AS_HELP_STRING([--enable-glamor], [Build glamor di
 dnl kdrive and its subsystems
 AC_ARG_ENABLE(kdrive,         AS_HELP_STRING([--enable-kdrive], [Build kdrive servers (default: no)]), [KDRIVE=$enableval], [KDRIVE=no])
 AC_ARG_ENABLE(xephyr,         AS_HELP_STRING([--enable-xephyr], [Build the kdrive Xephyr server (default: auto)]), [XEPHYR=$enableval], [XEPHYR=auto])
-AC_ARG_ENABLE(xfake,          AS_HELP_STRING([--enable-xfake], [Build the kdrive 'fake' server (default: auto)]), [XFAKE=$enableval], [XFAKE=auto])
+dnl kdrive options
 AC_ARG_ENABLE(xarcan,         AS_HELP_STRING([--enable-xarcan], [Build the kdrive 'arcan' server (default: auto)]), [XARCAN=$enableval], [XARCAN=auto])
 AC_ARG_ENABLE(xarcan-accel,   AS_HELP_STRING([--enable-xarcan-accel], [Build the kdrive 'arcan' server with acceleration (default: auto)]), [XARCAN_ACCEL=$enableval], [XARCAN_ACCEL=auto])
-AC_ARG_ENABLE(xfbdev,         AS_HELP_STRING([--enable-xfbdev], [Build the kdrive framebuffer device server (default: auto)]), [XFBDEV=$enableval], [XFBDEV=auto])
-dnl kdrive options
-AC_ARG_ENABLE(kdrive-kbd,     AS_HELP_STRING([--enable-kdrive-kbd], [Build kbd driver for kdrive (default: auto)]), [KDRIVE_KBD=$enableval], [KDRIVE_KBD=auto])
-AC_ARG_ENABLE(kdrive-mouse,   AS_HELP_STRING([--enable-kdrive-mouse], [Build mouse driver for kdrive (default: auto)]), [KDRIVE_MOUSE=$enableval], [KDRIVE_MOUSE=auto])
-AC_ARG_ENABLE(kdrive-evdev,   AS_HELP_STRING([--enable-kdrive-evdev], [Build evdev driver for kdrive (default: auto)]), [KDRIVE_EVDEV=$enableval], [KDRIVE_EVDEV=auto])
 AC_ARG_ENABLE(libunwind,      AS_HELP_STRING([--enable-libunwind], [Use libunwind for backtracing (default: auto)]), [LIBUNWIND="$enableval"], [LIBUNWIND="auto"])
 AC_ARG_ENABLE(xshmfence,      AS_HELP_STRING([--disable-xshmfence], [Disable xshmfence (default: auto)]), [XSHMFENCE="$enableval"], [XSHMFENCE="auto"])
 
@@ -1342,7 +1341,12 @@ AM_CONDITIONAL(DRI3, test "x$DRI3" = xyes)
 if test "x$DRI" = xyes || test "x$DRI2" = xyes || test "x$DRI3" = xyes || test "x$CONFIG_UDEV_KMS" = xyes; then
 	if test "x$DRM" = xyes; then
 		AC_DEFINE(WITH_LIBDRM, 1, [Building with libdrm support])
-		PKG_CHECK_MODULES([LIBDRM], $LIBDRM)
+		if test "x$DRI2" = xyes; then
+			dnl 2.4.65 is required for drmGetDevice
+			PKG_CHECK_MODULES([LIBDRM], libdrm >= 2.4.65)
+		else
+			PKG_CHECK_MODULES([LIBDRM], $LIBDRM)
+		fi
 	fi
 fi
 
@@ -1846,7 +1850,7 @@ if test "x$XNEST" = xyes; then
 	if test "x$have_xnest" = xno; then
 		AC_MSG_ERROR([Xnest build explicitly requested, but required modules not found.])
 	fi
-	XNEST_LIBS="$FB_LIB $FIXES_LIB $MI_LIB $XEXT_LIB $DBE_LIB $RECORD_LIB $GLX_LIBS $RANDR_LIB $RENDER_LIB $DAMAGE_LIB  $DRI3_LIB $PRESENT_LIB $MIEXT_SYNC_LIB $MIEXT_DAMAGE_LIB $MIEXT_SHADOW_LIB $XI_LIB $XKB_LIB $XKB_STUB_LIB $COMPOSITE_LIB $MAIN_LIB $DIX_LIB $OS_LIB"
+	XNEST_LIBS="$FB_LIB $FIXES_LIB $MI_LIB $XEXT_LIB $DBE_LIB $RECORD_LIB $GLX_LIBS $RANDR_LIB $DAMAGE_LIB  $DRI3_LIB $PRESENT_LIB $MIEXT_SYNC_LIB $MIEXT_DAMAGE_LIB $RENDER_LIB $MIEXT_SHADOW_LIB $XI_LIB $XKB_LIB $XKB_STUB_LIB $COMPOSITE_LIB $MAIN_LIB $DIX_LIB $OS_LIB"
 	XNEST_SYS_LIBS="$XNESTMODULES_LIBS $GLX_SYS_LIBS"
 	AC_SUBST([XNEST_LIBS])
 	AC_SUBST([XNEST_SYS_LIBS])
@@ -2338,9 +2342,6 @@ if test "x$DMX" = xyes; then
 dnl USB sources in DMX require <linux/input.h>
 	AC_CHECK_HEADER([linux/input.h], DMX_BUILD_USB="yes",
 			DMX_BUILD_USB="no")
-dnl Linux sources in DMX require <linux/keyboard.h>
-	AC_CHECK_HEADER([linux/keyboard.h], DMX_BUILD_LNX="yes",
-			DMX_BUILD_LNX="no")
 	AC_SUBST(XDMXCONFIG_DEP_CFLAGS)
 	AC_SUBST(XDMXCONFIG_DEP_LIBS)
 	PKG_CHECK_MODULES([DMXEXAMPLES_DEP], [$LIBDMX $LIBXEXT x11])
@@ -2357,7 +2358,6 @@ dnl Linux sources in DMX require <linux/keyboard.h>
 	AC_SUBST(X11EXAMPLES_DEP_LIBS)
 
 fi
-AM_CONDITIONAL([DMX_BUILD_LNX], [test "x$DMX_BUILD_LNX" = xyes])
 AM_CONDITIONAL([DMX_BUILD_USB], [test "x$DMX_BUILD_USB" = xyes])
 
 dnl kdrive DDX
@@ -2370,74 +2370,6 @@ AM_CONDITIONAL(KDRIVE, [test x$KDRIVE = xyes])
 if test "$KDRIVE" = yes; then
     AC_DEFINE(KDRIVESERVER,1,[Build Kdrive X server])
     AC_DEFINE(KDRIVEDDXACTIONS,,[Build kdrive ddx])
-
-    AC_CHECK_HEADERS([linux/fb.h])
-    if test "$ac_cv_header_linux_fb_h" = yes && test "x$XFBDEV" = xauto; then
-        XFBDEV=yes
-    fi
-
-    if test "x$XFBDEV" = xyes; then
-        KDRIVEFBDEVLIB=yes
-        AC_DEFINE(KDRIVEFBDEV, 1, [Build fbdev-based kdrive server])
-    fi
-
-
-    PKG_CHECK_MODULES([TSLIB], [tslib-0.0], [HAVE_TSLIB="yes"], [HAVE_TSLIB="no"])
-    if test "x$HAVE_TSLIB" = xno; then
-        AC_CHECK_LIB(ts, ts_open, [
-			HAVE_TSLIB="yes"
-			TSLIB_LIBS="-lts"
-		])
-    fi
-
-    if test "xTSLIB" = xauto; then
-        TSLIB="$HAVE_TSLIB"
-    fi
-
-    if test "x$TSLIB" = xyes; then
-        if ! test "x$HAVE_TSLIB" = xyes; then
-            AC_MSG_ERROR([tslib must be installed to build the tslib driver. See http://tslib.berlios.de/])
-        else
-            AC_DEFINE(TSLIB, 1, [Have tslib support])
-        fi
-    fi
-
-    case $host_os in
-	*linux*)
-	    KDRIVE_OS_LIB='$(top_builddir)/hw/kdrive/linux/liblinux.la'
-            KDRIVELINUX=yes
-	    if test "x$KDRIVE_EVDEV" = xauto; then
-		KDRIVE_EVDEV=yes
-	    fi
-	    if test "x$KDRIVE_KBD" = xauto; then
-		KDRIVE_KBD=yes
-	    fi
-	    if test "x$KDRIVE_MOUSE" = xauto; then
-		KDRIVE_MOUSE=yes
-	    fi
-	    ;;
-	*)
-	    if test "x$KDRIVE_EVDEV" = xauto; then
-		KDRIVE_EVDEV=no
-	    fi
-	    if test "x$KDRIVE_KBD" = xauto; then
-		KDRIVE_KBD=no
-	    fi
-	    if test "x$KDRIVE_MOUSE" = xauto; then
-		KDRIVE_MOUSE=no
-	    fi
-	    ;;
-    esac
-
-    if test "x$KDRIVE_KBD" = xyes; then
-       AC_DEFINE(KDRIVE_KBD, 1, [Enable KDrive kbd driver])
-    fi
-    if test "x$KDRIVE_EVDEV" = xyes; then
-       AC_DEFINE(KDRIVE_EVDEV, 1, [Enable KDrive evdev driver])
-    fi
-    if test "x$KDRIVE_MOUSE" = xyes; then
-       AC_DEFINE(KDRIVE_MOUSE, 1, [Enable KDrive mouse driver])
-    fi
 
     XEPHYR_REQUIRED_LIBS="xau xdmcp xcb xcb-shape xcb-render xcb-renderutil xcb-aux xcb-image xcb-icccm xcb-shm xcb-keysyms xcb-randr xcb-xkb"
     if test "x$XV" = xyes; then
@@ -2486,15 +2418,7 @@ AC_SUBST([KDRIVE_PURE_LIBS])
 AC_SUBST([KDRIVE_MAIN_LIB])
 AC_SUBST([KDRIVE_LOCAL_LIBS])
 AC_SUBST([KDRIVE_LIBS])
-AM_CONDITIONAL(KDRIVELINUX, [test "x$KDRIVELINUX" = xyes])
-AM_CONDITIONAL(KDRIVE_EVDEV, [test "x$KDRIVE_EVDEV" = xyes])
-AM_CONDITIONAL(KDRIVE_KBD,   [test "x$KDRIVE_KBD" = xyes])
-AM_CONDITIONAL(KDRIVE_MOUSE, [test "x$KDRIVE_MOUSE" = xyes])
-AM_CONDITIONAL(TSLIB, [test "x$HAVE_TSLIB" = xyes])
-AM_CONDITIONAL(KDRIVEFBDEV, [test "x$XFBDEV" = xyes])
 AM_CONDITIONAL(XEPHYR, [test "x$KDRIVE" = xyes && test "x$XEPHYR" = xyes])
-AM_CONDITIONAL(BUILD_KDRIVEFBDEVLIB, [test "x$KDRIVE" = xyes && test "x$KDRIVEFBDEVLIB" = xyes])
-AM_CONDITIONAL(XFAKESERVER, [test "x$KDRIVE" = xyes && test "x$XFAKE" = xyes])
 AM_CONDITIONAL(XARCANSERVER, [test "x$KDRIVE" = xyes && test "x$XARCAN" = xyes])
 
 if test "x$XARCAN_ACCEL" = xno; then
@@ -2694,14 +2618,9 @@ hw/kdrive/Makefile
 hw/kdrive/ephyr/Makefile
 hw/kdrive/ephyr/man/Makefile
 hw/kdrive/arcan/Makefile
-hw/kdrive/fake/Makefile
-hw/kdrive/fbdev/Makefile
-hw/kdrive/linux/Makefile
 hw/kdrive/src/Makefile
 hw/xwayland/Makefile
 test/Makefile
-test/xi1/Makefile
-test/xi2/Makefile
 xserver.ent
 xorg-server.pc
 ])

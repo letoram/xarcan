@@ -144,10 +144,6 @@ present_check_flip(RRCrtcPtr    crtc,
     if (!screen_priv->info->flip)
         return FALSE;
 
-    /* Fail to flip if we have slave outputs */
-    if (screen->output_slaves)
-        return FALSE;
-
     /* Make sure the window hasn't been redirected with Composite */
     window_pixmap = screen->GetWindowPixmap(window);
     if (window_pixmap != screen->GetScreenPixmap(screen) &&
@@ -536,7 +532,10 @@ present_event_notify(uint64_t event_id, uint64_t ust, uint64_t msc)
     }
     xorg_list_for_each_entry(vblank, &present_flip_queue, event_queue) {
         if (vblank->event_id == event_id) {
-            present_flip_notify(vblank, ust, msc);
+            if (vblank->queued)
+                present_execute(vblank, ust, msc);
+            else
+                present_flip_notify(vblank, ust, msc);
             return;
         }
     }

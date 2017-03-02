@@ -510,6 +510,9 @@ pointer_handle_frame(void *data, struct wl_pointer *wl_pointer)
 {
     struct xwl_seat *xwl_seat = data;
 
+    if (!xwl_seat->focus_window)
+        return;
+
     dispatch_pointer_motion_event(xwl_seat);
 }
 
@@ -559,6 +562,9 @@ relative_pointer_handle_relative_motion(void *data,
     xwl_seat->pending_pointer_event.dy = wl_fixed_to_double(dyf);
     xwl_seat->pending_pointer_event.dx_unaccel = wl_fixed_to_double(dx_unaccelf);
     xwl_seat->pending_pointer_event.dy_unaccel = wl_fixed_to_double(dy_unaccelf);
+
+    if (!xwl_seat->focus_window)
+        return;
 
     if (wl_proxy_get_version((struct wl_proxy *) xwl_seat->wl_pointer) < 5)
         dispatch_pointer_motion_event(xwl_seat);
@@ -854,7 +860,7 @@ touch_handle_down(void *data, struct wl_touch *wl_touch,
 
     xwl_touch = calloc(1, sizeof *xwl_touch);
     if (xwl_touch == NULL) {
-        ErrorF("touch_handle_down ENOMEM");
+        ErrorF("%s: ENOMEM\n", __func__);
         return;
     }
 
@@ -1021,8 +1027,6 @@ release_relative_pointer(struct xwl_seat *xwl_seat)
 static void
 init_keyboard(struct xwl_seat *xwl_seat)
 {
-    DeviceIntPtr master;
-
     xwl_seat->wl_keyboard = wl_seat_get_keyboard(xwl_seat->seat);
     wl_keyboard_add_listener(xwl_seat->wl_keyboard,
                              &keyboard_listener, xwl_seat);
@@ -1034,9 +1038,6 @@ init_keyboard(struct xwl_seat *xwl_seat)
     }
     EnableDevice(xwl_seat->keyboard, TRUE);
     xwl_seat->keyboard->key->xkbInfo->checkRepeat = keyboard_check_repeat;
-    master = GetMaster(xwl_seat->keyboard, MASTER_KEYBOARD);
-    if (master)
-        master->key->xkbInfo->checkRepeat = keyboard_check_repeat;
 }
 
 static void
@@ -1125,7 +1126,7 @@ create_input_device(struct xwl_screen *xwl_screen, uint32_t id, uint32_t version
 
     xwl_seat = calloc(1, sizeof *xwl_seat);
     if (xwl_seat == NULL) {
-        ErrorF("create_input ENOMEM\n");
+        ErrorF("%s: ENOMEM\n", __func__);
         return;
     }
 
@@ -1452,7 +1453,7 @@ xwl_pointer_warp_emulator_create(struct xwl_seat *xwl_seat)
 
     warp_emulator = calloc(1, sizeof *warp_emulator);
     if (!warp_emulator) {
-        ErrorF("%s: ENOMEM", __func__);
+        ErrorF("%s: ENOMEM\n", __func__);
         return NULL;
     }
 

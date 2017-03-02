@@ -97,8 +97,3 @@ bridged, here are the current big points:
     - [ ] overridable lookup function (map to shmifext-)
     - [ ] invalidate / replace
 - [ ] Gamma Translation
-- [ ] Clipboard Integration
-    - [ ] Pasteboard
-    - [ ] Text
-    - [ ] Bchunk
-    - [ ] Video
