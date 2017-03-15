@@ -135,6 +135,7 @@ ddxUseMsg(void)
     ErrorF("-atitle [str]          Set window static identity\n");
     ErrorF("-glamor                Enable glamor rendering\n");
     ErrorF("-nodri3                Disable DRI3- support\n");
+    ErrorF("-accel_cursor          Enable accelerated cursor\n");
 }
 
 int
@@ -172,14 +173,12 @@ ddxProcessArgument(int argc, char **argv, int i)
         arcanConfigPriv.no_dynamic_resize = true;
         return 1;
     }
-/*
- *  should incur a switch to a shadow framebuffer etc.
-    else if (strcmp(argv[i], "-dbuf") == 0){
-        arcanConfigPriv.double_buffer = true;
-        return 1;
+    else if (strcmp(argv[i], "-accel_cursor") == 0){
+        arcanConfigPriv.accel_cursor = true;
     }
-    else if (strcmp(argv[i], "-dbuf-txpass") == 0){
-        arcanConfigPriv.double_buffer_accel = true;
+/*
+    else if (strcmp(argv[i], "-txpass") == 0){
+        arcanConfigPriv.txpass = true;
         return 1;
     }
  */

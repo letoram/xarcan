@@ -75,8 +75,8 @@ typedef struct _arcanConfig {
     Bool no_dri3;
     Bool glamor;
     Bool no_dynamic_resize;
-    Bool double_buffer;
-    Bool double_buffer_accel;
+    Bool txpass;
+    Bool accel_cursor;
 } arcanConfig;
 
 extern int arcanGlamor;

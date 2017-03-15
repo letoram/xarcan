@@ -54,6 +54,9 @@ arcanInput arcanInputPriv;
 arcanConfig arcanConfigPriv;
 int arcanGlamor;
 
+static struct arcan_shmif_cont cursor;
+static DevPrivateKeyRec cursor_private_key;
+
 static uint8_t code_tbl[512];
 static struct arcan_shmif_initial* arcan_init;
 static DevPrivateKeyRec pixmap_private_key;
@@ -323,8 +326,11 @@ arcanFlushEvents(int fd, void* tag)
             case TARGET_COMMAND_OUTPUTHINT:
             break;
             case TARGET_COMMAND_NEWSEGMENT:
-/* grab clipboard and match with X clipboard integration here, this can
- * be made similar to how it's working for Xwin and others */
+/* Only thing we care about here is if a new output segment is pushed, that would
+ * indicate that we have received a buffer to 'provide' if a client attempts to
+ * read or capture anything from the root display. Clipboard is used with the
+ * aclip tool, so no need here - and mouse cursor registration is performed much
+ * earlier */
             break;
             case TARGET_COMMAND_EXIT:
                 CloseWellKnownConnections();
@@ -417,7 +423,6 @@ static void arcanInternalDamageRedisplay(ScreenPtr pScreen)
     scrpriv->acon->dirty.y1 = box->y1;
     scrpriv->acon->dirty.y2 = box->y2;
 
-nodamage:
 #ifdef GLAMOR
     if (scrpriv->in_glamor){
         int fd = -1;
@@ -746,7 +751,32 @@ ArcanInit(void)
         return 0;
     }
 
-/* we will do dirt- region updates rather than full swaps, and alpha
+/* indicate that we can/want to do color-management, RandR will check this
+ * with the arcan_shmif_substruct calls */
+    arcan_shmif_resize_ext(con, con->w, con->h, (struct shmif_resize_ext){
+        .meta = SHMIF_META_CM
+    });
+
+/* try and request a mouse segment for accelerated mouse (unless disabled)
+ * or at least indicate that we do software cursor rendering */
+    if (arcanConfigPriv.accel_cursor){
+        arcan_shmif_enqueue(con, &(struct arcan_event){
+            .ext.kind = ARCAN_EVENT(SEGREQ),
+            .ext.segreq.width = 32,
+            .ext.segreq.height = 32,
+            .ext.segreq.kind = SEGID_CURSOR,
+            .ext.segreq.id = 0xbad1dea
+        });
+
+/*
+ * wd->cursor = arcan_shmif_acquire(&wd->mcont, NULL, SEGID_CURSOR, 0);
+        printf("parent REJECTED cursor\n");
+        wd->cursor_reject = true;
+ */
+    }
+
+
+/* we will do dirty- region updates rather than full swaps, and alpha
  * channel will be set to 00 so ignore that one */
     arcan_shmif_setprimary(SHMIF_INPUT, con);
 
@@ -1461,6 +1491,39 @@ arcanGetColors(ScreenPtr pScreen, int n, xColorItem * pdefs)
         pdefs++;
     }
     trace("arcanGetColors");
+}
+
+miPointerScreenFuncRec ArcanPointerScreenFuncs = {
+/* CursorOffScreen
+ * CrossScreen
+ * WarpCursor */
+};
+
+miPointerSpriteFuncRec ArcanPointerSpriteFuncs = {
+/*
+ * Realize
+ * Unrealize
+ * SetCursor
+ * MoveCursor
+ * Initialize
+ * Cleanup
+ */
+};
+
+Bool
+arcanCursorInit(ScreenPtr screen)
+{
+    if (!arcanConfigPriv.accel_cursor)
+        return FALSE;
+
+    if (!dixRegisterPrivateKey(&cursor_private_key, PRIVATE_CURSOR_BITS, 0))
+        return FALSE;
+
+    miPointerInitialize(screen,
+                        &ArcanPointerSpriteFuncs,
+                        &ArcanPointerSpriteFuncs, FALSE);
+
+    return TRUE;
 }
 
 static Status
