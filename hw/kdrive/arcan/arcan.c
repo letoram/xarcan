@@ -35,7 +35,7 @@
 #include "glamor_context.h"
 #include "glamor_egl.h"
 #include "dri3.h"
-#include <drm/drm_fourcc.h>
+#include <drm_fourcc.h>
 #endif
 
 #define WANT_ARCAN_SHMIF_HELPER
@@ -156,7 +156,7 @@ arcanScreenInitialize(KdScreenInfo * screen, arcanScrPriv * scrpriv)
         }
 
     scrpriv->randr = screen->randr;
-    if (arcanGlamor)
+    if (1 || arcanGlamor)
         setGlamorMask(screen);
     else
         setArcanMask(screen);
@@ -1100,6 +1100,9 @@ static int dri3FdFromPixmap(ScreenPtr pScreen, PixmapPtr pixmap,
                                              &pixmap->devPrivates,
                                              &pixmap_private_key);
     trace("ArcanDRI3FdFromPixmap");
+    if (!ext_pixmap || !ext_pixmap->bo){
+			return -1;
+		}
 
     *stride = gbm_bo_get_stride(ext_pixmap->bo);
     *size = pixmap->drawable.width * *stride;
