@@ -3,7 +3,8 @@ AM_CPPFLAGS = 					\
 	@KDRIVE_CFLAGS@                         \
 	-I$(top_srcdir)/glamor     \
 	-I$(top_srcdir)/dri3       \
-	$(XARCANMODULES_CFLAGS)
+	-DHAVE_DIX_CONFIG_H	\
+	$(XARCANMODULES_CFLAGS) \
 	$(GLAMOR_CFLAGS)     \
 	$(GBM_CFLAGS)
 

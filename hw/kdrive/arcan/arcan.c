@@ -24,9 +24,13 @@
 /*
  * See README-Arcan.md for details on status and todo.
  */
-#ifdef HAVE_CONFIG_H
-#include <kdrive-config.h>
+#ifdef HAVE_DIX_CONFIG_H
+#include <dix-config.h>
 #endif
+
+#define WANT_ARCAN_SHMIF_HELPER
+#include "arcan.h"
+#include <X11/keysym.h>
 
 #ifdef GLAMOR
 #define MESA_EGL_NO_X11_HEADERS
@@ -37,10 +41,6 @@
 #include "dri3.h"
 #include <drm_fourcc.h>
 #endif
-
-#define WANT_ARCAN_SHMIF_HELPER
-#include "arcan.h"
-#include <X11/keysym.h>
 
 /*
  * from Xwin

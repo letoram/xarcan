@@ -20,12 +20,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _FBDEV_H_
-#define _FBDEV_H_
+#ifndef _ARCANDEV_H_
+#define _ARCANDEV_H_
+
 #include <stdio.h>
 #include <unistd.h>
 #include <arcan_shmif.h>
-#include <kdrive-config.h>
 
 #include "kdrive.h"
 #include "damage.h"

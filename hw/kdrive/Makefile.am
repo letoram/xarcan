@@ -7,8 +7,8 @@ XARCAN_SUBDIRS = arcan
 endif
 
 SERVER_SUBDIRS = 		\
-	$(XEPHYR_SUBDIRS)
-	$(XARCAN_SUBDIRS)  \
+	$(XEPHYR_SUBDIRS) \
+	$(XARCAN_SUBDIRS)
 
 SUBDIRS =			\
 	src			\
