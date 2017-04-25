@@ -49,6 +49,12 @@ struct gbm_bo;
 typedef struct _arcanScrPriv {
     struct arcan_shmif_cont * acon;
     struct arcan_shmif_initial init;
+
+#ifdef RANDR
+    RROutputPtr randrOutput;
+		RRCrtcPtr randrCrtc;
+		struct ramp_block block;
+#endif
     Rotation randr;
     ScreenBlockHandlerProcPtr BlockHandler;
     CreateScreenResourcesProcPtr CreateScreenResources;
@@ -164,7 +170,14 @@ void arcanGlamorDisable(ScreenPtr screen);
 void arcanGlamorFini(ScreenPtr screen);
 #endif
 
+/*
+ * With RandR enabled, we treat the DISPLAYHINT events from parent
+ * as a monitor- reconfigure.
+ */
 #ifdef RANDR
+RRModePtr
+arcan_cvt(int HDisplay, int VDisplay, float VRefresh, Bool Reduced,
+             Bool Interlaced);
 Bool
  arcanRandRGetInfo(ScreenPtr pScreen, Rotation * rotations);
 

@@ -30,7 +30,8 @@ Xarcan_LDADD = 						\
 	@KDRIVE_LIBS@
 
 Xarcan_SOURCES =          \
-	arcaninit.c
+	arcaninit.c \
+	arcancvt.c
 
 # if ... += to SOURCES
 

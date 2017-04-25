@@ -95,10 +95,10 @@ bridged, here are the current big points:
 (x - done, p - partial)
 
 - [x] Damage- Regions
+- [x] Gamma Control Bridging
 - [x] Randr/DISPLAYHINT resizing
 - [ ] Touch Input Mapping
 - [ ] Joystick Input Mapping
-- [ ] Gamma Control Bridging
 - [ ] Output Segment to 'screen recorder' translation
 - [ ] Display-correct Synchronization timing
   - [ ] DRI2-shmif-framebuffer-GL handle mapping

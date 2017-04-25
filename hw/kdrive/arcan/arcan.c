@@ -24,6 +24,7 @@
 /*
  * See README-Arcan.md for details on status and todo.
  */
+
 #ifdef HAVE_DIX_CONFIG_H
 #include <dix-config.h>
 #endif
@@ -136,24 +137,27 @@ arcanScreenInitialize(KdScreenInfo * screen, arcanScrPriv * scrpriv)
     if (!screen->width || !screen->height) {
         screen->width = scrpriv->acon->w;
         screen->height = scrpriv->acon->h;
-/* we still need to synch the changes in display flags */
-        arcan_shmif_resize(scrpriv->acon, screen->width, screen->height);
     }
-    else {
-        if (!arcan_shmif_resize(scrpriv->acon, screen->width, screen->height)){
-                screen->width = scrpriv->acon->w;
-                screen->height = scrpriv->acon->h;
-        }
+
+    if (!arcan_shmif_resize_ext(scrpriv->acon, screen->width, screen->height,
+        (struct shmif_resize_ext){
+#ifdef RANDR
+        .meta = SHMIF_META_CM
+#endif
+    })){
+            screen->width = scrpriv->acon->w;
+            screen->height = scrpriv->acon->h;
     }
+        arcan_shmifsub_getramp(scrpriv->acon, 0, &scrpriv->block);
 
 /* default guess, we cache this between screen init/deinit */
-        if (!arcan_init)
-            arcan_shmif_initial(scrpriv->acon, &arcan_init);
+    if (!arcan_init)
+        arcan_shmif_initial(scrpriv->acon, &arcan_init);
 
-        if (arcan_init->density > 0){
-            screen->width_mm = (float)screen->width / (0.1 * arcan_init->density);
-            screen->height_mm = (float)screen->height / (0.1 * arcan_init->density);
-        }
+    if (arcan_init->density > 0){
+        screen->width_mm = (float)screen->width / (0.1 * arcan_init->density);
+        screen->height_mm = (float)screen->height / (0.1 * arcan_init->density);
+    }
 
     scrpriv->randr = screen->randr;
     if (1 || arcanGlamor)
@@ -265,7 +269,7 @@ arcanDisplayHint(struct arcan_shmif_cont* con,
 {
     arcanScrPriv* apriv = con->user;
 
-/* release on focus loss */
+/* release on focus loss, open point, does this actually cover mods? */
     if (fl & 4){
         for (size_t i = 0; i < sizeof(code_tbl) / sizeof(code_tbl[0]); i++){
             if (code_tbl[i]){
@@ -280,22 +284,24 @@ arcanDisplayHint(struct arcan_shmif_cont* con,
         return;
 
     if (w >= 640 && h >= 480 && (con->w != w || con->h != h) && !(fl & 1)){
-        RRScreenSetSizeRange(apriv->screen,
+#ifdef RANDR
+       if (ppcm == 0 && arcan_init)
+           ppcm = arcan_init->density;
+
+       RRScreenSetSizeRange(apriv->screen,
             640, 480, PP_SHMPAGE_MAXW, PP_SHMPAGE_MAXH);
         arcanRandRScreenResize(apriv->screen,
             w, h,
             ppcm > 0 ? (float)w / (0.1 * ppcm) : 0,
             ppcm > 0 ? (float)h / (0.1 * ppcm) : 0
         );
+        RRScreenSizeNotify(apriv->screen);
         return;
+#endif
     }
 /* NOTE:
  * on focus lost or window hidden, should we just stop synching and
  * waiting for it to return?
- */
-
-/*
- * we do want to inject 'modifiers lost' if focus is lost.
  */
 }
 
@@ -378,6 +384,7 @@ arcanScreenInit(KdScreenInfo * screen)
 
     scrpriv->pending_fd = -1;
     scrpriv->acon = con;
+        arcan_shmifsub_getramp(scrpriv->acon, 0, &scrpriv->block);
     con->user = scrpriv;
 
     if (!scrpriv->acon){
@@ -753,8 +760,11 @@ ArcanInit(void)
 
 /* indicate that we can/want to do color-management, RandR will check this
  * with the arcan_shmif_substruct calls */
-    arcan_shmif_resize_ext(con, con->w, con->h, (struct shmif_resize_ext){
+    arcan_shmif_resize_ext(con, con->w, con->h,
+        (struct shmif_resize_ext){
+#ifdef RANDR
         .meta = SHMIF_META_CM
+#endif
     });
 
 /* try and request a mouse segment for accelerated mouse (unless disabled)
@@ -857,6 +867,7 @@ arcanRandRScreenResize(ScreenPtr pScreen,
     KdScreenPriv(pScreen);
     KdScreenInfo *screen = pScreenPriv->screen;
     RRScreenSize size = {0};
+    arcanScrPriv *scrpriv = screen->driver;
 
     if (width == screen->width && height == screen->height)
         return FALSE;
@@ -868,13 +879,24 @@ arcanRandRScreenResize(ScreenPtr pScreen,
     size.mmHeight = mmHeight;
 
     if (arcanRandRSetConfig(pScreen, screen->randr, 0, &size)){
-        RROutputPtr output = RRFirstOutput(pScreen);
-        if (!output)
-            return FALSE;
-        RROutputSetModes(output, NULL, 0, 0);
-    }
+            RRModePtr mode = arcan_cvt(width, height, 60.0 / 1000.0, 0, 0);
 
-    return FALSE;
+        if (!scrpriv->randrOutput){
+          trace("arcanRandRInit(No output)");
+            return FALSE;
+        }
+
+/* need something else here, like Crtcnotify */
+        RROutputSetModes(scrpriv->randrOutput, &mode, 1, 1);
+        RRCrtcGammaSetSize(scrpriv->randrCrtc, scrpriv->block.plane_sizes[0] / 3);
+        RROutputSetPhysicalSize(scrpriv->randrOutput, size.mmWidth, size.mmHeight);
+
+/*
+ RCrtcNotify(scrpriv->randrOutput, mode, 0, 0, RR_ROTATE_0, NULL, 1, ???)
+ */
+   }
+
+    return TRUE;
 }
 
 Bool
@@ -913,7 +935,13 @@ arcanRandRSetConfig(ScreenPtr pScreen,
      */
 
     scrpriv->randr = KdAddRotation(screen->randr, randr);
-    arcan_shmif_resize(scrpriv->acon, newwidth, newheight);
+    arcan_shmif_resize_ext(scrpriv->acon, newwidth, newheight,
+        (struct shmif_resize_ext){
+#ifdef RANDR
+        .meta = SHMIF_META_CM
+#endif
+        });
+        arcan_shmifsub_getramp(scrpriv->acon, 0, &scrpriv->block);
     arcanUnmapFramebuffer(screen);
 
     if (!arcanMapFramebuffer(screen))
@@ -966,17 +994,40 @@ arcanRandRSetConfig(ScreenPtr pScreen,
     return FALSE;
 }
 
-static Bool
-arcanRandRSetGamma(ScreenPtr pScreen, RRCrtcPtr crtc)
+#if RANDR_12_INTERFACE
+static Bool arcanRandRSetGamma(ScreenPtr pScreen, RRCrtcPtr crtc)
 {
-    return false;
+    KdScreenPriv(pScreen);
+    rrScrPrivPtr pScrPriv;
+    KdScreenInfo *screen = pScreenPriv->screen;
+    arcanScrPriv *scrpriv = screen->driver;
+
+    for (size_t i = 0, j = 0; i < crtc->gammaSize && j < scrpriv->block.plane_sizes[0]; i++){
+        scrpriv->block.planes[j++] = (float)crtc->gammaRed[i] / 65536.0f;
+        scrpriv->block.planes[j++] = (float)crtc->gammaBlue[i] / 65536.0f;
+        scrpriv->block.planes[j++] = (float)crtc->gammaGreen[i] / 65536.0f;
+    }
+
+    return arcan_shmifsub_setramp(scrpriv->acon, 0, &scrpriv->block) ? TRUE : FALSE;
 }
 
-static Bool
-arcanRandRGetGamma(ScreenPtr pScreen, RRCrtcPtr crtc)
+static Bool arcanRandRGetGamma(ScreenPtr pScreen, RRCrtcPtr crtc)
 {
-    return false;
+    KdScreenPriv(pScreen);
+    rrScrPrivPtr pScrPriv;
+    KdScreenInfo *screen = pScreenPriv->screen;
+    arcanScrPriv *scrpriv = screen->driver;
+    arcan_shmifsub_getramp(scrpriv->acon, 0, &scrpriv->block);
+
+    for (size_t i = 0, j = 0; i < crtc->gammaSize && j < scrpriv->block.plane_sizes[0]; i++){
+        crtc->gammaRed[i] = scrpriv->block.planes[j++] * 65535;
+        crtc->gammaBlue[i] = scrpriv->block.planes[j++] * 65535;
+        crtc->gammaGreen[i] = scrpriv->block.planes[j++] * 65535;
+    }
+
+    return TRUE;
 }
+#endif
 
 Bool
 arcanRandRInit(ScreenPtr pScreen)
@@ -999,10 +1050,28 @@ arcanRandRInit(ScreenPtr pScreen)
 
 #if RANDR_12_INTERFACE
     pScrPriv->rrScreenSetSize = arcanRandRScreenResize;
-/*  pScrPriv->rrCrtcSetGamma = arcanRandRSetGamma;
+    pScrPriv->rrCrtcSetGamma = arcanRandRSetGamma;
     pScrPriv->rrCrtcGetGamma = arcanRandRGetGamma;
- */
 #endif
+
+/* NOTE regarding data model:
+ * to the RandR screen, we create an Output that is assigned a Crtc
+ * to which we attach one or several modes. We then notify rander as to
+ * changes in the Crtc config. It is the gamma ramps of this crtc that
+ * we can then finally access. */
+    scrpriv->randrOutput = RROutputCreate(pScreen, "screen", 6, NULL);
+    scrpriv->randrCrtc = RRCrtcCreate(pScreen, scrpriv->randrOutput);
+    if (!scrpriv->randrCrtc){
+        trace("arcanRandRInit(Failed to create CRTC)");
+        return FALSE;
+    }
+
+    RRCrtcSetRotations(scrpriv->randrCrtc, RR_Rotate_0);
+    RRCrtcGammaSetSize(scrpriv->randrCrtc, scrpriv->block.plane_sizes[0] / 3);
+
+    RROutputSetCrtcs(scrpriv->randrOutput, &scrpriv->randrCrtc, 1);
+    RROutputSetConnection(scrpriv->randrOutput, RR_Connected);
+
     return TRUE;
 }
 #endif
@@ -1101,8 +1170,8 @@ static int dri3FdFromPixmap(ScreenPtr pScreen, PixmapPtr pixmap,
                                              &pixmap_private_key);
     trace("ArcanDRI3FdFromPixmap");
     if (!ext_pixmap || !ext_pixmap->bo){
-			return -1;
-		}
+        return -1;
+    }
 
     *stride = gbm_bo_get_stride(ext_pixmap->bo);
     *size = pixmap->drawable.width * *stride;
