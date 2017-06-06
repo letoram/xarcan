@@ -458,10 +458,9 @@ static void arcanInternalDamageRedisplay(ScreenPtr pScreen)
         }
         scrpriv->pending_fd = fd;
     }
-    else{
+    else
 #endif
         arcan_shmif_signal(scrpriv->acon, SHMIF_SIGVID | SHMIF_SIGBLK_NONE);
-    }
     DamageEmpty(scrpriv->damage);
 }
 

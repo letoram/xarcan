@@ -137,7 +137,9 @@ ddxUseMsg(void)
     ErrorF("-nodynamic             Disable connection-controlled resize\n");
     ErrorF("-aident [str]          Set window dynamic identity\n");
     ErrorF("-atitle [str]          Set window static identity\n");
+#ifdef GLAMOR
     ErrorF("-glamor                Enable glamor rendering\n");
+#endif
     ErrorF("-nodri3                Disable DRI3- support\n");
     ErrorF("-accel_cursor          Enable accelerated cursor\n");
 }
@@ -145,6 +147,7 @@ ddxUseMsg(void)
 int
 ddxProcessArgument(int argc, char **argv, int i)
 {
+#ifdef GLAMOR
     if (strcmp(argv[i], "-glamor") == 0){
 		arcanGlamor = 1;
         arcanFuncs.initAccel = arcanGlamorInit;
@@ -153,7 +156,9 @@ ddxProcessArgument(int argc, char **argv, int i)
         arcanFuncs.finiAccel = arcanGlamorFini;
         return 1;
     }
-    else if (strcmp(argv[i], "-nodri3") == 0){
+    else
+#endif
+    if (strcmp(argv[i], "-nodri3") == 0){
         arcanConfigPriv.no_dri3 = true;
         return 1;
     }

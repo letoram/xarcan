@@ -13,7 +13,7 @@ Compilation
 ====
 Normal autohell style compilation. Relevant compilation flags are:
     --enable-kdrive --enable-xarcan --disable-xorg --disable-xwayland
-    --disable-xvfb --enable-glamor --enable-glx
+    --disable-xnest --disable-xvfb --enable-glamor --enable-glx
 
 pkg\_info need to find the normal arcan-shmif, arcan-shmifext libraries.
 
