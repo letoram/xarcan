@@ -916,8 +916,8 @@ arcanRandRSetConfig(ScreenPtr pScreen,
 /* Ignore rotations etc. If those are desired properties, it will happen on
  * a higher level. */
     trace("ArcanRandRSetConfig");
-    newwidth = pSize->height;
-    newheight = pSize->width;
+    newwidth = pSize->width;
+    newheight = pSize->height;
 
     if (wasEnabled)
         KdDisableScreen(pScreen);
