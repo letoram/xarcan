@@ -63,8 +63,6 @@ static uint8_t code_tbl[512];
 static struct arcan_shmif_initial* arcan_init;
 static DevPrivateKeyRec pixmap_private_key;
 
-#define ARCAN_TRACE
-
 static inline void trace(const char* msg, ...)
 {
 #ifdef ARCAN_TRACE
