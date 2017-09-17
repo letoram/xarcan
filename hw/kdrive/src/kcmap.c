@@ -29,7 +29,7 @@
  * Put the entire colormap into the DAC
  */
 
-static void
+void
 KdSetColormap(ScreenPtr pScreen)
 {
     KdScreenPriv(pScreen);

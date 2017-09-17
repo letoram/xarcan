@@ -693,7 +693,7 @@ Bool arcanGlamorCreateScreenResources(ScreenPtr pScreen)
     if (newpix){
         trace("SetScreenPixmap(new)");
         pScreen->SetScreenPixmap(newpix);
-        glamor_set_screen_pixmap(newpix, NULL);
+/*        glamor_set_screen_pixmap(newpix, NULL); */
 
       if (pScreen->root && pScreen->SetWindowPixmap)
             TraverseTree(pScreen->root, ArcanSetPixmapVisitWindow, oldpix);

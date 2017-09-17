@@ -19,6 +19,7 @@ libkdrive_la_SOURCES =	\
 	kdrive.h	\
 	kinfo.c		\
 	kinput.c	\
+	kmode.c		\
 	kshadow.c	\
 	$(KDRIVE_XV_SOURCES) \
   $(top_srcdir)/mi/miinitext.c
