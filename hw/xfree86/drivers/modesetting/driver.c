@@ -55,7 +55,7 @@
 #ifdef XSERVER_PLATFORM_BUS
 #include "xf86platformBus.h"
 #endif
-#if XSERVER_LIBPCIACCESS
+#ifdef XSERVER_LIBPCIACCESS
 #include <pciaccess.h>
 #endif
 
@@ -227,7 +227,7 @@ check_outputs(int fd, int *count)
         *count = res->count_connectors;
 
     ret = res->count_connectors > 0;
-#if defined DRM_CAP_PRIME && GLAMOR_HAS_GBM_LINEAR
+#if defined(DRM_CAP_PRIME) && defined(GLAMOR_HAS_GBM_LINEAR)
     if (ret == FALSE) {
         uint64_t value = 0;
         if (drmGetCap(fd, DRM_CAP_PRIME, &value) == 0 &&
@@ -244,7 +244,7 @@ probe_hw(const char *dev, struct xf86_platform_device *platform_dev)
 {
     int fd;
 
-#if XF86_PDEV_SERVER_FD
+#ifdef XF86_PDEV_SERVER_FD
     if (platform_dev && (platform_dev->flags & XF86_PDEV_SERVER_FD)) {
         fd = xf86_platform_device_odev_attributes(platform_dev)->fd;
         if (fd == -1)
@@ -366,7 +366,7 @@ ms_setup_entity(ScrnInfoPtr scrn, int entity_num)
         pPriv->ptr = xnfcalloc(sizeof(modesettingEntRec), 1);
 }
 
-#if XSERVER_LIBPCIACCESS
+#ifdef XSERVER_LIBPCIACCESS
 static Bool
 ms_pci_probe(DriverPtr driver,
              int entity_num, struct pci_device *dev, intptr_t match_data)
@@ -593,7 +593,7 @@ redisplay_dirty(ScreenPtr screen, PixmapDirtyUpdatePtr dirty, int *timeout)
     PixmapSyncDirtyHelper(dirty);
 
     if (!screen->isGPU) {
-#ifdef GLAMOR
+#ifdef GLAMOR_HAS_GBM
         /*
          * When copying from the master framebuffer to the shared pixmap,
          * we must ensure the copy is complete before the slave starts a
@@ -738,7 +738,7 @@ try_enable_glamor(ScrnInfoPtr pScrn)
 
     ms->drmmode.glamor = FALSE;
 
-#ifdef GLAMOR
+#ifdef GLAMOR_HAS_GBM
     if (ms->drmmode.force_24_32) {
         xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Cannot use glamor with 24bpp packed fb\n");
         return;
@@ -826,7 +826,7 @@ ms_get_drm_master_fd(ScrnInfoPtr pScrn)
         return TRUE;
     }
 
-#if XSERVER_PLATFORM_BUS
+#ifdef XSERVER_PLATFORM_BUS
     if (pEnt->location.type == BUS_PLATFORM) {
 #ifdef XF86_PDEV_SERVER_FD
         if (pEnt->location.id.plat->flags & XF86_PDEV_SERVER_FD)
@@ -844,20 +844,18 @@ ms_get_drm_master_fd(ScrnInfoPtr pScrn)
     }
     else
 #endif
-#if XSERVER_LIBPCIACCESS
+#ifdef XSERVER_LIBPCIACCESS
     if (pEnt->location.type == BUS_PCI) {
         char *BusID = NULL;
         struct pci_device *PciInfo;
 
         PciInfo = xf86GetPciInfoForEntity(ms->pEnt->index);
         if (PciInfo) {
-            BusID = XNFalloc(64);
-            sprintf(BusID, "PCI:%d:%d:%d",
-                    ((PciInfo->domain << 8) | PciInfo->bus),
-                    PciInfo->dev, PciInfo->func);
+            if ((BusID = ms_DRICreatePCIBusID(PciInfo)) != NULL) {
+                ms->fd = drmOpen(NULL, BusID);
+                free(BusID);
+            }
         }
-        ms->fd = drmOpen(NULL, BusID);
-        free(BusID);
     }
     else
 #endif
@@ -1018,7 +1016,7 @@ PreInit(ScrnInfoPtr pScrn, int flags)
             if (ms->drmmode.glamor)
                 pScrn->capabilities |= RR_Capability_SinkOffload;
         }
-#if GLAMOR_HAS_GBM_LINEAR
+#ifdef GLAMOR_HAS_GBM_LINEAR
         if (value & DRM_PRIME_CAP_EXPORT && ms->drmmode.glamor)
             pScrn->capabilities |= RR_Capability_SourceOutput | RR_Capability_SourceOffload;
 #endif
@@ -1189,7 +1187,7 @@ msEnableSharedPixmapFlipping(RRCrtcPtr crtc, PixmapPtr front, PixmapPtr back)
     if (ms->drmmode.reverse_prime_offload_mode)
         return FALSE;
 
-#if XSERVER_PLATFORM_BUS
+#ifdef XSERVER_PLATFORM_BUS
     if (pEnt->location.type == BUS_PLATFORM) {
         char *syspath =
             xf86_platform_device_odev_attributes(pEnt->location.id.plat)->
@@ -1198,6 +1196,11 @@ msEnableSharedPixmapFlipping(RRCrtcPtr crtc, PixmapPtr front, PixmapPtr back)
         /* Not supported for devices using USB transport due to misbehaved
          * vblank events */
         if (syspath && strstr(syspath, "usb"))
+            return FALSE;
+
+        /* EVDI uses USB transport but is platform device, not usb.
+         * Blacklist it explicitly */
+        if (syspath && strstr(syspath, "evdi"))
             return FALSE;
     }
 #endif
@@ -1219,12 +1222,12 @@ msDisableSharedPixmapFlipping(RRCrtcPtr crtc)
 }
 
 static Bool
-msStartFlippingPixmapTracking(RRCrtcPtr crtc, PixmapPtr src,
+msStartFlippingPixmapTracking(RRCrtcPtr crtc, DrawablePtr src,
                               PixmapPtr slave_dst1, PixmapPtr slave_dst2,
                               int x, int y, int dst_x, int dst_y,
                               Rotation rotation)
 {
-    ScreenPtr pScreen = src->drawable.pScreen;
+    ScreenPtr pScreen = src->pScreen;
     modesettingPtr ms = modesettingPTR(xf86ScreenToScrn(pScreen));
 
     msPixmapPrivPtr ppriv1 = msGetPixmapPriv(&ms->drmmode, slave_dst1),
@@ -1264,7 +1267,7 @@ msPresentSharedPixmap(PixmapPtr slave_dst)
     RegionPtr region = DamageRegion(ppriv->dirty->damage);
 
     if (RegionNotEmpty(region)) {
-        redisplay_dirty(ppriv->slave_src->drawable.pScreen, ppriv->dirty, NULL);
+        redisplay_dirty(ppriv->slave_src->pScreen, ppriv->dirty, NULL);
         DamageEmpty(ppriv->dirty->damage);
 
         return TRUE;
@@ -1274,10 +1277,10 @@ msPresentSharedPixmap(PixmapPtr slave_dst)
 }
 
 static Bool
-msStopFlippingPixmapTracking(PixmapPtr src,
+msStopFlippingPixmapTracking(DrawablePtr src,
                              PixmapPtr slave_dst1, PixmapPtr slave_dst2)
 {
-    ScreenPtr pScreen = src->drawable.pScreen;
+    ScreenPtr pScreen = src->pScreen;
     modesettingPtr ms = modesettingPTR(xf86ScreenToScrn(pScreen));
 
     msPixmapPrivPtr ppriv1 = msGetPixmapPriv(&ms->drmmode, slave_dst1),
@@ -1410,7 +1413,7 @@ msSharePixmapBacking(PixmapPtr ppix, ScreenPtr screen, void **handle)
 static Bool
 msSetSharedPixmapBacking(PixmapPtr ppix, void *fd_handle)
 {
-#ifdef GLAMOR
+#ifdef GLAMOR_HAS_GBM
     ScreenPtr screen = ppix->drawable.pScreen;
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
     modesettingPtr ms = modesettingPTR(scrn);
@@ -1599,7 +1602,7 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
 
     fbPictureInit(pScreen, NULL, 0);
 
-#ifdef GLAMOR
+#ifdef GLAMOR_HAS_GBM
     if (ms->drmmode.glamor) {
         if (!glamor_init(pScreen, GLAMOR_USE_EGL_SCREEN)) {
             xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -1666,7 +1669,7 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
 
     xf86DPMSInit(pScreen, xf86DPMSSet, 0);
 
-#ifdef GLAMOR
+#ifdef GLAMOR_HAS_GBM
     if (ms->drmmode.glamor) {
         XF86VideoAdaptorPtr     glamor_adaptor;
 
@@ -1688,7 +1691,7 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
         return FALSE;
     }
 
-#ifdef GLAMOR
+#ifdef GLAMOR_HAS_GBM
     if (ms->drmmode.glamor) {
         if (!ms_dri2_screen_init(pScreen)) {
             xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -1789,7 +1792,7 @@ CloseScreen(ScreenPtr pScreen)
     /* Clear mask of assigned crtc's in this generation */
     ms_ent->assigned_crtcs = 0;
 
-#ifdef GLAMOR
+#ifdef GLAMOR_HAS_GBM
     if (ms->drmmode.glamor) {
         ms_dri2_close_screen(pScreen);
     }

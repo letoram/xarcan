@@ -41,29 +41,6 @@
 #include "glxscreens.h"
 #include "glxdricommon.h"
 
-static int
-getUST(int64_t * ust)
-{
-    struct timeval tv;
-
-    if (ust == NULL)
-        return -EFAULT;
-
-    if (gettimeofday(&tv, NULL) == 0) {
-        ust[0] = (tv.tv_sec * 1000000) + tv.tv_usec;
-        return 0;
-    }
-    else {
-        return -errno;
-    }
-}
-
-const __DRIsystemTimeExtension systemTimeExtension = {
-    {__DRI_SYSTEM_TIME, 1},
-    getUST,
-    NULL,
-};
-
 #define __ATTRIB(attrib, field) \
     { attrib, offsetof(__GLXconfig, field) }
 
@@ -181,6 +158,13 @@ createModeFromConfig(const __DRIcoreExtension * core,
                 config->config.bindToTextureTargets |=
                     GLX_TEXTURE_RECTANGLE_BIT_EXT;
             break;
+        case __DRI_ATTRIB_SWAP_METHOD:
+            /* Workaround for broken dri drivers */
+            if (value != GLX_SWAP_UNDEFINED_OML &&
+                value != GLX_SWAP_COPY_OML &&
+                value != GLX_SWAP_EXCHANGE_OML)
+                value = GLX_SWAP_UNDEFINED_OML;
+            /* Fall through. */
         default:
             setScalar(&config->config, attrib, value);
             break;

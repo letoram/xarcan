@@ -180,7 +180,7 @@ glamor_copy_bail(DrawablePtr src,
 }
 
 /**
- * Implements CopyPlane and CopyArea from the GPU to the GPU by using
+ * Implements CopyPlane and CopyArea from the CPU to the GPU by using
  * the source as a texture and painting that into the destination.
  *
  * This requires that source and dest are different textures, or that
@@ -203,10 +203,6 @@ glamor_copy_cpu_fbo(DrawablePtr src,
     ScreenPtr screen = dst->pScreen;
     glamor_screen_private *glamor_priv = glamor_get_screen_private(screen);
     PixmapPtr dst_pixmap = glamor_get_drawable_pixmap(dst);
-    FbBits *src_bits;
-    FbStride src_stride;
-    int src_bpp;
-    int src_xoff, src_yoff;
     int dst_xoff, dst_yoff;
 
     if (gc && gc->alu != GXcopy)
@@ -221,33 +217,43 @@ glamor_copy_cpu_fbo(DrawablePtr src,
     glamor_get_drawable_deltas(dst, dst_pixmap, &dst_xoff, &dst_yoff);
 
     if (bitplane) {
-        PixmapPtr src_pix = fbCreatePixmap(screen, dst_pixmap->drawable.width,
+        FbBits *tmp_bits;
+        FbStride tmp_stride;
+        int tmp_bpp;
+        int tmp_xoff, tmp_yoff;
+
+        PixmapPtr tmp_pix = fbCreatePixmap(screen, dst_pixmap->drawable.width,
                                            dst_pixmap->drawable.height,
                                            dst->depth, 0);
 
-        if (!src_pix) {
+        if (!tmp_pix) {
             glamor_finish_access(src);
             goto bail;
         }
 
-        src_pix->drawable.x = -dst->x;
-        src_pix->drawable.y = -dst->y;
+        tmp_pix->drawable.x = dst_xoff;
+        tmp_pix->drawable.y = dst_yoff;
 
-        fbGetDrawable(&src_pix->drawable, src_bits, src_stride, src_bpp, src_xoff,
-                      src_yoff);
+        fbGetDrawable(&tmp_pix->drawable, tmp_bits, tmp_stride, tmp_bpp, tmp_xoff,
+                      tmp_yoff);
 
         if (src->bitsPerPixel > 1)
-            fbCopyNto1(src, &src_pix->drawable, gc, box, nbox, dx, dy,
+            fbCopyNto1(src, &tmp_pix->drawable, gc, box, nbox, dx, dy,
                        reverse, upsidedown, bitplane, closure);
         else
-            fbCopy1toN(src, &src_pix->drawable, gc, box, nbox, dx, dy,
+            fbCopy1toN(src, &tmp_pix->drawable, gc, box, nbox, dx, dy,
                        reverse, upsidedown, bitplane, closure);
 
-        glamor_upload_boxes(dst_pixmap, box, nbox, src_xoff, src_yoff,
-                            dst_xoff, dst_yoff, (uint8_t *) src_bits,
-                            src_stride * sizeof(FbBits));
-        fbDestroyPixmap(src_pix);
+        glamor_upload_boxes(dst_pixmap, box, nbox, tmp_xoff, tmp_yoff,
+                            dst_xoff, dst_yoff, (uint8_t *) tmp_bits,
+                            tmp_stride * sizeof(FbBits));
+        fbDestroyPixmap(tmp_pix);
     } else {
+        FbBits *src_bits;
+        FbStride src_stride;
+        int src_bpp;
+        int src_xoff, src_yoff;
+
         fbGetDrawable(src, src_bits, src_stride, src_bpp, src_xoff, src_yoff);
         glamor_upload_boxes(dst_pixmap, box, nbox, src_xoff + dx, src_yoff + dy,
                             dst_xoff, dst_yoff,
@@ -345,6 +351,7 @@ glamor_copy_fbo_fbo_draw(DrawablePtr src,
     const glamor_facet *copy_facet;
     int n;
     Bool ret = FALSE;
+    BoxRec bounds = glamor_no_rendering_bounds();
 
     glamor_make_current(glamor_priv);
 
@@ -385,11 +392,18 @@ glamor_copy_fbo_fbo_draw(DrawablePtr src,
     glVertexAttribPointer(GLAMOR_VERTEX_POS, 2, GL_SHORT, GL_FALSE,
                           2 * sizeof (GLshort), vbo_offset);
 
+    if (nbox < 100) {
+        bounds = glamor_start_rendering_bounds();
+        for (int i = 0; i < nbox; i++)
+            glamor_bounds_union_box(&bounds, &box[i]);
+    }
+
     for (n = 0; n < nbox; n++) {
         v[0] = box->x1; v[1] = box->y1;
         v[2] = box->x1; v[3] = box->y2;
         v[4] = box->x2; v[5] = box->y2;
         v[6] = box->x2; v[7] = box->y1;
+
         v += 8;
         box++;
     }
@@ -411,15 +425,24 @@ glamor_copy_fbo_fbo_draw(DrawablePtr src,
             goto bail_ctx;
 
         glamor_pixmap_loop(dst_priv, dst_box_index) {
+            BoxRec scissor = {
+                .x1 = max(-args.dx, bounds.x1),
+                .y1 = max(-args.dy, bounds.y1),
+                .x2 = min(-args.dx + src_box->x2 - src_box->x1, bounds.x2),
+                .y2 = min(-args.dy + src_box->y2 - src_box->y1, bounds.y2),
+            };
+            if (scissor.x1 >= scissor.x2 || scissor.y1 >= scissor.y2)
+                continue;
+
             if (!glamor_set_destination_drawable(dst, dst_box_index, FALSE, FALSE,
                                                  prog->matrix_uniform,
                                                  &dst_off_x, &dst_off_y))
                 goto bail_ctx;
 
-            glScissor(dst_off_x - args.dx,
-                      dst_off_y - args.dy,
-                      src_box->x2 - src_box->x1,
-                      src_box->y2 - src_box->y1);
+            glScissor(scissor.x1 + dst_off_x,
+                      scissor.y1 + dst_off_y,
+                      scissor.x2 - scissor.x1,
+                      scissor.y2 - scissor.y1);
 
             glamor_glDrawArrays_GL_QUADS(glamor_priv, nbox);
         }

@@ -53,11 +53,6 @@
 RESTYPE __glXContextRes;
 RESTYPE __glXDrawableRes;
 
-/*
-** Reply for most singles.
-*/
-xGLXSingleReply __glXReply;
-
 static DevPrivateKeyRec glxClientPrivateKeyRec;
 
 #define glxClientPrivateKey (&glxClientPrivateKeyRec)
@@ -102,12 +97,11 @@ ContextGone(__GLXcontext * cx, XID id)
         __glXFreeContext(cx);
     }
 
-    return True;
+    return TRUE;
 }
 
 static __GLXcontext *glxPendingDestroyContexts;
 static __GLXcontext *glxAllContexts;
-static int glxServerLeaveCount;
 static int glxBlockClients;
 
 /*
@@ -152,7 +146,7 @@ DrawableGone(__GLXdrawable * glxPriv, XID xid)
 
     glxPriv->destroy(glxPriv);
 
-    return True;
+    return TRUE;
 }
 
 Bool
@@ -161,12 +155,12 @@ __glXAddContext(__GLXcontext * cx)
     /* Register this context as a resource.
      */
     if (!AddResource(cx->id, __glXContextRes, (void *)cx)) {
-	return False;
+	return FALSE;
     }
 
     cx->next = glxAllContexts;
     glxAllContexts = cx;
-    return True;
+    return TRUE;
 }
 
 static void
@@ -208,9 +202,7 @@ __glXFreeContext(__GLXcontext * cx)
      * the latter case we need to lift the DRI lock manually. */
 
     if (!glxBlockClients) {
-        __glXleaveServer(GL_FALSE);
         cx->destroy(cx);
-        __glXenterServer(GL_FALSE);
     }
     else {
         cx->next = glxPendingDestroyContexts;
@@ -329,11 +321,11 @@ checkScreenVisuals(void)
         for (j = 0; j < screen->numVisuals; j++) {
             if (screen->visuals[j].class == TrueColor ||
                 screen->visuals[j].class == DirectColor)
-                return True;
+                return TRUE;
         }
     }
 
-    return False;
+    return FALSE;
 }
 
 static void
@@ -363,7 +355,7 @@ GlxExtensionInit(void)
     ScreenPtr pScreen;
     int i;
     __GLXprovider *p, **stack;
-    Bool glx_provided = False;
+    Bool glx_provided = FALSE;
 
     if (serverGeneration == 1) {
         for (stack = &__glXProviderStack; *stack; stack = &(*stack)->next)
@@ -410,7 +402,7 @@ GlxExtensionInit(void)
             LogMessage(X_INFO,
                        "GLX: no usable GL providers found for screen %d\n", i);
         else
-            glx_provided = True;
+            glx_provided = TRUE;
     }
 
     /* don't register extension if GL is not provided on any screen */
@@ -425,10 +417,6 @@ GlxExtensionInit(void)
                             __glXDispatch, ResetExtension, StandardMinorOpcode);
     if (!extEntry) {
         FatalError("__glXExtensionInit: AddExtensions failed\n");
-        return;
-    }
-    if (!AddExtensionAlias(GLX_EXTENSION_ALIAS, extEntry)) {
-        ErrorF("__glXExtensionInit: AddExtensionAlias failed\n");
         return;
     }
 
@@ -531,53 +519,12 @@ glxResumeClients(void)
             AttendClient(clients[i]);
     }
 
-    __glXleaveServer(GL_FALSE);
     for (cx = glxPendingDestroyContexts; cx != NULL; cx = next) {
         next = cx->next;
 
         cx->destroy(cx);
     }
     glxPendingDestroyContexts = NULL;
-    __glXenterServer(GL_FALSE);
-}
-
-static void
-__glXnopEnterServer(GLboolean rendering)
-{
-}
-
-static void
-__glXnopLeaveServer(GLboolean rendering)
-{
-}
-
-static void (*__glXenterServerFunc) (GLboolean) = __glXnopEnterServer;
-static void (*__glXleaveServerFunc) (GLboolean) = __glXnopLeaveServer;
-
-void
-__glXsetEnterLeaveServerFuncs(void (*enter) (GLboolean),
-                              void (*leave) (GLboolean))
-{
-    __glXenterServerFunc = enter;
-    __glXleaveServerFunc = leave;
-}
-
-void
-__glXenterServer(GLboolean rendering)
-{
-    glxServerLeaveCount--;
-
-    if (glxServerLeaveCount == 0)
-        (*__glXenterServerFunc) (rendering);
-}
-
-void
-__glXleaveServer(GLboolean rendering)
-{
-    if (glxServerLeaveCount == 0)
-        (*__glXleaveServerFunc) (rendering);
-
-    glxServerLeaveCount++;
 }
 
 static glx_gpa_proc _get_proc_address;
@@ -635,13 +582,7 @@ __glXDispatch(ClientPtr client)
     proc = __glXGetProtocolDecodeFunction(&Single_dispatch_info, opcode,
                                           client->swapped);
     if (proc != NULL) {
-        GLboolean rendering = opcode <= X_GLXRenderLarge;
-
-        __glXleaveServer(rendering);
-
         retval = (*proc) (cl, (GLbyte *) stuff);
-
-        __glXenterServer(rendering);
     }
     else {
         retval = BadRequest;

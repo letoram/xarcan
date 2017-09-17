@@ -38,7 +38,7 @@
 #endif
 
 #include <epoxy/gl.h>
-#if GLAMOR_HAS_GBM
+#ifdef GLAMOR_HAS_GBM
 #define MESA_EGL_NO_X11_HEADERS
 #include <epoxy/egl.h>
 #endif
@@ -281,10 +281,7 @@ typedef struct glamor_screen_private {
     int linear_max_nstops;
     int radial_max_nstops;
 
-    int screen_fbo;
     struct glamor_saved_procs saved_procs;
-    char delayed_fallback_string[GLAMOR_DELAYED_STRING_MAX + 1];
-    int delayed_fallback_pending;
     int flags;
     ScreenPtr screen;
     int dri3_enabled;
@@ -342,7 +339,7 @@ typedef struct glamor_pixmap_private {
     GLuint pbo;
     RegionRec prepare_region;
     Bool prepared;
-#if GLAMOR_HAS_GBM
+#ifdef GLAMOR_HAS_GBM
     EGLImageKHR image;
 #endif
     /** block width of this large pixmap. */

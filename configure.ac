@@ -132,7 +132,7 @@ AM_CONDITIONAL(SPECIAL_DTRACE_OBJECTS, [test "x$SPECIAL_DTRACE_OBJECTS" = "xyes"
 AC_HEADER_DIRENT
 AC_HEADER_STDC
 AC_CHECK_HEADERS([fcntl.h stdlib.h string.h unistd.h dlfcn.h stropts.h \
- fnmatch.h sys/mkdev.h sys/utsname.h])
+ fnmatch.h sys/mkdev.h sys/sysmacros.h sys/utsname.h])
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -728,7 +728,6 @@ case $host_os in
 		XF86UTILS=no
 		XF86VIDMODE=no
 		XSELINUX=no
-		XV=no
 		SYMBOL_VISIBILITY=no
 		;;
 	darwin*)
@@ -1502,9 +1501,6 @@ XKB_STUB_LIB='$(top_builddir)/xkb/libxkbstubs.la'
 REQUIRED_MODULES="$REQUIRED_MODULES xkbfile"
 
 PKG_CHECK_MODULES([XDMCP], [xdmcp], [have_libxdmcp="yes"], [have_libxdmcp="no"])
-if test "x$have_libxdmcp" = xyes; then
-	AC_CHECK_LIB(Xdmcp, XdmcpWrap, [have_xdmcpwrap="yes"], [have_xdmcpwrap="no"], [$XDMCP_LIBS])
-fi
 if test "x$XDMCP" = xauto; then
 	if test "x$have_libxdmcp" = xyes; then
 		XDMCP=yes
@@ -1513,7 +1509,7 @@ if test "x$XDMCP" = xauto; then
 	fi
 fi
 if test "x$XDMAUTH" = xauto; then
-	if test "x$have_libxdmcp" = xyes && test "x$have_xdmcpwrap" = xyes; then
+	if test "x$have_libxdmcp" = xyes; then
 		XDMAUTH=yes
 	else
 		XDMAUTH=no
@@ -2089,9 +2085,9 @@ if test "x$XORG" = xyes; then
 	AC_DEFINE(NEED_XF86_TYPES, 1, [Need XFree86 typedefs])
 	AC_DEFINE(NEED_XF86_PROTOTYPES, 1, [Need XFree86 helper functions])
 	AC_DEFINE(__XSERVERNAME__, "Xorg", [Name of X server])
-	AC_DEFINE_DIR(__XCONFIGFILE__, XF86CONFIGFILE, [Name of configuration file])
+	AC_DEFINE_DIR(XCONFIGFILE, XF86CONFIGFILE, [Name of configuration file])
 	AC_DEFINE_DIR(XF86CONFIGFILE, XF86CONFIGFILE, [Name of configuration file])
-	AC_DEFINE_DIR(__XCONFIGDIR__, XF86CONFIGDIR, [Name of configuration directory])
+	AC_DEFINE_DIR(XCONFIGDIR, XF86CONFIGDIR, [Name of configuration directory])
 	AC_DEFINE_DIR(DEFAULT_MODULE_PATH, moduledir, [Default module search path])
 	AC_DEFINE_DIR(DEFAULT_LIBRARY_PATH, libdir, [Default library install path])
 	AC_DEFINE_DIR(DEFAULT_LOGDIR, logdir, [Default log location])
@@ -2257,13 +2253,9 @@ dnl XWin requires OpenGL spec files in order to generate wrapper code for native
 
 fi
 AM_CONDITIONAL(XWIN, [test "x$XWIN" = xyes])
-AM_CONDITIONAL(XWIN_MULTIWINDOW, [test "x$XWIN" = xyes])
 AM_CONDITIONAL(XWIN_MULTIWINDOWEXTWM, [test "x$XWIN" = xyes && test "x$WINDOWSWM" = xyes])
-AM_CONDITIONAL(XWIN_CLIPBOARD, [test "x$XWIN" = xyes])
 AM_CONDITIONAL(XWIN_GLX_WINDOWS, [test "x$XWIN" = xyes && test "x$GLX" = xyes])
 AM_CONDITIONAL(XWIN_WINDOWS_DRI, [test "x$XWIN" = xyes && test "x$WINDOWSDRI" = xyes])
-AM_CONDITIONAL(XWIN_RANDR, [test "x$XWIN" = xyes])
-AM_CONDITIONAL(XWIN_XV, [test "x$XWIN" = xyes && test "x$XV" = xyes])
 
 dnl Darwin / OS X DDX
 if test "x$XQUARTZ" = xyes; then
@@ -2395,8 +2387,8 @@ if test "$KDRIVE" = yes; then
     KDRIVE_PURE_INCS="$KDRIVE_INC $MIEXT_SYNC_INC $MIEXT_DAMAGE_INC $MIEXT_SHADOW_INC $XEXT_INC $FB_INC $MI_INC"
     KDRIVE_OS_INC='-I$(top_srcdir)/hw/kdrive/linux'
     KDRIVE_INCS="$KDRIVE_PURE_INCS $KDRIVE_OS_INC"
-    KDRIVE_CFLAGS="$XSERVER_CFLAGS"
 
+    KDRIVE_CFLAGS="$XSERVER_CFLAGS"
     KDRIVE_PURE_LIBS="$FB_LIB $MI_LIB $FIXES_LIB $XEXT_LIB $DBE_LIB $RECORD_LIB $GLX_LIBS $RANDR_LIB $RENDER_LIB $DAMAGE_LIB $DRI3_LIB $PRESENT_LIB $MIEXT_SYNC_LIB $MIEXT_DAMAGE_LIB $MIEXT_SHADOW_LIB $XI_LIB $XKB_LIB $XKB_STUB_LIB $COMPOSITE_LIB $OS_LIB"
     KDRIVE_LIB='$(top_builddir)/hw/kdrive/src/libkdrive.la'
     KDRIVE_MAIN_LIB="$MAIN_LIB"
@@ -2437,7 +2429,7 @@ AC_MSG_RESULT([$XARCAN])
 
 dnl Xwayland DDX
 
-XWAYLANDMODULES="wayland-client >= 1.3.0 wayland-protocols >= 1.1 $LIBDRM epoxy"
+XWAYLANDMODULES="wayland-client >= 1.3.0 wayland-protocols >= 1.9 $LIBDRM epoxy"
 if test "x$XF86VIDMODE" = xyes; then
 	XWAYLANDMODULES="$XWAYLANDMODULES $VIDMODEPROTO"
 fi
@@ -2489,9 +2481,15 @@ AC_DEFINE_DIR(PROJECTROOT, prefix, [Overall prefix])
 AC_DEFINE_DIR(SYSCONFDIR, sysconfdir, [sysconfdir])
 
 AC_SUBST([RELEASE_DATE])
-BUILD_DATE="`date +'%Y%m%d'`"
+DATE_FMT="%Y%m%d"
+TIME_FMT="1%H%M%S"
+BUILD_DATE="`date "+$DATE_FMT"`"
+BUILD_TIME="`date "+$TIME_FMT"`"
+if test "x$SOURCE_DATE_EPOCH" != "x"; then
+	BUILD_DATE="`date -u -d "@$SOURCE_DATE_EPOCH" "+$DATE_FMT" 2>/dev/null || date -u -r "$SOURCE_DATE_EPOCH" "+$DATE_FMT" 2>/dev/null || date -u "+$DATE_FMT"`"
+	BUILD_TIME="`date -u -d "@$SOURCE_DATE_EPOCH" "+$TIME_FMT" 2>/dev/null || date -u -r "$SOURCE_DATE_EPOCH" "+$TIME_FMT" 2>/dev/null || date -u "+$TIME_FMT"`"
+fi
 AC_SUBST([BUILD_DATE])
-BUILD_TIME="`date +'1%H%M%S'`"
 AC_SUBST([BUILD_TIME])
 
 DIX_CFLAGS="-DHAVE_DIX_CONFIG_H $XSERVER_CFLAGS"
@@ -2581,6 +2579,7 @@ hw/xfree86/shadowfb/Makefile
 hw/xfree86/vbe/Makefile
 hw/xfree86/vgahw/Makefile
 hw/xfree86/x86emu/Makefile
+hw/xfree86/xkb/Makefile
 hw/xfree86/utils/Makefile
 hw/xfree86/utils/man/Makefile
 hw/xfree86/utils/cvt/Makefile

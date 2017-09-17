@@ -335,11 +335,6 @@ __glXDRIreleaseTexImage(__GLXcontext * baseContext,
     return Success;
 }
 
-static __GLXtextureFromPixmap __glXDRItextureFromPixmap = {
-    __glXDRIbindTexImage,
-    __glXDRIreleaseTexImage
-};
-
 static Bool
 dri2_convert_glx_attribs(__GLXDRIscreen *screen, unsigned num_attribs,
                          const uint32_t *attribs,
@@ -349,11 +344,11 @@ dri2_convert_glx_attribs(__GLXDRIscreen *screen, unsigned num_attribs,
     unsigned i;
 
     if (num_attribs == 0)
-        return True;
+        return TRUE;
 
     if (attribs == NULL) {
         *error = BadImplementation;
-        return False;
+        return FALSE;
     }
 
     *major_ver = 1;
@@ -386,13 +381,13 @@ dri2_convert_glx_attribs(__GLXDRIscreen *screen, unsigned num_attribs,
                 break;
             default:
                 *error = __glXError(GLXBadProfileARB);
-                return False;
+                return FALSE;
             }
             break;
         case GLX_CONTEXT_RESET_NOTIFICATION_STRATEGY_ARB:
             if (screen->dri2->base.version >= 4) {
                 *error = BadValue;
-                return False;
+                return FALSE;
             }
 
             switch (attribs[i * 2 + 1]) {
@@ -404,14 +399,14 @@ dri2_convert_glx_attribs(__GLXDRIscreen *screen, unsigned num_attribs,
                 break;
             default:
                 *error = BadValue;
-                return False;
+                return FALSE;
             }
             break;
         default:
             /* If an unknown attribute is received, fail.
              */
             *error = BadValue;
-            return False;
+            return FALSE;
         }
     }
 
@@ -419,7 +414,7 @@ dri2_convert_glx_attribs(__GLXDRIscreen *screen, unsigned num_attribs,
      */
     if ((*flags & ~ALL_DRI_CTX_FLAGS) != 0) {
         *error = BadValue;
-        return False;
+        return FALSE;
     }
 
     /* If the core profile is requested for a GL version is less than 3.2,
@@ -433,7 +428,7 @@ dri2_convert_glx_attribs(__GLXDRIscreen *screen, unsigned num_attribs,
     }
 
     *error = Success;
-    return True;
+    return TRUE;
 }
 
 static void
@@ -561,7 +556,8 @@ __glXDRIscreenCreateContext(__GLXscreen * baseScreen,
     context->base.makeCurrent = __glXDRIcontextMakeCurrent;
     context->base.loseCurrent = __glXDRIcontextLoseCurrent;
     context->base.copy = __glXDRIcontextCopy;
-    context->base.textureFromPixmap = &__glXDRItextureFromPixmap;
+    context->base.bindTexImage = __glXDRIbindTexImage;
+    context->base.releaseTexImage = __glXDRIreleaseTexImage;
     context->base.wait = __glXDRIcontextWait;
 
     create_driver_context(context, screen, config, driShare, num_attribs,
@@ -771,7 +767,6 @@ static const __DRIuseInvalidateExtension dri2UseInvalidate = {
 };
 
 static const __DRIextension *loader_extensions[] = {
-    &systemTimeExtension.base,
     &loaderExtension.base,
     &dri2UseInvalidate.base,
     NULL
@@ -1024,8 +1019,6 @@ __glXDRIscreenProbe(ScreenPtr pScreen)
         dlclose(screen->driver);
 
     free(screen);
-
-    LogMessage(X_ERROR, "AIGLX: reverting to software rendering\n");
 
     return NULL;
 }

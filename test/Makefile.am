@@ -144,7 +144,7 @@ tests_LDADD += \
             $(top_builddir)/hw/xfree86/ramdac/libramdac.la \
             $(top_builddir)/hw/xfree86/ddc/libddc.la \
             $(top_builddir)/hw/xfree86/i2c/libi2c.la \
-            $(top_builddir)/hw/xfree86/dixmods/libxorgxkb.la \
+            $(top_builddir)/hw/xfree86/xkb/libxorgxkb.la \
             $(top_builddir)/Xext/libXvidmode.la \
             $(XSERVER_LIBS) \
             $(XORG_LIBS)
@@ -184,6 +184,5 @@ EXTRA_DIST = \
 	scripts/xephyr-glamor-piglit.sh \
 	scripts/xinit-piglit-session.sh \
 	scripts/run-piglit.sh \
-	ddxstubs.c \
 	$(NULL)
 

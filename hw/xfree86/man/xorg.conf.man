@@ -1376,10 +1376,10 @@ For PCI/AGP cards,
 the
 .I bus\-id
 string has the form
-.BI PCI: bus : device : function
-(e.g., \(lqPCI:1:0:0\(rq might be appropriate for an AGP card).
-This field is usually optional in single-head configurations when using
-the primary graphics card.
+.BI PCI: bus @ domain : device : function
+(e.g., \(lqPCI:1@0:0:0\(rq might be appropriate for an AGP card). The
+"@domain" part can be left out for PCI domain 0. This field is usually
+optional in single-head configurations when using the primary graphics card.
 In multi-head configurations, or when using a secondary graphics card in a
 single-head configuration, this entry is mandatory.
 Its main purpose is to make an unambiguous connection between the device
@@ -1495,6 +1495,11 @@ option.
 .BI "Option \*qModeDebug\*q \*q" boolean \*q
 Enable printing of additional debugging information about modesetting to
 the server log.
+.TP 7
+.BI "Option \*qPreferCloneMode\*q \*q" boolean \*q
+If enabled, bring up monitors of a screen in clone mode instead of horizontal
+extended layout by default. (Defaults to off; the video driver can change the
+default value, but this option can always override it)
 .ig
 .TP 7
 This optional entry allows an IRQ number to be specified.
@@ -2563,6 +2568,7 @@ Input drivers:
 .BR fpit (__drivermansuffix__),
 .BR joystick (__drivermansuffix__),
 .BR kbd (__drivermansuffix__),
+.BR libinput (__drivermansuffix__),
 .BR mousedrv (__drivermansuffix__),
 .BR mutouch (__drivermansuffix__),
 .BR penmount (__drivermansuffix__),

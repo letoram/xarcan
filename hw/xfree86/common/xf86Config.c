@@ -868,7 +868,7 @@ configServerFlags(XF86ConfFlagsPtr flagsconf, XF86OptionPtr layoutopts)
 
     /* when forcing input devices, we use kbd. otherwise evdev, so use the
      * evdev rules set. */
-#if defined(linux)
+#if defined(__linux__)
     if (!xf86Info.forceInputDevices)
         rules = "evdev";
     else
@@ -2274,8 +2274,10 @@ checkInput(serverLayoutPtr layout, Bool implicit_layout)
 ConfigStatus
 xf86HandleConfigFile(Bool autoconfig)
 {
+#ifdef XSERVER_LIBPCIACCESS
     const char *scanptr;
     Bool singlecard = 0;
+#endif
     Bool implicit_layout = FALSE;
     XF86ConfLayoutPtr layout;
 

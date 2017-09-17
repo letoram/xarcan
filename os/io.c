@@ -108,12 +108,12 @@ static ConnectionOutputPtr FreeOutputs = (ConnectionOutputPtr) NULL;
 static OsCommPtr AvailableInput = (OsCommPtr) NULL;
 
 #define get_req_len(req,cli) ((cli)->swapped ? \
-			      lswaps((req)->length) : (req)->length)
+			      bswap_16((req)->length) : (req)->length)
 
 #include <X11/extensions/bigreqsproto.h>
 
 #define get_big_req_len(req,cli) ((cli)->swapped ? \
-				  lswapl(((xBigReq *)(req))->length) : \
+				  bswap_32(((xBigReq *)(req))->length) : \
 				  ((xBigReq *)(req))->length)
 
 #define BUFSIZE 16384
@@ -183,10 +183,12 @@ YieldControl(void)
 }
 
 static void
-YieldControlNoInput(int fd)
+YieldControlNoInput(ClientPtr client)
 {
+    OsCommPtr oc = client->osPrivate;
     YieldControl();
-    ospoll_reset_events(server_poll, fd);
+    if (oc->trans_conn)
+        ospoll_reset_events(server_poll, oc->fd);
 }
 
 static void
@@ -226,7 +228,6 @@ ReadRequestFromClient(ClientPtr client)
 {
     OsCommPtr oc = (OsCommPtr) client->osPrivate;
     ConnectionInputPtr oci = oc->input;
-    int fd = oc->fd;
     unsigned int gotnow, needed;
     int result;
     register xReq *request;
@@ -357,7 +358,7 @@ ReadRequestFromClient(ClientPtr client)
                 if (0)
 #endif
                 {
-                    YieldControlNoInput(fd);
+                    YieldControlNoInput(client);
                     return 0;
                 }
             }
@@ -394,7 +395,7 @@ ReadRequestFromClient(ClientPtr client)
         }
         if (gotnow < needed) {
             /* Still don't have enough; punt. */
-            YieldControlNoInput(fd);
+            YieldControlNoInput(client);
             return 0;
         }
     }
@@ -494,7 +495,6 @@ InsertFakeRequest(ClientPtr client, char *data, int count)
 {
     OsCommPtr oc = (OsCommPtr) client->osPrivate;
     ConnectionInputPtr oci = oc->input;
-    int fd = oc->fd;
     int gotnow, moveup;
 
     NextAvailableInput(oc);
@@ -533,7 +533,7 @@ InsertFakeRequest(ClientPtr client, char *data, int count)
         (gotnow >= (int) (get_req_len((xReq *) oci->bufptr, client) << 2)))
         mark_client_ready(client);
     else
-        YieldControlNoInput(fd);
+        YieldControlNoInput(client);
     return TRUE;
 }
 
@@ -548,7 +548,6 @@ ResetCurrentRequest(ClientPtr client)
 {
     OsCommPtr oc = (OsCommPtr) client->osPrivate;
     register ConnectionInputPtr oci = oc->input;
-    int fd = oc->fd;
     register xReq *request;
     int gotnow, needed;
 
@@ -557,7 +556,7 @@ ResetCurrentRequest(ClientPtr client)
     oci->lenLastReq = 0;
     gotnow = oci->bufcnt + oci->buffer - oci->bufptr;
     if (gotnow < sizeof(xReq)) {
-        YieldControlNoInput(fd);
+        YieldControlNoInput(client);
     }
     else {
         request = (xReq *) oci->bufptr;
@@ -576,7 +575,7 @@ ResetCurrentRequest(ClientPtr client)
             YieldControl();
         }
         else
-            YieldControlNoInput(fd);
+            YieldControlNoInput(client);
     }
 }
 
@@ -630,6 +629,26 @@ void
 SetCriticalOutputPending(void)
 {
     CriticalOutputPending = TRUE;
+}
+
+/*****************
+ * AbortClient:
+ *    When a write error occurs to a client, close
+ *    the connection and clean things up. Mark
+ *    the client as 'ready' so that the server will
+ *    try to read from it again, notice that the fd is
+ *    closed and clean up from there.
+ *****************/
+
+static void
+AbortClient(ClientPtr client)
+{
+    OsCommPtr oc = client->osPrivate;
+
+    if (oc->trans_conn) {
+        CloseDownFileDescriptor(oc);
+        mark_client_ready(client);
+    }
 }
 
 /*****************
@@ -707,11 +726,7 @@ WriteToClient(ClientPtr who, int count, const void *__buf)
             FreeOutputs = oco->next;
         }
         else if (!(oco = AllocateOutputBuffer())) {
-            if (oc->trans_conn) {
-                _XSERVTransDisconnect(oc->trans_conn);
-                _XSERVTransClose(oc->trans_conn);
-                oc->trans_conn = NULL;
-            }
+            AbortClient(who);
             MarkClientException(who);
             return -1;
         }
@@ -892,9 +907,7 @@ FlushClient(ClientPtr who, OsCommPtr oc, const void *__extraBuf, int extraCount)
                     obuf = realloc(oco->buf, notWritten + BUFSIZE);
                 }
                 if (!obuf) {
-                    _XSERVTransDisconnect(oc->trans_conn);
-                    _XSERVTransClose(oc->trans_conn);
-                    oc->trans_conn = NULL;
+                    AbortClient(who);
                     MarkClientException(who);
                     oco->count = 0;
                     return -1;
@@ -921,11 +934,7 @@ FlushClient(ClientPtr who, OsCommPtr oc, const void *__extraBuf, int extraCount)
         }
 #endif
         else {
-            if (oc->trans_conn) {
-                _XSERVTransDisconnect(oc->trans_conn);
-                _XSERVTransClose(oc->trans_conn);
-                oc->trans_conn = NULL;
-            }
+            AbortClient(who);
             MarkClientException(who);
             oco->count = 0;
             return -1;

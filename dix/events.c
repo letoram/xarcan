@@ -3575,7 +3575,7 @@ ProcWarpPointer(ClientPtr client)
              winX + stuff->srcX + (int) stuff->srcWidth < x) ||
             (stuff->srcHeight != 0 &&
              winY + stuff->srcY + (int) stuff->srcHeight < y) ||
-            !PointInWindowIsVisible(source, x, y))
+            (source->parent && !PointInWindowIsVisible(source, x, y)))
             return Success;
     }
     if (dest) {
@@ -5363,6 +5363,12 @@ ProcSendEvent(ClientPtr client)
            stuff->event.u.u.type < LASTEvent) ||
           (stuff->event.u.u.type >= EXTENSION_EVENT_BASE &&
            stuff->event.u.u.type < (unsigned) lastEvent))) {
+        client->errorValue = stuff->event.u.u.type;
+        return BadValue;
+    }
+    /* Generic events can have variable size, but SendEvent request holds
+       exactly 32B of event data. */
+    if (stuff->event.u.u.type == GenericEvent) {
         client->errorValue = stuff->event.u.u.type;
         return BadValue;
     }

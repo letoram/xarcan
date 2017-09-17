@@ -137,8 +137,9 @@ output_get_new_size(struct xwl_output *xwl_output,
 /* Approximate some kind of mmpd (m.m. per dot) of the screen given the outputs
  * associated with it.
  *
- * It will either calculate the mean mmpd of all the outputs, or default to
- * 96 DPI if no reasonable value could be calculated.
+ * It either calculates the mean mmpd of all the outputs or, if no reasonable
+ * value could be calculated, defaults to the mmpd of a screen with a DPI value
+ * of DEFAULT_DPI.
  */
 static double
 approximate_mmpd(struct xwl_screen *xwl_screen)
@@ -187,8 +188,11 @@ update_screen_size(struct xwl_output *xwl_output, int width, int height)
     SetRootClip(xwl_screen->screen, xwl_screen->root_clip_mode);
 
     if (xwl_screen->screen->root) {
+        BoxRec box = { 0, 0, width, height };
+
         xwl_screen->screen->root->drawable.width = width;
         xwl_screen->screen->root->drawable.height = height;
+        RegionReset(&xwl_screen->screen->root->winSize, &box);
         RRScreenSizeNotify(xwl_screen->screen);
     }
 

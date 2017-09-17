@@ -243,8 +243,6 @@ xwl_glamor_create_screen_resources(ScreenPtr screen)
             xwl_glamor_create_pixmap(screen, screen->width, screen->height,
                                      screen->rootDepth,
                                      CREATE_PIXMAP_USAGE_BACKING_PIXMAP);
-        if (screen->devPrivate)
-            glamor_set_screen_pixmap(screen->devPrivate, NULL);
     }
 
     SetRootClip(screen, xwl_screen->root_clip_mode);
@@ -583,6 +581,13 @@ Bool
 xwl_glamor_init(struct xwl_screen *xwl_screen)
 {
     ScreenPtr screen = xwl_screen->screen;
+    const char *no_glamor_env;
+
+    no_glamor_env = getenv("XWAYLAND_NO_GLAMOR");
+    if (no_glamor_env && *no_glamor_env != '0') {
+        ErrorF("Disabling glamor and dri3 support, XWAYLAND_NO_GLAMOR is set\n");
+        return FALSE;
+    }
 
     if (xwl_screen->egl_context == EGL_NO_CONTEXT) {
         ErrorF("Disabling glamor and dri3, EGL setup failed\n");

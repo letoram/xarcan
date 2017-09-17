@@ -496,7 +496,7 @@ drmmode_crtc_dpms(xf86CrtcPtr crtc, int mode)
     drmmode_crtc->dpms_mode = mode;
 }
 
-#ifdef GLAMOR
+#ifdef GLAMOR_HAS_GBM
 static PixmapPtr
 create_pixmap_for_fbcon(drmmode_ptr drmmode, ScrnInfoPtr pScrn, int fbcon_id)
 {
@@ -546,7 +546,7 @@ out_free_fb:
 void
 drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 {
-#ifdef GLAMOR
+#ifdef GLAMOR_HAS_GBM
     xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     ScreenPtr pScreen = xf86ScrnToScreen(pScrn);
     PixmapPtr src, dst;
@@ -759,6 +759,9 @@ drmmode_set_cursor(xf86CrtcPtr crtc)
     CursorPtr cursor = xf86CurrentCursor(crtc->scrn->pScreen);
     int ret = -EINVAL;
 
+    if (cursor == NullCursor)
+	    return TRUE;
+
     ret = drmModeSetCursor2(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
                             handle, ms->cursor_width, ms->cursor_height,
                             cursor->bits->xhot, cursor->bits->yhot);
@@ -857,7 +860,7 @@ drmmode_set_target_scanout_pixmap_gpu(xf86CrtcPtr crtc, PixmapPtr ppix,
     int c, total_width = 0, max_height = 0, this_x = 0;
 
     if (*target) {
-        PixmapStopDirtyTracking(*target, screenpix);
+        PixmapStopDirtyTracking(&(*target)->drawable, screenpix);
         if (drmmode->fb_id) {
             drmModeRmFB(drmmode->fd, drmmode->fb_id);
             drmmode->fb_id = 0;
@@ -897,7 +900,8 @@ drmmode_set_target_scanout_pixmap_gpu(xf86CrtcPtr crtc, PixmapPtr ppix,
         screen->height = screenpix->drawable.height = max_height;
     }
     drmmode_crtc->prime_pixmap_x = this_x;
-    PixmapStartDirtyTracking(ppix, screenpix, 0, 0, this_x, 0, RR_Rotate_0);
+    PixmapStartDirtyTracking(&ppix->drawable, screenpix, 0, 0, this_x, 0,
+                             RR_Rotate_0);
     *target = ppix;
     return TRUE;
 }
@@ -1557,7 +1561,8 @@ drmmode_output_set_property(xf86OutputPtr output, Atom property,
                 value->size != 1)
                 return FALSE;
             memcpy(&atom, value->data, 4);
-            name = NameForAtom(atom);
+            if (!(name = NameForAtom(atom)))
+                return FALSE;
 
             /* search for matching name string, then set its value down */
             for (j = 0; j < p->mode_prop->count_enums; j++) {
@@ -1621,6 +1626,7 @@ static const char *const output_names[] = {
     "eDP",
     "Virtual",
     "DSI",
+    "DPI",
 };
 
 static xf86OutputPtr find_output(ScrnInfoPtr pScrn, int id)
@@ -1894,27 +1900,16 @@ drmmode_clones_init(ScrnInfoPtr scrn, drmmode_ptr drmmode, drmModeResPtr mode_re
 static Bool
 drmmode_set_pixmap_bo(drmmode_ptr drmmode, PixmapPtr pixmap, drmmode_bo *bo)
 {
-#ifdef GLAMOR
+#ifdef GLAMOR_HAS_GBM
     ScrnInfoPtr scrn = drmmode->scrn;
 
     if (!drmmode->glamor)
         return TRUE;
 
-#ifdef GLAMOR_HAS_GBM
     if (!glamor_egl_create_textured_pixmap_from_gbm_bo(pixmap, bo->gbm)) {
         xf86DrvMsg(scrn->scrnIndex, X_ERROR, "Failed");
         return FALSE;
     }
-#else
-    if (!glamor_egl_create_textured_pixmap(pixmap,
-                                           drmmode_bo_get_handle(&drmmode->front_bo),
-                                           scrn->displayWidth *
-                                           scrn->bitsPerPixel / 8)) {
-        xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-                   "glamor_egl_create_textured_pixmap() failed\n");
-        return FALSE;
-    }
-#endif
 #endif
 
     return TRUE;
@@ -1928,11 +1923,6 @@ drmmode_glamor_handle_new_screen_pixmap(drmmode_ptr drmmode)
 
     if (!drmmode_set_pixmap_bo(drmmode, screen_pixmap, &drmmode->front_bo))
         return FALSE;
-
-#ifdef GLAMOR
-    if (drmmode->glamor)
-        glamor_set_screen_pixmap(screen_pixmap, NULL);
-#endif
 
     return TRUE;
 }
@@ -2253,6 +2243,10 @@ drmmode_setup_colormap(ScreenPtr pScreen, ScrnInfoPtr pScrn)
 }
 
 #ifdef CONFIG_UDEV_KMS
+
+#define DRM_MODE_LINK_STATUS_GOOD       0
+#define DRM_MODE_LINK_STATUS_BAD        1
+
 static void
 drmmode_handle_uevents(int fd, void *closure)
 {
@@ -2271,6 +2265,49 @@ drmmode_handle_uevents(int fd, void *closure)
     }
     if (!found)
         return;
+
+    /* Try to re-set the mode on all the connectors with a BAD link-state:
+     * This may happen if a link degrades and a new modeset is necessary, using
+     * different link-training parameters. If the kernel found that the current
+     * mode is not achievable anymore, it should have pruned the mode before
+     * sending the hotplug event. Try to re-set the currently-set mode to keep
+     * the display alive, this will fail if the mode has been pruned.
+     * In any case, we will send randr events for the Desktop Environment to
+     * deal with it, if it wants to.
+     */
+    for (i = 0; i < config->num_output; i++) {
+        xf86OutputPtr output = config->output[i];
+        drmmode_output_private_ptr drmmode_output = output->driver_private;
+        uint32_t con_id = drmmode_output->mode_output->connector_id;
+        drmModeConnectorPtr koutput;
+
+        /* Get an updated view of the properties for the current connector and
+         * look for the link-status property
+         */
+        koutput = drmModeGetConnectorCurrent(drmmode->fd, con_id);
+        for (j = 0; koutput && j < koutput->count_props; j++) {
+            drmModePropertyPtr props;
+            props = drmModeGetProperty(drmmode->fd, koutput->props[j]);
+            if (props && props->flags & DRM_MODE_PROP_ENUM &&
+                !strcmp(props->name, "link-status") &&
+                koutput->prop_values[j] == DRM_MODE_LINK_STATUS_BAD) {
+                xf86CrtcPtr crtc = output->crtc;
+                if (!crtc)
+                    continue;
+
+                /* the connector got a link failure, re-set the current mode */
+                drmmode_set_mode_major(crtc, &crtc->mode, crtc->rotation,
+                                       crtc->x, crtc->y);
+
+                xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+                           "hotplug event: connector %u's link-state is BAD, "
+                           "tried resetting the current mode. You may be left"
+                           "with a black screen if this fails...\n", con_id);
+            }
+            drmModeFreeProperty(props);
+        }
+        drmModeFreeConnector(koutput);
+    }
 
     mode_res = drmModeGetResources(drmmode->fd);
     if (!mode_res)
@@ -2336,6 +2373,10 @@ out_free_res:
 out:
     RRGetInfo(xf86ScrnToScreen(scrn), TRUE);
 }
+
+#undef DRM_MODE_LINK_STATUS_BAD
+#undef DRM_MODE_LINK_STATUS_GOOD
+
 #endif
 
 void
