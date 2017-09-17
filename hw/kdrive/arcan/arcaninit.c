@@ -186,6 +186,9 @@ ddxProcessArgument(int argc, char **argv, int i)
         arcanConfigPriv.accel_cursor = true;
     }
 /*
+ * rather useless, txpass would act pretty much the same as glamor,
+ * except for the actual drawing that is
+ *
     else if (strcmp(argv[i], "-txpass") == 0){
         arcanConfigPriv.txpass = true;
         return 1;

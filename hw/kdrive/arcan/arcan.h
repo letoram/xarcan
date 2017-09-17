@@ -49,6 +49,7 @@ struct gbm_bo;
 typedef struct _arcanScrPriv {
     struct arcan_shmif_cont * acon;
     struct arcan_shmif_initial init;
+    Bool dirty;
 
 #ifdef RANDR
     RROutputPtr randrOutput;

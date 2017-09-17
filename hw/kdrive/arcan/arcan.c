@@ -50,6 +50,7 @@
 #define XSERV_t
 #define TRANS_SERVER
 #include <X11/Xtrans/Xtrans.h>
+#include <present.h>
 
 arcanInput arcanInputPriv;
 arcanConfig arcanConfigPriv;
@@ -61,6 +62,8 @@ static DevPrivateKeyRec cursor_private_key;
 static uint8_t code_tbl[512];
 static struct arcan_shmif_initial* arcan_init;
 static DevPrivateKeyRec pixmap_private_key;
+
+#define ARCAN_TRACE
 
 static inline void trace(const char* msg, ...)
 {
@@ -74,6 +77,11 @@ static inline void trace(const char* msg, ...)
 #endif
 }
 
+/*
+ * likely that these calculations are incorrect, need BE machines to
+ * test between both setArcan and setGlamor versions, stick with the
+ * setGlamor version for now.
+ */
 static void setArcanMask(KdScreenInfo* screen)
 {
     screen->rate = 60;
@@ -131,7 +139,8 @@ arcanCardInit(KdCardInfo * card)
 Bool
 arcanScreenInitialize(KdScreenInfo * screen, arcanScrPriv * scrpriv)
 {
-    scrpriv->acon->hints = SHMIF_RHINT_SUBREGION | SHMIF_RHINT_IGNORE_ALPHA;
+    scrpriv->acon->hints =
+       SHMIF_RHINT_SUBREGION | SHMIF_RHINT_IGNORE_ALPHA |SHMIF_RHINT_VSIGNAL_EV;
     trace("arcanScreenInitialize");
 
     if (!screen->width || !screen->height) {
@@ -139,6 +148,8 @@ arcanScreenInitialize(KdScreenInfo * screen, arcanScrPriv * scrpriv)
         screen->height = scrpriv->acon->h;
     }
 
+/* if the size dimensions exceed the permitted values, shrink. Also try and
+ * enable the color control subprotocol */
     if (!arcan_shmif_resize_ext(scrpriv->acon, screen->width, screen->height,
         (struct shmif_resize_ext){
 #ifdef RANDR
@@ -148,7 +159,8 @@ arcanScreenInitialize(KdScreenInfo * screen, arcanScrPriv * scrpriv)
             screen->width = scrpriv->acon->w;
             screen->height = scrpriv->acon->h;
     }
-        arcan_shmifsub_getramp(scrpriv->acon, 0, &scrpriv->block);
+
+    arcan_shmifsub_getramp(scrpriv->acon, 0, &scrpriv->block);
 
 /* default guess, we cache this between screen init/deinit */
     if (!arcan_init)
@@ -322,7 +334,33 @@ arcanFlushEvents(int fd, void* tag)
             continue;
         else
             switch (ev.tgt.kind){
+            case TARGET_COMMAND_STEPFRAME:{
+                arcanScrPriv *scrpriv = con->user;
+                if (scrpriv->dirty){
+                    arcan_shmif_signal(con, SHMIF_SIGVID | SHMIF_SIGBLK_NONE);
+                    con->dirty.x1 = con->w;
+                    con->dirty.y1 = con->h;
+                    con->dirty.y2 = 0;
+                    con->dirty.x2 = 0;
+                    scrpriv->dirty = false;
+                }
+            }
             case TARGET_COMMAND_RESET:
+                switch(ev.tgt.ioevs[0].iv){
+/* not much 'state' that we can extract or track from the Xorg internals,
+ * possibly input related and likely not worth it */
+                    case 0:
+                    case 1:
+                    break;
+/* for recovery / hard-migrate, we don't really need to do anything yet */
+                    case 2:
+                    break;
+/* swap-out monitored FD */
+                    case 3:
+                       KdUnregisterFd((void*)arcanFlushEvents,con->epipe,false);
+                       KdRegisterFd(con->epipe, (void*) arcanFlushEvents, con);
+                    break;
+                }
             break;
             case TARGET_COMMAND_DISPLAYHINT:
                 arcanDisplayHint(con,
@@ -332,11 +370,11 @@ arcanFlushEvents(int fd, void* tag)
             case TARGET_COMMAND_OUTPUTHINT:
             break;
             case TARGET_COMMAND_NEWSEGMENT:
-/* Only thing we care about here is if a new output segment is pushed, that would
- * indicate that we have received a buffer to 'provide' if a client attempts to
- * read or capture anything from the root display. Clipboard is used with the
- * aclip tool, so no need here - and mouse cursor registration is performed much
- * earlier */
+/* Only thing we care about here is if a new output segment is pushed, that
+ * would indicate that we have received a buffer to 'provide' if a client
+ * attempts to read or capture anything from the root display. Clipboard is
+ * used with the aclip tool, so no need here - and mouse cursor registration is
+ * performed much earlier */
             break;
             case TARGET_COMMAND_EXIT:
                 CloseWellKnownConnections();
@@ -384,7 +422,7 @@ arcanScreenInit(KdScreenInfo * screen)
 
     scrpriv->pending_fd = -1;
     scrpriv->acon = con;
-        arcan_shmifsub_getramp(scrpriv->acon, 0, &scrpriv->block);
+    arcan_shmifsub_getramp(scrpriv->acon, 0, &scrpriv->block);
     con->user = scrpriv;
 
     if (!scrpriv->acon){
@@ -425,10 +463,17 @@ static void arcanInternalDamageRedisplay(ScreenPtr pScreen)
  * of the latter.
  */
     box = RegionExtents(region);
-    scrpriv->acon->dirty.x1 = box->x1;
-    scrpriv->acon->dirty.x2 = box->x2;
-    scrpriv->acon->dirty.y1 = box->y1;
-    scrpriv->acon->dirty.y2 = box->y2;
+    if (box->x1 < scrpriv->acon->dirty.x1)
+        scrpriv->acon->dirty.x1 = box->x1;
+
+    if (box->x2 > scrpriv->acon->dirty.x2)
+        scrpriv->acon->dirty.x2 = box->x2;
+
+    if (box->y1 < scrpriv->acon->dirty.y1)
+        scrpriv->acon->dirty.y1 = box->y1;
+
+    if (box->y2 > scrpriv->acon->dirty.y2)
+        scrpriv->acon->dirty.y2 = box->y2;
 
 #ifdef GLAMOR
     if (scrpriv->in_glamor){
@@ -436,8 +481,10 @@ static void arcanInternalDamageRedisplay(ScreenPtr pScreen)
         size_t stride = 0;
         int fourcc = 0;
 
-/* does glamor buffer somewhere internally? this does not seem to be
- * plagued by tearing even though it likely should */
+/* does glamor buffer somewhere internally? this do not seem to be
+ * plagued by tearing or locking issues, even though it likely should.
+ * maybe it's just because the tested display and simulated rate match?
+ * in that case, the delivery- approach used for non-glamor should work */
         if (scrpriv->bo){
             fd = gbm_bo_get_fd(scrpriv->bo);
             stride = gbm_bo_get_stride(scrpriv->bo);
@@ -458,9 +505,10 @@ static void arcanInternalDamageRedisplay(ScreenPtr pScreen)
         }
         scrpriv->pending_fd = fd;
     }
-    else
 #endif
-        arcan_shmif_signal(scrpriv->acon, SHMIF_SIGVID | SHMIF_SIGBLK_NONE);
+/* use frame delivery event to indicate next time we should signal */
+    arcan_shmif_signal(scrpriv->acon, SHMIF_SIGVID | SHMIF_SIGBLK_NONE);
+    scrpriv->dirty = true;
     DamageEmpty(scrpriv->damage);
 }
 
@@ -940,7 +988,7 @@ arcanRandRSetConfig(ScreenPtr pScreen,
         .meta = SHMIF_META_CM
 #endif
         });
-        arcan_shmifsub_getramp(scrpriv->acon, 0, &scrpriv->block);
+    arcan_shmifsub_getramp(scrpriv->acon, 0, &scrpriv->block);
     arcanUnmapFramebuffer(screen);
 
     if (!arcanMapFramebuffer(screen))
@@ -997,7 +1045,7 @@ arcanRandRSetConfig(ScreenPtr pScreen,
 static Bool arcanRandRSetGamma(ScreenPtr pScreen, RRCrtcPtr crtc)
 {
     KdScreenPriv(pScreen);
-    rrScrPrivPtr pScrPriv;
+/*   rrScrPrivPtr pScrPriv; */
     KdScreenInfo *screen = pScreenPriv->screen;
     arcanScrPriv *scrpriv = screen->driver;
 
@@ -1013,7 +1061,7 @@ static Bool arcanRandRSetGamma(ScreenPtr pScreen, RRCrtcPtr crtc)
 static Bool arcanRandRGetGamma(ScreenPtr pScreen, RRCrtcPtr crtc)
 {
     KdScreenPriv(pScreen);
-    rrScrPrivPtr pScrPriv;
+/*  rrScrPrivPtr pScrPriv; */
     KdScreenInfo *screen = pScreenPriv->screen;
     arcanScrPriv *scrpriv = screen->driver;
     arcan_shmifsub_getramp(scrpriv->acon, 0, &scrpriv->block);
@@ -1331,8 +1379,8 @@ arcanScreenBlockHandler(ScreenPtr pScreen, void* timeout)
  * This one is rather unfortunate as it seems to be called 'whenever' and we
  * don't know the synch- state of the contents in the buffer. At the same
  * time, it doesn't trigger when idle- so we can't just skip synching and wait
- * for the next one. The other option is to pop a CLOCKREQ and accept the slight
- * latency when synch does not align.
+ * for the next one. We can also set the context to be in event-frame delivery
+ * mode and use the STEPFRAME event as a trigger to signal-if-dirty
  */
 //    trace("arcanScreenBlockHandler(%lld)",(long long) currentTime.milliseconds);
     pScreen->BlockHandler = scrpriv->BlockHandler;
@@ -1342,8 +1390,10 @@ arcanScreenBlockHandler(ScreenPtr pScreen, void* timeout)
 
     if (scrpriv->damage)
         arcanInternalDamageRedisplay(pScreen);
-    else
+/*
+ * else if (!arcan_shmif_signalstatus)
         arcan_shmif_signal(scrpriv->acon, SHMIF_SIGVID | SHMIF_SIGBLK_NONE);
+ */
 }
 
 Bool
@@ -1368,6 +1418,96 @@ arcanCloseScreenWrap(ScreenPtr pScreen)
 /*  arcanCloseScreen(pScreen); */
     return TRUE;
 }
+static RRCrtcPtr
+arcanPresentGetCrtc(WindowPtr window)
+{
+    ScreenPtr pScreen = window->drawable.pScreen;
+    KdScreenPriv(pScreen);
+    KdScreenInfo *screen = pScreenPriv->screen;
+    arcanScrPriv *scrpriv = screen->driver;
+    trace("present:get_crtc");
+
+    if (!scrpriv)
+        return NULL;
+
+    return scrpriv->randrCrtc;
+}
+
+static int arcanPresentGetUstMsc(RRCrtcPtr crtc, CARD64 *ust, CARD64 *msc)
+{
+    trace("present:get_ust_msc");
+    return 0;
+}
+
+static void arcanPresentAbortVblank(void *data)
+{
+    struct ms_present_vblank_event *event = data;
+    trace("present:vblank abort");
+    free(event);
+}
+
+static int arcanPresentQueueVblank(RRCrtcPtr crtc, uint64_t evid, uint64_t msc)
+{
+    trace("present:queue vblank (wait for vready)");
+    return Success;
+}
+
+static void
+arcanPresentFlush(WindowPtr window)
+{
+    trace("present:flush");
+#ifdef GLAMOR
+/*
+    ScreenPtr screen = window->drawable.pScreen;
+    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+    modesettingPtr ms = modesettingPTR(scrn);
+
+    if (ms->drmmode.glamor)
+        glamor_block_handler(screen);
+ */
+#endif
+}
+
+static Bool
+arcanPresentFlip(RRCrtcPtr crtc,
+                 uint64_t event_id,
+                                 uint64_t target_msc,
+                                 PixmapPtr pixmap,
+                                 Bool sync_flip)
+{
+/* if sync flip is true, wait for "blank" then signal */
+    trace("present:flip");
+    return true;
+}
+
+static void
+arcanPresentUnflip(ScreenPtr screen, uint64_t eventid)
+{
+    trace("present:unflip");
+}
+
+static Bool
+arcanPresentCheckFlip(RRCrtcPtr crtc,
+                      WindowPtr window,
+                                            PixmapPtr pixmap,
+                                            Bool sync_flip)
+{
+    trace("present:check flip");
+    return true;
+}
+
+static present_screen_info_rec arcan_present_info = {
+    .version = PRESENT_SCREEN_INFO_VERSION,
+    .get_crtc = arcanPresentGetCrtc,
+    .get_ust_msc = arcanPresentGetUstMsc,
+    .queue_vblank = arcanPresentQueueVblank,
+    .abort_vblank = arcanPresentAbortVblank,
+    .flush = arcanPresentFlush,
+    .capabilities = PresentCapabilityAsync,
+    .check_flip = arcanPresentCheckFlip,
+    .flip = arcanPresentFlip,
+    .unflip = arcanPresentUnflip
+};
 
 Bool
 arcanFinishInitScreen(ScreenPtr pScreen)
@@ -1387,6 +1527,7 @@ arcanFinishInitScreen(ScreenPtr pScreen)
     scrpriv->BlockHandler = pScreen->BlockHandler;
     pScreen->BlockHandler = arcanScreenBlockHandler;
 
+    present_screen_init(pScreen, &arcan_present_info);
     return TRUE;
 }
 

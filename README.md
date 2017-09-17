@@ -46,47 +46,44 @@ The strategy used here is to contain all X clients within one logical window,
 for mapping single- client windows to corresponding Arcan primitives, the plan
 is still to go through Wayland/XWayland, though that is still somewhat
 uncertain, investigations are done on a hybrid version where we can 'steal'
-single windows out from Xorg. Another exception is if a DRI3 client goes
-full-screen, then the buffer we passed should switch to that one immediately.
+single windows out from Xorg on demand. Another exception is if a DRI3 client
+goes full-screen, then the buffer we passed should switch to that one
+immediately.
 
 One big limitation is that the keyboard mapping/remapping features that some
 arcan appls like durden employ will not work here. The server only uses the
-raw OS keycodes mapped into the sanity absorbing black chasm that is Xkb. Use
-the normal Xserver arguments to pick whatever layout you need. This is the
-same problem that the wayland-bridge tool suffers from.
+raw OS keycodes mapped into the sanity absorbing black chasm that is Xkb.
+Since the same problem exist for bridge wayland clients, chances are that
+something more dynamic can be obtained via the github.com/39aldo39/klfc util
+as a middle man.
 
 Issues
 ====
-There is still lots to do. The reasons Glamor/GLX are marked as p and not x
-right now:
+There is still some things left to do. Quite a few of the accelerated graphics
+problems pertain to having multiple GPUs or having Xarcan working against a
+render node rather than the real device.
 
-* glamor buffer output formats seems broken in an interesting way, the
-  contents are correct except for the alpha channel that is 'mostly' all 0.
-	Unsure if this is deep in the bowels of X or MESA.
-
-* if it is unsuably unstable, try running with -nodynamic, not all combinations
-	of xorg-wm-application handles rapid streams of xrandr- resizes gracefully.
-
-* glamor with DRI3 gives interesting client crashes when the X server itself
-  is bound to a render-node rather than a card (at least on amdgpu), running
-	with -nodri3 works, but chances are you'll get the software path instead.
-
-* resource management / cleanup is extremely error prone. Xorg uses a volatile
-  pattern of structures with callbacks that you attach-chain to, meaning that
-	execution goes all over the place and it's a pain to trace. Whenever someone
-	incorrectly chains or unchains, you get backtraces that are awful to figure
-	out.
+This can be mitigated by pointing the ARCAN\_RENDER\_NODE environment variable
+to a card-node rather than a render node for starters. This also requires that
+the xarcan- connection to the running appl- scripts in arcan gets the GPU-
+delegation flag (durden: global/config/system/gpu delegation=full) as it breaks
+the privilege separation initiative from using render nodes in the first place.
 
 Notes
 ====
 (might be wildly incorrect)
 
-It seems possible that the 2D rendering synchronization issues can be improved
-by switching to PRESENT and stop abusing the block handler.
+There seem to be some weird path/trick needed to be performed for the PRESENT-
+extension to be enabled, the full path is yet to be traced, but when working,
+it should be a mere matter of communicating timings and switching to a signal
+without block- ignore.
 
-The RandR use seem to need more CRTC/Fake display information in order for
-both PRESENT and RRGetGamma/RRSetGamma to be invoked, and we need access to
-the gamma functions if the shmif-cont is negotiated to work with that.
+The 'Output Segment' todo is a possibly neat way to solve compatibility/mapping
+for clients that requests the contents of other windows. The plan is to activate
+when a NEWSEGMENT event arrives with an output segment (i.e. an explicit push).
+
+When that happens, take the pScreen and overload getImage to map/return contents
+from that segment rather than somewhere else.
 
 TODO
 ====
@@ -99,12 +96,13 @@ bridged, here are the current big points:
 - [x] Randr/DISPLAYHINT resizing
 - [ ] Touch Input Mapping
 - [ ] Joystick Input Mapping
-- [ ] Output Segment to 'screen recorder' translation
+- [ ] Output Segment to universal GetImage
+- [ ] mouse cursor acceleration
 - [ ] Display-correct Synchronization timing
-  - [ ] DRI2-shmif-framebuffer-GL handle mapping
+  - [p] PRESENT- support
 - [p] Accelerated Cursor
-- [p] Glamor/dri3
-- [p] GLX
+- [x] Glamor/dri3/glx
 - [ ] epoxy patching (or switch gl calls to use agp-fenv)
     - [ ] overridable lookup function (map to shmifext-)
     - [ ] invalidate / replace
+- [ ] xenocara bringup
