@@ -14,6 +14,11 @@ Compilation
 Normal autohell style compilation. Relevant compilation flags are:
     --enable-kdrive --enable-xarcan --disable-xorg --disable-xwayland
     --disable-xnest --disable-xvfb --enable-glamor --enable-glx
+		--disable-int10-module
+
+The only output you are likely to be interested in is
+hw/kdrive/arcan/Xarcan make install on existing xorg- systems is likely
+to result in pain as it has its tentacles dug into everything.
 
 pkg\_info need to find the normal arcan-shmif, arcan-shmifext libraries.
 
@@ -32,7 +37,8 @@ just run hw/kdrive/arcan/Xarcan to start bridging connections.
 
 For multiple instances, you can add :1 (and set DISPLAY=:1 etc. accordingly)
 and so one, forcing size with -screen 800x600 -no-dynamic and enable glamor
-(GL rendering with handle passing) using -glamor (see issues). The title and
+(GL rendering with handle passing) using -glamor. Note that the
+ARCAN\_RENDER\_NODE will be respected (see ISSUES). The title and
 identity can be scriptably controlled with -aident identstr -atitle titlestr
 
 Clipboard management is not part of xarcan per se, there is an external tool
