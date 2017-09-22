@@ -1047,10 +1047,12 @@ static Bool arcanRandRSetGamma(ScreenPtr pScreen, RRCrtcPtr crtc)
     KdScreenInfo *screen = pScreenPriv->screen;
     arcanScrPriv *scrpriv = screen->driver;
 
-    for (size_t i = 0, j = 0; i < crtc->gammaSize && j < scrpriv->block.plane_sizes[0]; i++){
-        scrpriv->block.planes[j++] = (float)crtc->gammaRed[i] / 65536.0f;
-        scrpriv->block.planes[j++] = (float)crtc->gammaBlue[i] / 65536.0f;
-        scrpriv->block.planes[j++] = (float)crtc->gammaGreen[i] / 65536.0f;
+    size_t plane_sz = scrpriv->block.plane_sizes[0] / 3;
+
+		for (size_t i = 0, j = 0; i < crtc->gammaSize && j < plane_sz; i++, j++){
+        scrpriv->block.planes[i] = (float)crtc->gammaRed[i] / 65536.0f;
+        scrpriv->block.planes[i+plane_sz] = (float)crtc->gammaGreen[i] / 65536.0f;
+        scrpriv->block.planes[i+2*plane_sz] = (float)crtc->gammaBlue[i] / 65536.0f;
     }
 
     return arcan_shmifsub_setramp(scrpriv->acon, 0, &scrpriv->block) ? TRUE : FALSE;
@@ -1063,11 +1065,12 @@ static Bool arcanRandRGetGamma(ScreenPtr pScreen, RRCrtcPtr crtc)
     KdScreenInfo *screen = pScreenPriv->screen;
     arcanScrPriv *scrpriv = screen->driver;
     arcan_shmifsub_getramp(scrpriv->acon, 0, &scrpriv->block);
+    size_t plane_sz = scrpriv->block.plane_sizes[0] / 3;
 
-    for (size_t i = 0, j = 0; i < crtc->gammaSize && j < scrpriv->block.plane_sizes[0]; i++){
-        crtc->gammaRed[i] = scrpriv->block.planes[j++] * 65535;
-        crtc->gammaBlue[i] = scrpriv->block.planes[j++] * 65535;
-        crtc->gammaGreen[i] = scrpriv->block.planes[j++] * 65535;
+    for (size_t i = 0; i < crtc->gammaSize && i < scrpriv->block.plane_sizes[0]; i++){
+        crtc->gammaRed[i] = scrpriv->block.planes[i] * 65535;
+        crtc->gammaGreen[i] = scrpriv->block.planes[i + plane_sz] * 65535;
+        crtc->gammaBlue[i] = scrpriv->block.planes[i + plane_sz + plane_sz] * 65535;
     }
 
     return TRUE;
