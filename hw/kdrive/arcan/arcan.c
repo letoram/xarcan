@@ -56,6 +56,21 @@ arcanInput arcanInputPriv;
 arcanConfig arcanConfigPriv;
 int arcanGlamor;
 
+#ifdef __OpenBSD__
+#include "../../dmx/input/atKeynames.h"
+#include "bsd_KbdMap.c"
+
+static void enqueueKeyboard(uint16_t scancode, int active)
+{
+	KdEnqueueKeyboardEvent(arcanInputPriv.ki, wsUsbMap[scancode], !active);
+}
+#else
+static void enqueueKeyboard(uint16_t scancode, int active)
+{
+	KdEnqueueKeyboardEvent(arcanInputPriv.ki, scancode, !active);
+}
+#endif
+
 static struct arcan_shmif_cont cursor;
 static DevPrivateKeyRec cursor_private_key;
 
@@ -254,8 +269,8 @@ TranslateInput(struct arcan_shmif_cont* con, arcan_ioevent* ev, int* x, int* y)
     }
     else if (ev->datatype == EVENT_IDATATYPE_TRANSLATED){
         code_tbl[ev->input.translated.scancode % 512] = ev->input.translated.active;
-        KdEnqueueKeyboardEvent(arcanInputPriv.ki, ev->input.translated.scancode,
-            !ev->input.translated.active);
+        enqueueKeyboard(
+            ev->input.translated.scancode, ev->input.translated.active);
   }
 }
 
@@ -283,7 +298,7 @@ arcanDisplayHint(struct arcan_shmif_cont* con,
     if (fl & 4){
         for (size_t i = 0; i < sizeof(code_tbl) / sizeof(code_tbl[0]); i++){
             if (code_tbl[i]){
-                KdEnqueueKeyboardEvent(arcanInputPriv.ki, i, 1);
+                enqueueKeyboard(i, 1);
                 code_tbl[i] = 0;
             }
         }
