@@ -96,6 +96,7 @@ xf86vidmodeproto_dep = dependency('xf86vidmodeproto', version: '>= 2.2.99.1', fa
 applewmproto_dep = dependency('applewmproto', version: '>= 1.4', fallback: ['xorgproto', 'ext_xorgproto'], required: false)
 xshmfence_dep = dependency('xshmfence', version: '>= 1.1', required: false)
 xwaylandproto_dep = dependency('xwaylandproto', version: '>= 1.0', fallback: ['xorgproto', 'ext_xorgproto'], required: false)
+dpmsproto_dep = dependency('dpmsproto', version: '>= 1.2', required: get_option('dpms'))
 
 pixman_dep = dependency('pixman-1')
 libbsd_dep = dependency('libbsd-overlay', required: false)
@@ -631,6 +632,7 @@ common_dep = [
     xf86dgaproto_dep,
     xf86vidmodeproto_dep,
     applewmproto_dep,
+    dpmsproto_dep,
 
     pixman_dep,
     libbsd_dep,
