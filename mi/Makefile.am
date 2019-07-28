@@ -53,5 +53,4 @@ libmi_la_SOURCES = 	\
 	mizerarc.c	\
 	mizerarc.h	\
 	mizerclip.c	\
-	mizerline.c \
-	miinitext.c
+	mizerline.c

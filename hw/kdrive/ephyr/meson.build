@@ -15,7 +15,7 @@ xephyr_dep = [
     dependency('xcb-aux'),
     dependency('xcb-image'),
     dependency('xcb-icccm'),
-    dependency('xcb-shm'),
+    dependency('xcb-shm', version : '>=1.9.3'),
     dependency('xcb-keysyms'),
     dependency('xcb-randr'),
     dependency('xcb-xkb'),
@@ -30,6 +30,7 @@ if build_glamor
     xephyr_glamor += glamor
     xephyr_glamor += glamor_egl_stubs
     xephyr_dep += dependency('x11-xcb')
+    xephyr_dep += epoxy_dep
 endif
 
 if build_xv
@@ -37,7 +38,7 @@ if build_xv
     xephyr_dep += dependency('xcb-xv')
 endif
 
-executable(
+xephyr_server = executable(
     'Xephyr',
     srcs,
     include_directories: [
@@ -56,6 +57,14 @@ executable(
         libxserver_xkb_stubs,
         libxserver_xi_stubs,
         libxserver_glx,
+        libglxvnd,
     ],
     install: true,
 )
+
+xephyr_man = configure_file(
+    input: 'man/Xephyr.man',
+    output: 'Xephyr.1',
+    configuration: manpage_config,
+)
+install_man(xephyr_man)

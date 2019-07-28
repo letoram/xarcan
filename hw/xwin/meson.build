@@ -24,6 +24,8 @@ srcs_windows = [
 ]
 subdir('winclipboard')
 
+xwin_glx = []
+xwin_windowsdri = []
 if build_glx
     if build_windowsdri
         xwin_c_args += '-DXWIN_WINDOWS_DRI'
@@ -42,7 +44,7 @@ srcs_windows += [
      'propertystore.h',
      'winSetAppUserModelID.c',
 ]
-xwin_sys_libs += ['-lshlwapi', '-lole32']
+xwin_sys_libs += ['-lshlwapi', '-lole32', '-ldwmapi']
 
 srcs_windows += [
      'winrandr.c',
@@ -135,12 +137,13 @@ xwin_dep = [
     dependency('xcb-image'),
     dependency('xcb-ewmh'),
     dependency('xcb-icccm'),
+    dependency('xcb-composite'),
 ]
 
 executable(
     server_name,
     srcs_windows,
-    include_directories: [inc, top_srcdir_inc],
+    include_directories: [inc, top_dir_inc],
     dependencies: xwin_dep,
     link_with: [
         xwin_windowsdri,
@@ -149,6 +152,7 @@ executable(
         libxserver_fb,
         libxserver,
         libxserver_glx,
+        libglxvnd,
         libxserver_xkb_stubs,
         libxserver_miext_shadow,
         libxserver_pseudoramix,
@@ -164,3 +168,17 @@ install_data(
     'system.XWinrc',
     install_dir: join_paths(get_option('sysconfdir'), 'X11')
 )
+
+xwin_man = configure_file(
+    input: 'man/XWin.man',
+    output: 'XWin.1',
+    configuration: manpage_config,
+)
+install_man(xwin_man)
+
+xwinrc_man = configure_file(
+    input: 'man/XWinrc.man',
+    output: 'XWinrc.5',
+    configuration: manpage_config,
+)
+install_man(xwinrc_man)

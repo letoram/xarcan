@@ -456,9 +456,9 @@ TraverseTree(WindowPtr pWin, VisitWindowProcPtr func, void *data)
 
 /*****
  * WalkTree
- *   Walk the window tree, for SCREEN, preforming FUNC(pWin, data) on
+ *   Walk the window tree, for SCREEN, performing FUNC(pWin, data) on
  *   each window.  If FUNC returns WT_WALKCHILDREN, traverse the children,
- *   if it returns WT_DONTWALKCHILDREN, dont.  If it returns WT_STOPWALKING
+ *   if it returns WT_DONTWALKCHILDREN, don't.  If it returns WT_STOPWALKING,
  *   exit WalkTree.  Does depth-first traverse.
  *****/
 
@@ -467,9 +467,6 @@ WalkTree(ScreenPtr pScreen, VisitWindowProcPtr func, void *data)
 {
     return (TraverseTree(pScreen->root, func, data));
 }
-
-/* hack for forcing backing store on all windows */
-int defaultBackingStore = NotUseful;
 
 /* hack to force no backing store */
 Bool disableBackingStore = FALSE;
@@ -487,7 +484,6 @@ SetWindowToDefaults(WindowPtr pWin)
     pWin->cursorIsNone = TRUE;
 
     pWin->backingStore = NotUseful;
-    pWin->backStorage = 0;
 
     pWin->mapped = FALSE;       /* off */
     pWin->realized = FALSE;     /* off */
@@ -502,7 +498,6 @@ SetWindowToDefaults(WindowPtr pWin)
     pWin->eventMask = 0;
     pWin->deliverableEvents = 0;
     pWin->dontPropagate = 0;
-    pWin->forcedBS = FALSE;
     pWin->redirectDraw = RedirectDrawNone;
     pWin->forcedBG = FALSE;
     pWin->unhittable = FALSE;
@@ -693,8 +688,7 @@ InitRootWindow(WindowPtr pWin)
         backFlag |= CWBackPixel;
     }
 
-    pWin->backingStore = defaultBackingStore;
-    pWin->forcedBS = (defaultBackingStore != NotUseful);
+    pWin->backingStore = NotUseful;
     /* We SHOULD check for an error value here XXX */
     (*pScreen->ChangeWindowAttributes) (pWin, backFlag);
 
@@ -942,13 +936,6 @@ CreateWindow(Window wid, WindowPtr pParent, int x, int y, unsigned w,
     if (*error != Success) {
         DeleteWindow(pWin, None);
         return NullWindow;
-    }
-    if (!(vmask & CWBackingStore) && (defaultBackingStore != NotUseful)) {
-        XID value = defaultBackingStore;
-
-        (void) ChangeWindowAttributes(pWin, CWBackingStore, &value,
-                                      wClient(pWin));
-        pWin->forcedBS = TRUE;
     }
 
     if (SubSend(pParent)) {
@@ -1340,8 +1327,13 @@ ChangeWindowAttributes(WindowPtr pWin, Mask vmask, XID *vlist, ClientPtr client)
                 client->errorValue = val;
                 goto PatchUp;
             }
+            /* if we're not actually changing the window's state, hide
+             * CWBackingStore from vmaskCopy so it doesn't get passed to
+             * ->ChangeWindowAttributes below
+             */
+            if (pWin->backingStore == val)
+                continue;
             pWin->backingStore = val;
-            pWin->forcedBS = FALSE;
             break;
         case CWBackingPlanes:
             if (pWin->optional || ((CARD32) *pVlist != (CARD32) ~0L)) {
@@ -1610,10 +1602,7 @@ GetWindowAttributes(WindowPtr pWin, ClientPtr client,
     wa->type = X_Reply;
     wa->bitGravity = pWin->bitGravity;
     wa->winGravity = pWin->winGravity;
-    if (pWin->forcedBS && pWin->backingStore != Always)
-        wa->backingStore = NotUseful;
-    else
-        wa->backingStore = pWin->backingStore;
+    wa->backingStore = pWin->backingStore;
     wa->length = bytes_to_int32(sizeof(xGetWindowAttributesReply) -
                                 sizeof(xGenericReply));
     wa->sequenceNumber = client->sequence;
@@ -2872,13 +2861,11 @@ UnmapWindow(WindowPtr pWin, Bool fromConfigure)
     pWin->mapped = FALSE;
     if (wasRealized)
         UnrealizeTree(pWin, fromConfigure);
-    if (wasViewable) {
-        if (!fromConfigure) {
-            (*pScreen->ValidateTree) (pLayerWin->parent, pWin, VTUnmap);
-            (*pScreen->HandleExposures) (pLayerWin->parent);
-            if (pScreen->PostValidateTree)
-                (*pScreen->PostValidateTree) (pLayerWin->parent, pWin, VTUnmap);
-        }
+    if (wasViewable && !fromConfigure) {
+        (*pScreen->ValidateTree) (pLayerWin->parent, pWin, VTUnmap);
+        (*pScreen->HandleExposures) (pLayerWin->parent);
+        if (pScreen->PostValidateTree)
+            (*pScreen->PostValidateTree) (pLayerWin->parent, pWin, VTUnmap);
     }
     if (wasRealized && !fromConfigure) {
         WindowsRestructured();
@@ -2925,31 +2912,28 @@ UnmapSubwindows(WindowPtr pWin)
                 UnrealizeTree(pChild, FALSE);
         }
     }
-    if (wasViewable) {
-        if (anyMarked) {
-            if (pLayerWin->parent == pWin)
-                (*pScreen->MarkWindow) (pWin);
-            else {
-                WindowPtr ptmp;
+    if (wasViewable && anyMarked) {
+        if (pLayerWin->parent == pWin)
+            (*pScreen->MarkWindow) (pWin);
+        else {
+            WindowPtr ptmp;
 
-                (*pScreen->MarkOverlappedWindows) (pWin, pLayerWin, NULL);
-                (*pScreen->MarkWindow) (pLayerWin->parent);
+            (*pScreen->MarkOverlappedWindows) (pWin, pLayerWin, NULL);
+            (*pScreen->MarkWindow) (pLayerWin->parent);
 
-                /* Windows between pWin and pLayerWin may not have been marked */
-                ptmp = pWin;
+            /* Windows between pWin and pLayerWin may not have been marked */
+            ptmp = pWin;
 
-                while (ptmp != pLayerWin->parent) {
-                    (*pScreen->MarkWindow) (ptmp);
-                    ptmp = ptmp->parent;
-                }
-                pHead = pWin->firstChild;
+            while (ptmp != pLayerWin->parent) {
+                (*pScreen->MarkWindow) (ptmp);
+                ptmp = ptmp->parent;
             }
-            (*pScreen->ValidateTree) (pLayerWin->parent, pHead, VTUnmap);
-            (*pScreen->HandleExposures) (pLayerWin->parent);
-            if (pScreen->PostValidateTree)
-                (*pScreen->PostValidateTree) (pLayerWin->parent, pHead,
-                                              VTUnmap);
+            pHead = pWin->firstChild;
         }
+        (*pScreen->ValidateTree) (pLayerWin->parent, pHead, VTUnmap);
+        (*pScreen->HandleExposures) (pLayerWin->parent);
+        if (pScreen->PostValidateTree)
+            (*pScreen->PostValidateTree) (pLayerWin->parent, pHead, VTUnmap);
     }
     if (wasRealized) {
         WindowsRestructured();
@@ -3110,6 +3094,7 @@ int
 dixSaveScreens(ClientPtr client, int on, int mode)
 {
     int rc, i, what, type;
+    XID vlist[2];
 
     if (on == SCREEN_SAVER_FORCER) {
         if (mode == ScreenSaverReset)
@@ -3162,14 +3147,11 @@ dixSaveScreens(ClientPtr client, int on, int mode)
                  * for the root window, so PaintWindow works
                  */
                 screenIsSaved = SCREEN_SAVER_OFF;
-                (*pWin->drawable.pScreen->MoveWindow) (pWin,
-                                                       (short) (-
-                                                                (rand() %
-                                                                 RANDOM_WIDTH)),
-                                                       (short) (-
-                                                                (rand() %
-                                                                 RANDOM_WIDTH)),
-                                                       pWin->nextSib, VTMove);
+
+                vlist[0] = -(rand() % RANDOM_WIDTH);
+                vlist[1] = -(rand() % RANDOM_WIDTH);
+                ConfigureWindow(pWin, CWX | CWY, vlist, client);
+
                 screenIsSaved = SCREEN_SAVER_ON;
             }
             /*

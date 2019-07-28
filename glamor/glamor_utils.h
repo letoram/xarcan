@@ -562,10 +562,6 @@
         (c)[1] = (float)y;				\
     } while(0)
 
-#ifndef ARRAY_SIZE
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
-#endif
-
 #define ALIGN(i,m)	(((i) + (m) - 1) & ~((m) - 1))
 #define MIN(a,b)	((a) < (b) ? (a) : (b))
 #define MAX(a,b)	((a) > (b) ? (a) : (b))
@@ -574,65 +570,7 @@
                                                     && (_w_) <= _glamor_->max_fbo_size  \
                                                     && (_h_) <= _glamor_->max_fbo_size)
 
-/* For 1bpp pixmap, we don't store it as texture. */
-#define glamor_check_pixmap_fbo_depth(_depth_) (			\
-						_depth_ == 8		\
-						|| _depth_ == 15	\
-						|| _depth_ == 16	\
-						|| _depth_ == 24	\
-						|| _depth_ == 30	\
-						|| _depth_ == 32)
-
 #define GLAMOR_PIXMAP_PRIV_HAS_FBO(pixmap_priv)    (pixmap_priv->gl_fbo == GLAMOR_FBO_NORMAL)
-
-/**
- * Borrow from uxa.
- */
-static inline CARD32
-format_for_depth(int depth)
-{
-    switch (depth) {
-    case 1:
-        return PICT_a1;
-    case 4:
-        return PICT_a4;
-    case 8:
-        return PICT_a8;
-    case 15:
-        return PICT_x1r5g5b5;
-    case 16:
-        return PICT_r5g6b5;
-    default:
-    case 24:
-        return PICT_x8r8g8b8;
-#if XORG_VERSION_CURRENT >= 10699900
-    case 30:
-        return PICT_x2r10g10b10;
-#endif
-    case 32:
-        return PICT_a8r8g8b8;
-    }
-}
-
-static inline GLenum
-gl_iformat_for_pixmap(PixmapPtr pixmap)
-{
-    glamor_screen_private *glamor_priv =
-        glamor_get_screen_private((pixmap)->drawable.pScreen);
-
-    if (glamor_priv->gl_flavor == GLAMOR_GL_DESKTOP &&
-        ((pixmap)->drawable.depth == 1 || (pixmap)->drawable.depth == 8)) {
-        return glamor_priv->one_channel_format;
-    } else {
-        return GL_RGBA;
-    }
-}
-
-static inline CARD32
-format_for_pixmap(PixmapPtr pixmap)
-{
-    return format_for_depth((pixmap)->drawable.depth);
-}
 
 #define REVERT_NONE       		0
 #define REVERT_NORMAL     		1
@@ -670,7 +608,6 @@ glamor_get_rgba_from_pixel(CARD32 pixel,
         gshift = rbits;
         bshift = gshift + gbits;
         ashift = bshift + bbits;
-#if XORG_VERSION_CURRENT >= 10699900
     }
     else if (PICT_FORMAT_TYPE(format) == PICT_TYPE_BGRA) {
         ashift = 0;
@@ -679,7 +616,6 @@ glamor_get_rgba_from_pixel(CARD32 pixel,
             rshift = PICT_FORMAT_BPP(format) - (rbits + gbits + bbits);
         gshift = rshift + rbits;
         bshift = gshift + gbits;
-#endif
     }
     else {
         return FALSE;
@@ -709,6 +645,15 @@ glamor_get_rgba_from_pixel(CARD32 pixel,
         *alpha = 1;
 
     return TRUE;
+}
+
+static inline void
+glamor_get_rgba_from_color(const xRenderColor *color, float rgba[4])
+{
+    rgba[0] = color->red   / (float)UINT16_MAX;
+    rgba[1] = color->green / (float)UINT16_MAX;
+    rgba[2] = color->blue  / (float)UINT16_MAX;
+    rgba[3] = color->alpha / (float)UINT16_MAX;
 }
 
 inline static Bool

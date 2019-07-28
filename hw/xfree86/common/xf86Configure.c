@@ -206,7 +206,7 @@ configureScreenSection(int screennum)
     XNFasprintf(&tmp, "Card%d", screennum);
     ptr->scrn_device_str = tmp;
 
-    for (i = 0; i < sizeof(depths) / sizeof(depths[0]); i++) {
+    for (i = 0; i < ARRAY_SIZE(depths); i++) {
         XF86ConfDisplayPtr conf_display;
 
         conf_display = calloc(1, sizeof(XF86ConfDisplayRec));
@@ -702,7 +702,7 @@ DoConfigure(void)
 
     xf86DoConfigurePass1 = FALSE;
 
-    dev2screen = xnfcalloc(xf86NumDrivers, sizeof(int));
+    dev2screen = xnfcalloc(nDevToConfig, sizeof(int));
 
     {
         Bool *driverProbed = xnfcalloc(xf86NumDrivers, sizeof(Bool));
@@ -774,7 +774,8 @@ DoConfigure(void)
 
         ConfiguredMonitor = NULL;
 
-        if ((*xf86Screens[dev2screen[j]]->PreInit) (xf86Screens[dev2screen[j]],
+        if ((*xf86Screens[dev2screen[j]]->PreInit) &&
+            (*xf86Screens[dev2screen[j]]->PreInit) (xf86Screens[dev2screen[j]],
                                                     PROBE_DETECT) &&
             ConfiguredMonitor) {
             monitor_ptr = configureDDCMonitorSection(j);
@@ -821,7 +822,7 @@ DoConfigure(void)
 
  bail:
     OsCleanup(TRUE);
-    AbortDDX(EXIT_ERR_CONFIGURE);
+    ddxGiveUp(EXIT_ERR_CONFIGURE);
     fflush(stderr);
     exit(0);
 }
@@ -874,7 +875,7 @@ DoShowOptions(void)
     }
  bail:
     OsCleanup(TRUE);
-    AbortDDX(EXIT_ERR_DRIVERS);
+    ddxGiveUp(EXIT_ERR_DRIVERS);
     fflush(stderr);
     exit(0);
 }

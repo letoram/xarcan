@@ -4,7 +4,7 @@ srcs = [
     '../../mi/miinitext.c',
 ]
 
-executable(
+xvfb_server = executable(
     'Xvfb',
     srcs,
     include_directories: inc,
@@ -15,7 +15,14 @@ executable(
         libxserver,
         libxserver_xkb_stubs,
         libxserver_xi_stubs,
-        libxserver_glx
+        libxserver_glx,
+        libglxvnd,
     ],
     install: true,
 )
+
+install_man(configure_file(
+    input: 'man/Xvfb.man',
+    output: 'Xvfb.1',
+    configuration: manpage_config,
+))

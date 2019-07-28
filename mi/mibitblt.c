@@ -62,8 +62,8 @@ SOFTWARE.
 #include <X11/Xmd.h>
 #include "servermd.h"
 
-#ifndef HAVE_FFS
-extern int ffs(int);
+#ifdef __MINGW32__
+#define ffs __builtin_ffs
 #endif
 
 /* MICOPYAREA -- public entry for the CopyArea request
@@ -96,9 +96,9 @@ miCopyArea(DrawablePtr pSrcDrawable,
     srcx = xIn + pSrcDrawable->x;
     srcy = yIn + pSrcDrawable->y;
 
-    /* If the destination isn't realized, this is easy */
+    /* If the destination is clipped away, this is easy */
     if (pDstDrawable->type == DRAWABLE_WINDOW &&
-        !((WindowPtr) pDstDrawable)->realized)
+        RegionNil(&((WindowPtr)pDstDrawable)->clipList))
         return NULL;
 
     /* clip the source */
@@ -145,6 +145,8 @@ miCopyArea(DrawablePtr pSrcDrawable,
         free(ordering);
         free(pwidthFirst);
         free(pptFirst);
+        if (realSrcClip)
+            RegionDestroy(prgnSrcClip);
         return NULL;
     }
 

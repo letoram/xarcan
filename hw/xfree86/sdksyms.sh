@@ -21,13 +21,13 @@ cat > sdksyms.c << EOF
 #include "picturestr.h"
 
 
-/* fb/Makefile.am -- module */
-/*
+/* fb/Makefile.am */
 #include "fb.h"
 #include "fbrop.h"
 #include "fboverlay.h"
-#include "wfbrename.h"
 #include "fbpict.h"
+/* wfb is still a module
+#include "wfbrename.h"
  */
 
 
@@ -63,6 +63,10 @@ cat > sdksyms.c << EOF
 # include "panoramiX.h"
 #endif
 
+/* glx/Makefile.am */
+#ifdef GLX
+#include "vndserver.h"
+#endif
 
 /* hw/xfree86/int10/Makefile.am -- module */
 /*
@@ -143,11 +147,7 @@ cat > sdksyms.c << EOF
 
 
 /* hw/xfree86/ramdac/Makefile.am */
-#include "BT.h"
-#include "IBM.h"
-#include "TI.h"
 #include "xf86Cursor.h"
-#include "xf86RamDac.h"
 
 
 /* hw/xfree86/shadowfb/Makefile.am -- module */
@@ -369,6 +369,17 @@ BEGIN {
                n = 1;
             }
         }
+	# hack: pid_t becomes __pid_t on NetBSD, same for uint32_t -> __uint32_t.
+	# GCC 5 inserts additional lines around this.
+        if (($1 == "__pid_t" || $1 == "__uint32_t") && NF == 1) {
+            getline;
+            n++;
+            # skip line numbers GCC 5 adds (after typedef return type?)
+            while ($n == "" || $0 ~ /^# [0-9]+ "/) {
+               getline;
+               n = 1;
+            }
+	}
 
 	# type specifier may not be set, as in
 	#   extern _X_EXPORT unsigned name(...)
@@ -411,7 +422,8 @@ BEGIN {
 	sub(/[^a-zA-Z0-9_].*/, "", symbol);
 
 	#print;
-	printf("    (void *) &%-50s /* %s:%s */\n", symbol ",", header, line);
+	if (symbol != "")
+	    printf("    (void *) &%-50s /* %s:%s */\n", symbol ",", header, line);
     }
 }
 

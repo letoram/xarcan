@@ -950,14 +950,8 @@ xf86SetDpi(ScrnInfoPtr pScrn, int x, int y)
 void
 xf86SetBlackWhitePixels(ScreenPtr pScreen)
 {
-    if (xf86FlipPixels) {
-        pScreen->whitePixel = 0;
-        pScreen->blackPixel = 1;
-    }
-    else {
-        pScreen->whitePixel = 1;
-        pScreen->blackPixel = 0;
-    }
+    pScreen->whitePixel = 1;
+    pScreen->blackPixel = 0;
 }
 
 /*
@@ -1399,18 +1393,6 @@ xf86GetGamma(void)
 }
 
 Bool
-xf86GetFlipPixels(void)
-{
-    return xf86FlipPixels;
-}
-
-const char *
-xf86GetServerName(void)
-{
-    return xf86ServerName;
-}
-
-Bool
 xf86ServerIsExiting(void)
 {
     return (dispatchException & DE_TERMINATE) == DE_TERMINATE;
@@ -1426,12 +1408,6 @@ Bool
 xf86ServerIsOnlyDetecting(void)
 {
     return xf86DoConfigure;
-}
-
-Bool
-xf86CaughtSignal(void)
-{
-    return xf86Info.caughtSignal;
 }
 
 Bool
@@ -1462,13 +1438,6 @@ Bool
 xf86GetAllowMouseOpenFail(void)
 {
     return xf86Info.allowMouseOpenFail;
-}
-
-void
-xf86DisableRandR(void)
-{
-    xf86Info.disableRandR = TRUE;
-    xf86Info.randRFrom = X_PROBED;
 }
 
 CARD32

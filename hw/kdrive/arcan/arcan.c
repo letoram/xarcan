@@ -62,12 +62,12 @@ int arcanGlamor;
 
 static void enqueueKeyboard(uint16_t scancode, int active)
 {
-	KdEnqueueKeyboardEvent(arcanInputPriv.ki, wsUsbMap[scancode], !active);
+    KdEnqueueKeyboardEvent(arcanInputPriv.ki, wsUsbMap[scancode], !active);
 }
 #else
 static void enqueueKeyboard(uint16_t scancode, int active)
 {
-	KdEnqueueKeyboardEvent(arcanInputPriv.ki, scancode, !active);
+    KdEnqueueKeyboardEvent(arcanInputPriv.ki, scancode, !active);
 }
 #endif
 
@@ -370,8 +370,8 @@ arcanFlushEvents(int fd, void* tag)
                     break;
 /* swap-out monitored FD */
                     case 3:
-                       KdUnregisterFd((void*)arcanFlushEvents,con->epipe,false);
-                       KdRegisterFd(con->epipe, (void*) arcanFlushEvents, con);
+                       InputThreadUnregisterDev(con->epipe);
+                       InputThreadRegisterDev(con->epipe, (void*) arcanFlushEvents, con);
                     break;
                 }
             break;
@@ -549,6 +549,13 @@ static Bool arcanSetInternalDamage(ScreenPtr pScreen)
     DamageSetReportAfterOp(scrpriv->damage, TRUE);
 
     return TRUE;
+}
+
+Bool
+arcanCreateResources(ScreenPtr pScreen)
+{
+    trace("arcanCreateResources");
+    return arcanSetInternalDamage(pScreen);
 }
 
 static void arcanUnsetInternalDamage(ScreenPtr pScreen)
@@ -788,8 +795,7 @@ arcanUnmapFramebuffer(KdScreenInfo * screen)
     return TRUE;
 }
 
-static int
-ArcanInit(void)
+int arcanInit(void)
 {
     struct arcan_shmif_cont* con = calloc(1, sizeof(struct arcan_shmif_cont));
     char dispstr[512] = "";
@@ -853,27 +859,7 @@ ArcanInit(void)
     return 1;
 }
 
-static void
-ArcanEnable(void)
-{
-    trace("ArcanEnable");
-}
-
-static Bool
-ArcanSpecialKey(KeySym sym)
-{
-    trace("ArcanSpecialKey");
-    return FALSE;
-}
-
-static void
-ArcanDisable(void)
-{
-    trace("ArcanDisable");
-}
-
-static void
-ArcanFini(void)
+void arcanFini(void)
 {
     struct arcan_shmif_cont* con = arcan_shmif_primary(SHMIF_INPUT);
     trace("ArcanFini");
@@ -882,13 +868,6 @@ ArcanFini(void)
     }
 }
 
-KdOsFuncs arcanOsFuncs = {
-    .Init = ArcanInit,
-    .Enable = ArcanEnable,
-    .SpecialKey = ArcanSpecialKey,
-    .Disable = ArcanDisable,
-    .Fini = ArcanFini
-};
 #ifdef RANDR
 Bool
 arcanRandRGetInfo(ScreenPtr pScreen, Rotation * rotations)
@@ -1064,7 +1043,7 @@ static Bool arcanRandRSetGamma(ScreenPtr pScreen, RRCrtcPtr crtc)
 
     size_t plane_sz = scrpriv->block.plane_sizes[0] / 3;
 
-		for (size_t i = 0, j = 0; i < crtc->gammaSize && j < plane_sz; i++, j++){
+    for (size_t i = 0, j = 0; i < crtc->gammaSize && j < plane_sz; i++, j++){
         scrpriv->block.planes[i] = (float)crtc->gammaRed[i] / 65536.0f;
         scrpriv->block.planes[i+plane_sz] = (float)crtc->gammaGreen[i] / 65536.0f;
         scrpriv->block.planes[i+2*plane_sz] = (float)crtc->gammaBlue[i] / 65536.0f;
@@ -1146,6 +1125,23 @@ void arcanGlamorEglMakeCurrent(struct glamor_context *ctx)
     trace("ArcanGlamorEglMakeCurrent");
     arcan_shmifext_make_current((struct arcan_shmif_cont*) ctx->ctx);
 }
+
+_X_EXPORT int
+glamor_egl_fd_from_pixmap(ScreenPtr screen, PixmapPtr pixmap,
+                          CARD16 *stride, CARD32 *size)
+{
+    return -1;
+}
+
+_X_EXPORT int
+glamor_egl_fds_from_pixmap(ScreenPtr screen, PixmapPtr pixmap, int *fds,
+                           uint32_t *strides, uint32_t *offsets,
+                           uint64_t *modifier)
+{
+    return 0;
+/* return number of fds, write into fds, trides, offsets, modifiers */
+}
+
 
 int glamor_egl_dri3_fd_name_from_tex(ScreenPtr pScreen,
                                      PixmapPtr pixmap,
@@ -1316,7 +1312,14 @@ static dri3_screen_info_rec dri3_info = {
     .version = 1,
     .open_client = dri3Open,
     .pixmap_from_fd = dri3PixmapFromFd,
-    .fd_from_pixmap = dri3FdFromPixmap
+    .fd_from_pixmap = dri3FdFromPixmap,
+/* more here these days (due to modifiers):
+ * dri3_pixmap_from_fds,
+ * dri3_fds_from_pixmap,
+ * dri3_get_formats_proc,
+ * dri3_get_modifiers_proc,
+ * dri3_get_drawable_modifiers_proc
+ */
 };
 
 Bool arcanGlamorInit(ScreenPtr pScreen)
@@ -1547,65 +1550,6 @@ arcanFinishInitScreen(ScreenPtr pScreen)
     return TRUE;
 }
 
-Bool
-arcanCreateResources(ScreenPtr pScreen)
-{
-    trace("arcanCreateResources");
-    return arcanSetInternalDamage(pScreen);
-}
-
-void
-arcanPreserve(KdCardInfo * card)
-{
-    trace("arcanPreserve");
-}
-
-Bool
-arcanEnable(ScreenPtr pScreen)
-{
-    KdScreenPriv(pScreen);
-    KdScreenInfo *screen = pScreenPriv->screen;
-    arcanScrPriv *scrpriv = screen->driver;
-
-    trace("arcanEnable");
-    arcan_shmif_enqueue(scrpriv->acon, &(arcan_event){
-        .ext.kind = ARCAN_EVENT(VIEWPORT),
-        .ext.viewport = {
-            .invisible = false
-        }
-    });
-
-    return TRUE;
-}
-
-Bool
-arcanDPMS(ScreenPtr pScreen, int mode)
-{
-    trace("arcanDPMS");
-    return TRUE;
-}
-
-void
-arcanDisable(ScreenPtr pScreen)
-{
-    trace("arcanDisable");
-/*
- * arcan_shmif_enqueue(scrpriv->acon, &(arcan_event){
-        .ext.kind = ARCAN_EVENT(VIEWPORT),
-        .ext.viewport = {
-            .invisible = false
-        }
-    });
- */
-}
-
-void
-arcanRestore(KdCardInfo * card)
-{
-/* NOOP */
-    trace("arcanRestore");
-}
-
 void
 arcanScreenFini(KdScreenInfo * screen)
 {
@@ -1707,6 +1651,14 @@ arcanPutColors(ScreenPtr pScreen, int n, xColorItem * pdefs)
  * the entire region. Somewhat unsure how this actually works
  */
     trace("arcanPutColors");
+}
+
+int
+glamor_egl_fd_name_from_pixmap(ScreenPtr screen,
+                               PixmapPtr pixmap,
+                               CARD16 *stride, CARD32 *size)
+{
+    return 0;
 }
 
 void

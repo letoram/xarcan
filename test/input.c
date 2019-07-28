@@ -230,7 +230,7 @@ dix_check_grab_values(void)
 static void
 dix_event_to_core(int type)
 {
-    DeviceEvent ev;
+    DeviceEvent ev = {};
     xEvent *core;
     int time;
     int x, y;
@@ -1105,7 +1105,8 @@ cmp_attr_fields(InputAttributes * attr1, InputAttributes * attr2)
 {
     char **tags1, **tags2;
 
-    assert(attr1 && attr2);
+    assert(attr1);
+    assert(attr2);
     assert(attr1 != attr2);
     assert(attr1->flags == attr2->flags);
 
@@ -1427,7 +1428,7 @@ include_bit_test_macros(void)
     uint8_t mask[9] = { 0 };
     int i;
 
-    for (i = 0; i < sizeof(mask) / sizeof(mask[0]); i++) {
+    for (i = 0; i < ARRAY_SIZE(mask); i++) {
         assert(BitIsOn(mask, i) == 0);
         SetBit(mask, i);
         assert(BitIsOn(mask, i) == 1);

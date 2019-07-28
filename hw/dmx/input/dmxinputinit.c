@@ -970,41 +970,6 @@ dmxInputInit(DMXInputInfo * dmxInput)
 
     a = dmxArgParse(dmxInput->name);
 
-    for (i = 1; i < dmxArgC(a); i++) {
-        switch (hasXkb) {
-        case 1:
-            dmxInput->keycodes = xstrdup(dmxArgV(a, i));
-            ++hasXkb;
-            break;
-        case 2:
-            dmxInput->symbols = xstrdup(dmxArgV(a, i));
-            ++hasXkb;
-            break;
-        case 3:
-            dmxInput->geometry = xstrdup(dmxArgV(a, i));
-            hasXkb = 0;
-            break;
-        case 0:
-            if (!strcmp(dmxArgV(a, i), "noxi"))
-                doXI = 0;
-            else if (!strcmp(dmxArgV(a, i), "xi"))
-                doXI = 1;
-            else if (!strcmp(dmxArgV(a, i), "console"))
-                forceConsole = 1;
-            else if (!strcmp(dmxArgV(a, i), "noconsole"))
-                forceConsole = 0;
-            else if (!strcmp(dmxArgV(a, i), "windows"))
-                doWindows = 1;
-            else if (!strcmp(dmxArgV(a, i), "nowindows"))
-                doWindows = 0;
-            else if (!strcmp(dmxArgV(a, i), "xkb"))
-                hasXkb = 1;
-            else {
-                dmxLog(dmxFatal, "Unknown input argument: %s\n", dmxArgV(a, i));
-            }
-        }
-    }
-
     name = dmxArgV(a, 0);
 
     if (!strcmp(name, "local")) {
@@ -1017,6 +982,41 @@ dmxInputInit(DMXInputInfo * dmxInput)
     }
     else {
         int found;
+
+        for (i = 1; i < dmxArgC(a); i++) {
+            switch (hasXkb) {
+            case 1:
+                dmxInput->keycodes = xstrdup(dmxArgV(a, i));
+                ++hasXkb;
+                break;
+            case 2:
+                dmxInput->symbols = xstrdup(dmxArgV(a, i));
+                ++hasXkb;
+                break;
+            case 3:
+                dmxInput->geometry = xstrdup(dmxArgV(a, i));
+                hasXkb = 0;
+                break;
+            case 0:
+                if (!strcmp(dmxArgV(a, i), "noxi"))
+                    doXI = 0;
+                else if (!strcmp(dmxArgV(a, i), "xi"))
+                    doXI = 1;
+                else if (!strcmp(dmxArgV(a, i), "console"))
+                    forceConsole = 1;
+                else if (!strcmp(dmxArgV(a, i), "noconsole"))
+                    forceConsole = 0;
+                else if (!strcmp(dmxArgV(a, i), "windows"))
+                    doWindows = 1;
+                else if (!strcmp(dmxArgV(a, i), "nowindows"))
+                    doWindows = 0;
+                else if (!strcmp(dmxArgV(a, i), "xkb"))
+                    hasXkb = 1;
+                else {
+                    dmxLog(dmxFatal, "Unknown input argument: %s\n", dmxArgV(a, i));
+                }
+            }
+        }
 
         for (found = 0, i = 0; i < dmxNumScreens; i++) {
             if (dmxPropertySameDisplay(&dmxScreens[i], name)) {

@@ -124,10 +124,10 @@ ApplyPointerMapping(DeviceIntPtr dev, CARD8 *map, int len, ClientPtr client)
     return Success;
 }
 
-/* Check if a modifier map change is okay with the device.
- * Returns -1 for BadValue, as it collides with MappingBusy; this particular
- * caveat can be removed with LegalModifier, as we have no other reason to
- * set MappingFailed.  Sigh. */
+/* Check if a modifier map change is okay with the device. Negative return
+ * values mean BadValue, positive values mean Mapping{Busy,Failed}, 0 is
+ * Success / MappingSuccess.
+ */
 static int
 check_modmap_change(ClientPtr client, DeviceIntPtr dev, KeyCode *modmap)
 {
@@ -151,12 +151,6 @@ check_modmap_change(ClientPtr client, DeviceIntPtr dev, KeyCode *modmap)
         if (i < xkb->min_key_code || i > xkb->max_key_code) {
             client->errorValue = i;
             return -1;
-        }
-
-        /* Make sure the mapping is okay with the DDX. */
-        if (!LegalModifier(i, dev)) {
-            client->errorValue = i;
-            return MappingFailed;
         }
 
         /* None of the new modifiers may be down while we change the
@@ -282,7 +276,7 @@ change_modmap(ClientPtr client, DeviceIntPtr dev, KeyCode *modkeymap,
     else if (!IsFloating(dev) &&
              GetMaster(dev, MASTER_KEYBOARD)->lastSlave == dev) {
         /* If this fails, expect the results to be weird. */
-        if (check_modmap_change(client, dev->master, modmap))
+        if (check_modmap_change(client, dev->master, modmap) == Success)
             do_modmap_change(client, dev->master, modmap);
     }
 

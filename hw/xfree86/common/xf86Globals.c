@@ -53,6 +53,8 @@ DevPrivateKeyRec xf86ScreenKeyRec;
 ScrnInfoPtr *xf86Screens = NULL;        /* List of ScrnInfos */
 ScrnInfoPtr *xf86GPUScreens = NULL;        /* List of ScrnInfos */
 
+int xf86DRMMasterFd = -1;  /* Command line argument for DRM master file descriptor */
+
 const unsigned char byte_reversed[256] = {
     0x00, 0x80, 0x40, 0xc0, 0x20, 0xa0, 0x60, 0xe0,
     0x10, 0x90, 0x50, 0xd0, 0x30, 0xb0, 0x70, 0xf0,
@@ -106,8 +108,6 @@ xf86InfoRec xf86Info = {
     .ShareVTs = FALSE,
     .dontZap = FALSE,
     .dontZoom = FALSE,
-    .notrapSignals = FALSE,
-    .caughtSignal = FALSE,
     .currentScreen = NULL,
 #ifdef CSRG_BASED
     .consType = -1,
@@ -118,8 +118,6 @@ xf86InfoRec xf86Info = {
     .miscModInDevEnabled = TRUE,
     .miscModInDevAllowNonLocal = FALSE,
     .pmFlag = TRUE,
-    .disableRandR = FALSE,
-    .randRFrom = X_DEFAULT,
 #if defined(CONFIG_HAL) || defined(CONFIG_UDEV) || defined(CONFIG_WSCONS)
     .forceInputDevices = FALSE,
     .autoAddDevices = TRUE,
@@ -169,7 +167,6 @@ const char *xf86VisualNames[] = {
 };
 
 /* Parameters set only from the command line */
-const char *xf86ServerName = "no-name";
 Bool xf86fpFlag = FALSE;
 Bool xf86sFlag = FALSE;
 Bool xf86bsEnableFlag = FALSE;
@@ -190,7 +187,6 @@ int xf86FbBpp = -1;
 int xf86Depth = -1;
 rgb xf86Weight = { 0, 0, 0 };
 
-Bool xf86FlipPixels = FALSE;
 Gamma xf86Gamma = { 0.0, 0.0, 0.0 };
 
 Bool xf86AllowMouseOpenFail = FALSE;

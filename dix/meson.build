@@ -11,7 +11,6 @@ srcs_dix = [
     'events.c',
     'eventconvert.c',
     'extension.c',
-    'ffs.c',
     'gc.c',
     'getevents.c',
     'globals.c',
@@ -44,4 +43,9 @@ libxserver_main = static_library('libxserver_main',
     'stubmain.c',
     include_directories: inc,
     dependencies: common_dep,
+)
+
+install_data(
+    'protocol.txt',
+    install_dir: serverconfigdir,
 )

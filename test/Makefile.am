@@ -146,11 +146,16 @@ tests_LDADD += \
             $(top_builddir)/hw/xfree86/i2c/libi2c.la \
             $(top_builddir)/hw/xfree86/xkb/libxorgxkb.la \
             $(top_builddir)/Xext/libXvidmode.la \
+            $(top_builddir)/fb/libfb.la \
             $(XSERVER_LIBS) \
             $(XORG_LIBS)
 
 if !SPECIAL_DTRACE_OBJECTS
 tests_LDADD += $(top_builddir)/os/libos.la
+endif
+
+if GLX
+tests_LDADD += $(top_builddir)/glx/libglxvnd.la
 endif
 
 BUILT_SOURCES = sdksyms.c

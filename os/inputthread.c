@@ -318,6 +318,8 @@ InputThreadDoWork(void *arg)
     sigfillset(&set);
     pthread_sigmask(SIG_BLOCK, &set, NULL);
 
+    ddxInputThreadInit();
+
     inputThreadInfo->running = TRUE;
 
 #if defined(HAVE_PTHREAD_SETNAME_NP_WITH_TID)
@@ -499,6 +501,7 @@ InputThreadFini(void)
 
     /* Close the pipe to get the input thread to shut down */
     close(hotplugPipeWrite);
+    input_force_unlock();
     pthread_join(inputThreadInfo->thread, NULL);
 
     xorg_list_for_each_entry_safe(dev, next, &inputThreadInfo->devs, node) {
@@ -555,7 +558,11 @@ extern int InputThreadUnregisterDev(int fd)
 
 int xthread_sigmask(int how, const sigset_t *set, sigset_t *oldset)
 {
+#ifdef HAVE_SIGPROCMASK
     return sigprocmask(how, set, oldset);
+#else
+    return 0;
+#endif
 }
 
 #endif

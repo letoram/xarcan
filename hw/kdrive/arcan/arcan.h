@@ -118,20 +118,11 @@ Bool
 void
 arcanFlushEvents(int fd, void* tag);
 
-void
- arcanPreserve(KdCardInfo * card);
-
-Bool
- arcanEnable(ScreenPtr pScreen);
-
-Bool
- arcanDPMS(ScreenPtr pScreen, int mode);
+int
+arcanInit(void);
 
 void
- arcanDisable(ScreenPtr pScreen);
-
-void
- arcanRestore(KdCardInfo * card);
+arcanFini(void);
 
 void
  arcanScreenFini(KdScreenInfo * screen);
@@ -197,7 +188,5 @@ void
 extern KdPointerDriver arcanPointerDriver;
 
 extern KdKeyboardDriver arcanKeyboardDriver;
-
-extern KdOsFuncs arcanOsFuncs;
 
 #endif                          /* _FBDEV_H_ */

@@ -30,7 +30,7 @@ srcs_glx = [
     'xfont.c',
 ]
 
-libxserver_glx = ''
+libxserver_glx = []
 if build_glx
     libxserver_glx = static_library('libxserver_glx',
         srcs_glx,
@@ -52,4 +52,31 @@ endif
 srcs_glxdri2 = []
 if build_dri2 or build_dri3
     srcs_glxdri2 = files('glxdri2.c')
+endif
+
+srcs_vnd = [
+    'vndcmds.c',
+    'vndext.c',
+    'vndservermapping.c',
+    'vndservervendor.c',
+]
+
+hdrs_vnd = [
+    'vndserver.h',
+]
+
+libglxvnd = []
+if build_glx
+    libglxvnd = static_library('libglxvnd',
+    srcs_vnd,
+    include_directories: inc,
+        dependencies: [
+            common_dep,
+            dl_dep,
+            dependency('glproto', version: '>= 1.4.17'),
+            dependency('gl', version: '>= 9.2.0'),
+        ],
+    )
+
+    install_data(hdrs_vnd, install_dir : xorgsdkdir)
 endif

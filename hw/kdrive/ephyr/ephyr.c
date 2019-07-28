@@ -40,7 +40,7 @@
 #include "glamor.h"
 #endif
 #include "ephyr_glamor_glx.h"
-
+#include "glx_extinit.h"
 #include "xkbsrv.h"
 
 extern Bool ephyr_glamor;
@@ -1303,6 +1303,7 @@ MouseDisable(KdPointerInfo * pi)
 static void
 MouseFini(KdPointerInfo * pi)
 {
+    free(pi->driverPrivate);
     ephyrMouse = NULL;
     return;
 }
@@ -1366,6 +1367,7 @@ EphyrKeyboardDisable(KdKeyboardInfo * ki)
 static void
 EphyrKeyboardFini(KdKeyboardInfo * ki)
 {
+    free(ki->driverPrivate);
     ephyrKbd = NULL;
     return;
 }

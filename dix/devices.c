@@ -1177,6 +1177,7 @@ RemoveDevice(DeviceIntPtr dev, BOOL sendevent)
             flags[tmp->id] = IsMaster(tmp) ? XIMasterRemoved : XISlaveRemoved;
             CloseDevice(tmp);
             ret = Success;
+            break;
         }
     }
 
@@ -1193,6 +1194,7 @@ RemoveDevice(DeviceIntPtr dev, BOOL sendevent)
                 prev->next = next;
 
             ret = Success;
+            break;
         }
     }
 
@@ -2329,9 +2331,14 @@ int
 ProcGetPointerControl(ClientPtr client)
 {
     DeviceIntPtr ptr = PickPointer(client);
-    PtrCtrl *ctrl = &ptr->ptrfeed->ctrl;
+    PtrCtrl *ctrl;
     xGetPointerControlReply rep;
     int rc;
+
+    if (ptr->ptrfeed)
+        ctrl = &ptr->ptrfeed->ctrl;
+    else
+        ctrl = &defaultPointerControl;
 
     REQUEST_SIZE_MATCH(xReq);
 

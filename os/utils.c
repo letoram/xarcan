@@ -485,19 +485,20 @@ GetTimeInMicros(void)
     struct timeval tv;
 #ifdef MONOTONIC_CLOCK
     struct timespec tp;
+    static clockid_t uclockid;
 
-    if (!clockid) {
+    if (!uclockid) {
         if (clock_gettime(CLOCK_MONOTONIC, &tp) == 0)
-            clockid = CLOCK_MONOTONIC;
+            uclockid = CLOCK_MONOTONIC;
         else
-            clockid = ~0L;
+            uclockid = ~0L;
     }
-    if (clockid != ~0L && clock_gettime(clockid, &tp) == 0)
+    if (uclockid != ~0L && clock_gettime(uclockid, &tp) == 0)
         return (CARD64) tp.tv_sec * (CARD64)1000000 + tp.tv_nsec / 1000;
 #endif
 
     X_GETTIMEOFDAY(&tv);
-    return (CARD64) tv.tv_sec * (CARD64)1000000000 + (CARD64) tv.tv_usec * 1000;
+    return (CARD64) tv.tv_sec * (CARD64)1000000 + (CARD64) tv.tv_usec;
 }
 #endif
 
@@ -566,7 +567,6 @@ UseMsg(void)
     ErrorF("ttyxx                  server started from init on /dev/ttyxx\n");
     ErrorF("v                      video blanking for screen-saver\n");
     ErrorF("-v                     screen-saver without video blanking\n");
-    ErrorF("-wm                    WhenMapped default backing-store\n");
     ErrorF("-wr                    create root window with white background\n");
     ErrorF("-maxbigreqsize         set maximal bigrequest size \n");
 #ifdef PANORAMIX
@@ -943,8 +943,6 @@ ProcessCommandLine(int argc, char *argv[])
             defaultScreenSaverBlanking = PreferBlanking;
         else if (strcmp(argv[i], "-v") == 0)
             defaultScreenSaverBlanking = DontPreferBlanking;
-        else if (strcmp(argv[i], "-wm") == 0)
-            defaultBackingStore = WhenMapped;
         else if (strcmp(argv[i], "-wr") == 0)
             whiteRoot = TRUE;
         else if (strcmp(argv[i], "-background") == 0) {
@@ -1283,7 +1281,7 @@ SmartScheduleInit(void)
 #endif
 }
 
-#ifdef SIG_BLOCK
+#ifdef HAVE_SIGPROCMASK
 static sigset_t PreviousSignalMask;
 static int BlockedSignalCount;
 #endif
@@ -1291,7 +1289,7 @@ static int BlockedSignalCount;
 void
 OsBlockSignals(void)
 {
-#ifdef SIG_BLOCK
+#ifdef HAVE_SIGPROCMASK
     if (BlockedSignalCount++ == 0) {
         sigset_t set;
 
@@ -1313,7 +1311,7 @@ OsBlockSignals(void)
 void
 OsReleaseSignals(void)
 {
-#ifdef SIG_BLOCK
+#ifdef HAVE_SIGPROCMASK
     if (--BlockedSignalCount == 0) {
         xthread_sigmask(SIG_SETMASK, &PreviousSignalMask, 0);
     }
@@ -1323,7 +1321,7 @@ OsReleaseSignals(void)
 void
 OsResetSignals(void)
 {
-#ifdef SIG_BLOCK
+#ifdef HAVE_SIGPROCMASK
     while (BlockedSignalCount > 0)
         OsReleaseSignals();
     input_force_unlock();
@@ -1719,6 +1717,69 @@ System(const char *cmdline)
 }
 #endif
 
+Bool
+PrivsElevated(void)
+{
+    static Bool privsTested = FALSE;
+    static Bool privsElevated = TRUE;
+
+    if (!privsTested) {
+#if defined(WIN32)
+        privsElevated = FALSE;
+#else
+        if ((getuid() != geteuid()) || (getgid() != getegid())) {
+            privsElevated = TRUE;
+        }
+        else {
+#if defined(HAVE_ISSETUGID)
+            privsElevated = issetugid();
+#elif defined(HAVE_GETRESUID)
+            uid_t ruid, euid, suid;
+            gid_t rgid, egid, sgid;
+
+            if ((getresuid(&ruid, &euid, &suid) == 0) &&
+                (getresgid(&rgid, &egid, &sgid) == 0)) {
+                privsElevated = (euid != suid) || (egid != sgid);
+            }
+            else {
+                printf("Failed getresuid or getresgid");
+                /* Something went wrong, make defensive assumption */
+                privsElevated = TRUE;
+            }
+#else
+            if (getuid() == 0) {
+                /* running as root: uid==euid==0 */
+                privsElevated = FALSE;
+            }
+            else {
+                /*
+                 * If there are saved ID's the process might still be privileged
+                 * even though the above test succeeded. If issetugid() and
+                 * getresgid() aren't available, test this by trying to set
+                 * euid to 0.
+                 */
+                unsigned int oldeuid;
+
+                oldeuid = geteuid();
+
+                if (seteuid(0) != 0) {
+                    privsElevated = FALSE;
+                }
+                else {
+                    if (seteuid(oldeuid) != 0) {
+                        FatalError("Failed to drop privileges.  Exiting\n");
+                    }
+                    privsElevated = TRUE;
+                }
+            }
+#endif
+        }
+#endif
+        privsTested = TRUE;
+    }
+    return privsElevated;
+}
+
 /*
  * CheckUserParameters: check for long command line arguments and long
  * environment variables.  By default, these checks are only done when
@@ -1800,7 +1861,7 @@ CheckUserParameters(int argc, char **argv, char **envp)
     char *a, *e = NULL;
 
 #if CHECK_EUID
-    if (geteuid() == 0 && getuid() != geteuid())
+    if (PrivsElevated())
 #endif
     {
         /* Check each argv[] */

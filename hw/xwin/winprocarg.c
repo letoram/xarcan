@@ -126,11 +126,9 @@ winInitializeScreenDefaults(void)
     defaultScreenInfo.pfb = NULL;
     defaultScreenInfo.fFullScreen = FALSE;
     defaultScreenInfo.fDecoration = TRUE;
-#ifdef XWIN_MULTIWINDOWEXTWM
-    defaultScreenInfo.fMWExtWM = FALSE;
-#endif
     defaultScreenInfo.fRootless = FALSE;
     defaultScreenInfo.fMultiWindow = FALSE;
+    defaultScreenInfo.fCompositeWM = TRUE;
     defaultScreenInfo.fMultiMonitorOverride = FALSE;
     defaultScreenInfo.fMultipleMonitors = FALSE;
     defaultScreenInfo.fLessPointer = FALSE;
@@ -311,11 +309,7 @@ ddxProcessArgument(int argc, char *argv[], int i)
         if (i + 2 < argc && 1 == sscanf(argv[i + 2], "@%d", (int *) &iMonitor)) {
             struct GetMonitorInfoData data;
 
-            if (!QueryMonitor(iMonitor, &data)) {
-                ErrorF
-                    ("ddxProcessArgument - screen - Querying monitors failed\n");
-            }
-            else if (data.bMonitorSpecifiedExists == TRUE) {
+            if (QueryMonitor(iMonitor, &data)) {
                 winErrorFVerb(2,
                               "ddxProcessArgument - screen - Found Valid ``@Monitor'' = %d arg\n",
                               iMonitor);
@@ -336,8 +330,7 @@ ddxProcessArgument(int argc, char *argv[], int i)
                 ErrorF
                     ("ddxProcessArgument - screen - Invalid monitor number %d\n",
                      iMonitor);
-                UseMsg();
-                exit(0);
+                exit(1);
                 return 0;
             }
         }
@@ -368,11 +361,7 @@ ddxProcessArgument(int argc, char *argv[], int i)
                                 (int *) &iMonitor)) {
                     struct GetMonitorInfoData data;
 
-                    if (!QueryMonitor(iMonitor, &data)) {
-                        ErrorF
-                            ("ddxProcessArgument - screen - Querying monitors failed\n");
-                    }
-                    else if (data.bMonitorSpecifiedExists == TRUE) {
+                    if (QueryMonitor(iMonitor, &data)) {
                         g_ScreenInfo[nScreenNum].iMonitor = iMonitor;
                         g_ScreenInfo[nScreenNum].hMonitor = data.monitorHandle;
                         g_ScreenInfo[nScreenNum].dwInitialX +=
@@ -385,11 +374,9 @@ ddxProcessArgument(int argc, char *argv[], int i)
                         ErrorF
                             ("ddxProcessArgument - screen - Invalid monitor number %d\n",
                              iMonitor);
-                        UseMsg();
-                        exit(0);
+                        exit(1);
                         return 0;
                     }
-
                 }
             }
 
@@ -397,11 +384,7 @@ ddxProcessArgument(int argc, char *argv[], int i)
             else if (1 == sscanf(argv[i + 2], "%*dx%*d@%d", (int *) &iMonitor)) {
                 struct GetMonitorInfoData data;
 
-                if (!QueryMonitor(iMonitor, &data)) {
-                    ErrorF
-                        ("ddxProcessArgument - screen - Querying monitors failed\n");
-                }
-                else if (data.bMonitorSpecifiedExists == TRUE) {
+                if (QueryMonitor(iMonitor, &data)) {
                     winErrorFVerb(2,
                                   "ddxProcessArgument - screen - Found Valid ``@Monitor'' = %d arg\n",
                                   iMonitor);
@@ -416,11 +399,9 @@ ddxProcessArgument(int argc, char *argv[], int i)
                     ErrorF
                         ("ddxProcessArgument - screen - Invalid monitor number %d\n",
                          iMonitor);
-                    UseMsg();
-                    exit(0);
+                    exit(1);
                     return 0;
                 }
-
             }
         }
         else if (i + 3 < argc && 1 == sscanf(argv[i + 2], "%d", (int *) &iWidth)
@@ -550,29 +531,6 @@ ddxProcessArgument(int argc, char *argv[], int i)
         return 1;
     }
 
-#ifdef XWIN_MULTIWINDOWEXTWM
-    /*
-     * Look for the '-mwextwm' argument
-     */
-    if (IS_OPTION("-mwextwm")) {
-        if (!screenInfoPtr->fMultiMonitorOverride)
-            screenInfoPtr->fMultipleMonitors = TRUE;
-        screenInfoPtr->fMWExtWM = TRUE;
-
-        /* Indicate that we have processed this argument */
-        return 1;
-    }
-    /*
-     * Look for the '-internalwm' argument
-     */
-    if (IS_OPTION("-internalwm")) {
-        ErrorF("Ignoring obsolete -internalwm option\n");
-        /* Ignored, but we still accept the arg for backwards compatibility */
-        /* Indicate that we have processed this argument */
-        return 1;
-    }
-#endif
-
     /*
      * Look for the '-rootless' argument
      */
@@ -592,6 +550,44 @@ ddxProcessArgument(int argc, char *argv[], int i)
         if (!screenInfoPtr->fMultiMonitorOverride)
             screenInfoPtr->fMultipleMonitors = TRUE;
         screenInfoPtr->fMultiWindow = TRUE;
+
+        /* Indicate that we have processed this argument */
+        return 1;
+    }
+
+    /*
+     * Look for the '-compositewm' argument
+     */
+    if (IS_OPTION("-compositewm")) {
+        screenInfoPtr->fCompositeWM = TRUE;
+
+        /* Indicate that we have processed this argument */
+        return 1;
+    }
+    /*
+     * Look for the '-nocompositewm' argument
+     */
+    if (IS_OPTION("-nocompositewm")) {
+        screenInfoPtr->fCompositeWM = FALSE;
+
+        /* Indicate that we have processed this argument */
+        return 1;
+    }
+
+    /*
+     * Look for the '-compositealpha' argument
+     */
+    if (IS_OPTION("-compositealpha")) {
+        g_fCompositeAlpha = TRUE;
+
+        /* Indicate that we have processed this argument */
+        return 1;
+    }
+    /*
+     * Look for the '-nocompositealpha' argument
+     */
+    if (IS_OPTION("-nocompositealpha")) {
+        g_fCompositeAlpha  = FALSE;
 
         /* Indicate that we have processed this argument */
         return 1;

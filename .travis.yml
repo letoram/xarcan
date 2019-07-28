@@ -1,15 +1,27 @@
 language: c
-cache: ccache
-dist: trusty
-services: docker
+cache:
+    ccache: true
+    directories:
+        - $HOME/Library/Caches/Homebrew
+branches:
+    except:
+        - /appveyor.*/
 
-before_install:
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then docker pull anholt/xserver-travis ; fi
+os: osx
+osx_image: xcode9.2
 
-before_script:
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then echo FROM anholt/xserver-travis:v6 > Dockerfile ; fi
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then echo ADD . /root >> Dockerfile ; fi
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then docker build -t withgit . ; fi
+matrix:
+  include:
+    - env: TOOL=meson
+    - env: TOOL=autotools
+
+install:
+    - brew update
+    - HOMEBREW_NO_AUTO_UPDATE=1 brew install ccache meson
 
 script:
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then docker run --volume $HOME/.ccache:/root/.ccache withgit /bin/sh -c "cd /root && ./test/scripts/build-travis-deps.sh" ; fi
+    - ./test/scripts/build-travis-osx.sh $TOOL
+    - ccache -s
+
+before_cache:
+    - brew cleanup

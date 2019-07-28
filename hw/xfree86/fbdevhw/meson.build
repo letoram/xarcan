@@ -11,6 +11,13 @@ shared_module('fbdevhw',
     c_args: xorg_c_args,
     install: true,
     install_dir: module_dir,
+    link_with: e,
 )
 
 install_data('fbdevhw.h', install_dir: xorgsdkdir)
+
+install_man(configure_file(
+    input: 'man/fbdevhw.man',
+    output: 'fbdevhw.4',
+    configuration: manpage_config,
+))

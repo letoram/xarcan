@@ -1190,7 +1190,7 @@ xf86VideoPtrToDriverList(struct pci_device *dev, XF86MatchedDrivers *md)
     {
         int idx = 0;
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__NetBSD__)
         driverList[idx++] = "nouveau";
 #endif
         driverList[idx++] = "nv";
@@ -1449,11 +1449,7 @@ xf86PciConfigureNewDev(void *busData, struct pci_device *pVideo,
 
     pVideo = (struct pci_device *) busData;
 
-    if (pVideo->bus < 256)
-        snprintf(busnum, sizeof(busnum), "%d", pVideo->bus);
-    else
-        snprintf(busnum, sizeof(busnum), "%d@%d",
-                 pVideo->bus & 0x00ff, pVideo->bus >> 8);
+    snprintf(busnum, sizeof(busnum), "%d", pVideo->bus);
 
     XNFasprintf(&tmp, "PCI:%s:%d:%d",
                 busnum, pVideo->dev, pVideo->func);

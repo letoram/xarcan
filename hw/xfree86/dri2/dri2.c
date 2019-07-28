@@ -38,14 +38,12 @@
 #ifdef WITH_LIBDRM
 #include <xf86drm.h>
 #endif
-#include "xf86Module.h"
 #include "list.h"
 #include "scrnintstr.h"
 #include "windowstr.h"
 #include "dixstruct.h"
 #include "dri2.h"
 #include "dri2int.h"
-#include "xf86VGAarbiter.h"
 #include "damage.h"
 #include "xf86.h"
 
@@ -1508,12 +1506,6 @@ DRI2ScreenInit(ScreenPtr pScreen, DRI2InfoPtr info)
     if (info->version < 3)
         return FALSE;
 
-    if (!xf86VGAarbiterAllowDRI(pScreen)) {
-        xf86DrvMsg(pScreen->myNum, X_WARNING,
-                   "[DRI2] Direct rendering is not supported when VGA arb is necessary for the device\n");
-        return FALSE;
-    }
-
     if (!dixRegisterPrivateKey(&dri2ScreenPrivateKeyRec, PRIVATE_SCREEN, 0))
         return FALSE;
 
@@ -1633,7 +1625,7 @@ DRI2ScreenInit(ScreenPtr pScreen, DRI2InfoPtr info)
     pScreen->SetWindowPixmap = DRI2SetWindowPixmap;
 
     xf86DrvMsg(pScreen->myNum, X_INFO, "[DRI2] Setup complete\n");
-    for (i = 0; i < sizeof(driverTypeNames) / sizeof(driverTypeNames[0]); i++) {
+    for (i = 0; i < ARRAY_SIZE(driverTypeNames); i++) {
         if (i < ds->numDrivers && ds->driverNames[i]) {
             xf86DrvMsg(pScreen->myNum, X_INFO, "[DRI2]   %s driver: %s\n",
                        driverTypeNames[i], ds->driverNames[i]);

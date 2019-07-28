@@ -459,7 +459,7 @@ glamor_set_blend(CARD8 op, glamor_program_alpha alpha, PicturePtr dst)
         break;
     }
 
-    if (glamor_priv->gl_flavor != GLAMOR_GL_ES2)
+    if (!glamor_priv->is_gles)
         glDisable(GL_COLOR_LOGIC_OP);
 
     if (op == PictOpSrc)
@@ -508,12 +508,13 @@ glamor_set_blend(CARD8 op, glamor_program_alpha alpha, PicturePtr dst)
 static Bool
 use_source_solid(CARD8 op, PicturePtr src, PicturePtr dst, glamor_program *prog)
 {
+    PictSolidFill *solid = &src->pSourcePict->solidFill;
+    float color[4];
 
+    glamor_get_rgba_from_color(&solid->fullcolor, color);
     glamor_set_blend(op, prog->alpha, dst);
+    glUniform4fv(prog->fg_uniform, 1, color);
 
-    glamor_set_color_depth(dst->pDrawable->pScreen, 32,
-                           src->pSourcePict->solidFill.color,
-                           prog->fg_uniform);
     return TRUE;
 }
 

@@ -63,7 +63,6 @@
 
 #ifdef PANORAMIX
 #include "panoramiXsrv.h"
-extern int PanoramiXNumScreens;
 #endif
 
 static unsigned char DMXCode;
@@ -439,7 +438,7 @@ ProcDMXChangeScreensAttributes(ClientPtr client)
         value_list += count;
     }
 
-#if PANORAMIX
+#ifdef PANORAMIX
     status = dmxConfigureScreenWindows(stuff->screenCount,
                                        screen_list, attribs, &errorScreen);
 #endif
@@ -749,7 +748,7 @@ ProcDMXChangeDesktopAttributes(ClientPtr client)
     dmxGetDesktopAttributes(&attr);
     dmxFetchDesktopAttributes(stuff->valueMask, &attr, value_list);
 
-#if PANORAMIX
+#ifdef PANORAMIX
     status = dmxConfigureDesktop(&attr);
 #endif
     if (status == BadValue)

@@ -156,22 +156,16 @@ vfbBitsPerPixel(int depth)
         return 32;
 }
 
-void
-ddxGiveUp(enum ExitCode error)
+static void
+freeScreenInfo(vfbScreenInfoPtr pvfb)
 {
-    int i;
-
-    /* clean up the framebuffers */
-
     switch (fbmemtype) {
 #ifdef HAVE_MMAP
     case MMAPPED_FILE_FB:
-        for (i = 0; i < vfbNumScreens; i++) {
-            if (-1 == unlink(vfbScreens[i].mmap_file)) {
-                perror("unlink");
-                ErrorF("unlink %s failed, %s",
-                       vfbScreens[i].mmap_file, strerror(errno));
-            }
+        if (-1 == unlink(pvfb->mmap_file)) {
+            perror("unlink");
+            ErrorF("unlink %s failed, %s",
+                   pvfb->mmap_file, strerror(errno));
         }
         break;
 #else                           /* HAVE_MMAP */
@@ -181,11 +175,9 @@ ddxGiveUp(enum ExitCode error)
 
 #ifdef HAS_SHM
     case SHARED_MEMORY_FB:
-        for (i = 0; i < vfbNumScreens; i++) {
-            if (-1 == shmdt((char *) vfbScreens[i].pXWDHeader)) {
-                perror("shmdt");
-                ErrorF("shmdt failed, %s", strerror(errno));
-            }
+        if (-1 == shmdt((char *) pvfb->pXWDHeader)) {
+            perror("shmdt");
+            ErrorF("shmdt failed, %s", strerror(errno));
         }
         break;
 #else                           /* HAS_SHM */
@@ -194,17 +186,20 @@ ddxGiveUp(enum ExitCode error)
 #endif                          /* HAS_SHM */
 
     case NORMAL_MEMORY_FB:
-        for (i = 0; i < vfbNumScreens; i++) {
-            free(vfbScreens[i].pXWDHeader);
-        }
+        free(pvfb->pXWDHeader);
         break;
     }
 }
 
 void
-AbortDDX(enum ExitCode error)
+ddxGiveUp(enum ExitCode error)
 {
-    ddxGiveUp(error);
+    int i;
+
+    /* clean up the framebuffers */
+    for (i = 0; i < vfbNumScreens; i++) {
+        freeScreenInfo(&vfbScreens[i]);
+    }
 }
 
 #ifdef __APPLE__
@@ -229,6 +224,15 @@ void
 ddxBeforeReset(void)
 {
     return;
+}
+#endif
+
+#if INPUTTHREAD
+/** This function is called in Xserver/os/inputthread.c when starting
+    the input thread. */
+void
+ddxInputThreadInit(void)
+{
 }
 #endif
 
@@ -269,13 +273,6 @@ ddxProcessArgument(int argc, char *argv[], int i)
         currentScreen = &defaultScreenInfo;
     else
         currentScreen = &vfbScreens[lastScreen];
-
-#define CHECK_FOR_REQUIRED_ARGUMENTS(num) \
-    if (((i + num) >= argc) || (!argv[i + num])) {                      \
-      ErrorF("Required argument to %s not specified\n", argv[i]);       \
-      UseMsg();                                                         \
-      FatalError("Required argument to %s not specified\n", argv[i]);   \
-    }
 
     if (strcmp(argv[i], "-screen") == 0) {      /* -screen n WxHxD */
         int screenNum;
@@ -461,12 +458,6 @@ vfbStoreColors(ColormapPtr pmap, int ndef, xColorItem * pdefs)
     }
 }
 
-static Bool
-vfbSaveScreen(ScreenPtr pScreen, int on)
-{
-    return TRUE;
-}
-
 #ifdef HAVE_MMAP
 
 /* this flushes any changes to the screens out to the mmapped file */
@@ -637,8 +628,8 @@ vfbAllocateFramebufferMemory(vfbScreenInfoPtr pvfb)
 
         return pvfb->pfbMemory;
     }
-    else
-        return NULL;
+
+    return NULL;
 }
 
 static void
@@ -795,6 +786,9 @@ vfbRRCrtcSet(ScreenPtr pScreen,
 static Bool
 vfbRRGetInfo(ScreenPtr pScreen, Rotation *rotations)
 {
+    /* Don't support rotations */
+    *rotations = RR_Rotate_0;
+
     return TRUE;
 }
 
@@ -841,6 +835,9 @@ vfbRandRInit(ScreenPtr pScreen)
     crtc = RRCrtcCreate (pScreen, NULL);
     if (!crtc)
        return FALSE;
+
+    /* This is to avoid xrandr to complain about the gamma missing */
+    RRCrtcGammaSetSize (crtc, 256);
 
     output = RROutputCreate (pScreen, "screen", 6, NULL);
     if (!output)
@@ -935,8 +932,6 @@ vfbScreenInit(ScreenPtr pScreen, int argc, char **argv)
        return FALSE;
 
     pScreen->InstallColormap = vfbInstallColormap;
-
-    pScreen->SaveScreen = vfbSaveScreen;
     pScreen->StoreColors = vfbStoreColors;
 
     miDCInitialize(pScreen, &vfbPointerCursorFuncs);
@@ -957,26 +952,11 @@ vfbScreenInit(ScreenPtr pScreen, int argc, char **argv)
 
 }                               /* end vfbScreenInit */
 
-static const ExtensionModule vfbExtensions[] = {
-#ifdef GLXEXT
-    { GlxExtensionInit, "GLX", &noGlxExtension },
-#endif
-};
-
-static
-void vfbExtensionInit(void)
-{
-    LoadExtensionList(vfbExtensions, ARRAY_SIZE(vfbExtensions), TRUE);
-}
-
 void
 InitOutput(ScreenInfo * screen_info, int argc, char **argv)
 {
     int i;
     int NumFormats = 0;
-
-    if (serverGeneration == 1)
-        vfbExtensionInit();
 
     /* initialize pixmap formats */
 
@@ -1001,6 +981,8 @@ InitOutput(ScreenInfo * screen_info, int argc, char **argv)
 #endif
         vfbPixmapDepths[32] = TRUE;
     }
+
+    xorgGlxCreateVendor();
 
     for (i = 1; i <= 32; i++) {
         if (vfbPixmapDepths[i]) {

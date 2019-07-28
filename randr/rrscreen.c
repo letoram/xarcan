@@ -267,12 +267,12 @@ ProcRRSetScreenSize(ClientPtr client)
         RRCrtcPtr crtc = pScrPriv->crtcs[i];
         RRModePtr mode = crtc->mode;
 
-        if (mode) {
+        if (!RRCrtcIsLeased(crtc) && mode) {
             int source_width = mode->mode.width;
             int source_height = mode->mode.height;
             Rotation rotation = crtc->rotation;
 
-            if (rotation == RR_Rotate_90 || rotation == RR_Rotate_270) {
+            if (rotation & (RR_Rotate_90 | RR_Rotate_270)) {
                 source_width = mode->mode.height;
                 source_height = mode->mode.width;
             }
@@ -558,7 +558,7 @@ rrGetScreenResources(ClientPtr client, Bool query)
 
         extraLen = rep.length << 2;
         if (extraLen) {
-            extra = malloc(extraLen);
+            extra = calloc(1, extraLen);
             if (!extra) {
                 free(modes);
                 return BadAlloc;

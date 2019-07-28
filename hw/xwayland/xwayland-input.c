@@ -37,6 +37,12 @@
 #include <misc.h>
 #include "tablet-unstable-v2-client-protocol.h"
 
+struct axis_discrete_pending {
+    struct xorg_list l;
+    uint32_t axis;
+    int32_t discrete;
+};
+
 struct sync_pending {
     struct xorg_list l;
     DeviceIntPtr pending_dev;
@@ -565,6 +571,8 @@ pointer_handle_axis(void *data, struct wl_pointer *pointer,
     int index;
     const int divisor = 10;
     ValuatorMask mask;
+    struct axis_discrete_pending *pending = NULL;
+    struct axis_discrete_pending *iter;
 
     switch (axis) {
     case WL_POINTER_AXIS_VERTICAL_SCROLL:
@@ -577,8 +585,22 @@ pointer_handle_axis(void *data, struct wl_pointer *pointer,
         return;
     }
 
+    xorg_list_for_each_entry(iter, &xwl_seat->axis_discrete_pending, l) {
+        if (iter->axis == axis) {
+            pending = iter;
+            break;
+        }
+    }
+
     valuator_mask_zero(&mask);
-    valuator_mask_set_double(&mask, index, wl_fixed_to_double(value) / divisor);
+
+    if (pending) {
+        valuator_mask_set(&mask, index, pending->discrete);
+        xorg_list_del(&pending->l);
+        free(pending);
+    } else {
+        valuator_mask_set_double(&mask, index, wl_fixed_to_double(value) / divisor);
+    }
     QueuePointerEvents(xwl_seat->pointer, MotionNotify, 0, POINTER_RELATIVE, &mask);
 }
 
@@ -608,6 +630,16 @@ static void
 pointer_handle_axis_discrete(void *data, struct wl_pointer *wl_pointer,
                              uint32_t axis, int32_t discrete)
 {
+    struct xwl_seat *xwl_seat = data;
+
+    struct axis_discrete_pending *pending = malloc(sizeof *pending);
+    if (!pending)
+        return;
+
+    pending->axis = axis;
+    pending->discrete = discrete;
+
+    xorg_list_add(&pending->l, &xwl_seat->axis_discrete_pending);
 }
 
 static const struct wl_pointer_listener pointer_listener = {
@@ -710,7 +742,7 @@ keyboard_handle_keymap(void *data, struct wl_keyboard *keyboard,
     XkbDeviceApplyKeymap(xwl_seat->keyboard, xkb);
 
     master = GetMaster(xwl_seat->keyboard, MASTER_KEYBOARD);
-    if (master && master->lastSlave == xwl_seat->keyboard)
+    if (master)
         XkbDeviceApplyKeymap(master, xkb);
 
     XkbFreeKeyboard(xkb, XkbAllComponentsMask, TRUE);
@@ -1067,7 +1099,7 @@ xwl_keyboard_activate_grab(DeviceIntPtr device, GrabPtr grab, TimeStamp time, Bo
         if (xwl_seat == NULL)
             xwl_seat = find_matching_seat(device);
         if (xwl_seat)
-            set_grab(xwl_seat, xwl_window_of_top(grab->window));
+            set_grab(xwl_seat, xwl_window_from_window(grab->window));
     }
 
     ActivateKeyboardGrab(device, grab, time, passive);
@@ -1337,6 +1369,7 @@ create_input_device(struct xwl_screen *xwl_screen, uint32_t id, uint32_t version
     wl_array_init(&xwl_seat->keys);
 
     xorg_list_init(&xwl_seat->touches);
+    xorg_list_init(&xwl_seat->axis_discrete_pending);
     xorg_list_init(&xwl_seat->sync_pending);
 }
 
@@ -1345,6 +1378,7 @@ xwl_seat_destroy(struct xwl_seat *xwl_seat)
 {
     struct xwl_touch *xwl_touch, *next_xwl_touch;
     struct sync_pending *p, *npd;
+    struct axis_discrete_pending *ad, *ad_next;
 
     xorg_list_for_each_entry_safe(xwl_touch, next_xwl_touch,
                                   &xwl_seat->touches, link_touch) {
@@ -1355,6 +1389,11 @@ xwl_seat_destroy(struct xwl_seat *xwl_seat)
     xorg_list_for_each_entry_safe(p, npd, &xwl_seat->sync_pending, l) {
         xorg_list_del(&xwl_seat->sync_pending);
         free (p);
+    }
+
+    xorg_list_for_each_entry_safe(ad, ad_next, &xwl_seat->axis_discrete_pending, l) {
+        xorg_list_del(&ad->l);
+        free(ad);
     }
 
     release_tablet_manager_seat(xwl_seat);
@@ -1389,19 +1428,19 @@ tablet_handle_done(void *data, struct zwp_tablet_v2 *tablet)
     struct xwl_seat *xwl_seat = xwl_tablet->seat;
 
     if (xwl_seat->stylus == NULL) {
-        xwl_seat->stylus = add_device(xwl_seat, "xwayland-stylus", xwl_tablet_proc);
+        xwl_seat->stylus = add_device(xwl_seat, "xwayland-tablet stylus", xwl_tablet_proc);
         ActivateDevice(xwl_seat->stylus, TRUE);
     }
     EnableDevice(xwl_seat->stylus, TRUE);
 
     if (xwl_seat->eraser == NULL) {
-        xwl_seat->eraser = add_device(xwl_seat, "xwayland-eraser", xwl_tablet_proc);
+        xwl_seat->eraser = add_device(xwl_seat, "xwayland-tablet eraser", xwl_tablet_proc);
         ActivateDevice(xwl_seat->eraser, TRUE);
     }
     EnableDevice(xwl_seat->eraser, TRUE);
 
     if (xwl_seat->puck == NULL) {
-        xwl_seat->puck = add_device(xwl_seat, "xwayland-cursor", xwl_tablet_proc);
+        xwl_seat->puck = add_device(xwl_seat, "xwayland-tablet cursor", xwl_tablet_proc);
         ActivateDevice(xwl_seat->puck, TRUE);
     }
     EnableDevice(xwl_seat->puck, TRUE);
@@ -1514,7 +1553,7 @@ tablet_tool_proximity_in(void *data, struct zwp_tablet_tool_v2 *tool,
         return;
 
     xwl_tablet_tool->proximity_in_serial = serial;
-    xwl_seat->focus_window = wl_surface_get_user_data(wl_surface);
+    xwl_seat->tablet_focus_window = wl_surface_get_user_data(wl_surface);
 
     xwl_tablet_tool_set_cursor(xwl_tablet_tool);
 }
@@ -1526,7 +1565,7 @@ tablet_tool_proximity_out(void *data, struct zwp_tablet_tool_v2 *tool)
     struct xwl_seat *xwl_seat = xwl_tablet_tool->seat;
 
     xwl_tablet_tool->proximity_in_serial = 0;
-    xwl_seat->focus_window = NULL;
+    xwl_seat->tablet_focus_window = NULL;
 
     xwl_tablet_tool->pressure = 0;
     xwl_tablet_tool->tilt_x = 0;
@@ -1565,17 +1604,17 @@ tablet_tool_motion(void *data, struct zwp_tablet_tool_v2 *tool,
     struct xwl_tablet_tool *xwl_tablet_tool = data;
     struct xwl_seat *xwl_seat = xwl_tablet_tool->seat;
     int32_t dx, dy;
-    int sx = wl_fixed_to_int(x);
-    int sy = wl_fixed_to_int(y);
+    double sx = wl_fixed_to_double(x);
+    double sy = wl_fixed_to_double(y);
 
-    if (!xwl_seat->focus_window)
+    if (!xwl_seat->tablet_focus_window)
         return;
 
-    dx = xwl_seat->focus_window->window->drawable.x;
-    dy = xwl_seat->focus_window->window->drawable.y;
+    dx = xwl_seat->tablet_focus_window->window->drawable.x;
+    dy = xwl_seat->tablet_focus_window->window->drawable.y;
 
-    xwl_tablet_tool->x = dx + sx;
-    xwl_tablet_tool->y = dy + sy;
+    xwl_tablet_tool->x = (double) dx + sx;
+    xwl_tablet_tool->y = (double) dy + sy;
 }
 
 static void
@@ -1585,7 +1624,7 @@ tablet_tool_pressure(void *data, struct zwp_tablet_tool_v2 *tool,
     struct xwl_tablet_tool *xwl_tablet_tool = data;
     struct xwl_seat *xwl_seat = xwl_tablet_tool->seat;
 
-    if (!xwl_seat->focus_window)
+    if (!xwl_seat->tablet_focus_window)
         return;
 
     /* normalized to 65535 already */
@@ -1605,7 +1644,7 @@ tablet_tool_tilt(void *data, struct zwp_tablet_tool_v2 *tool,
     struct xwl_tablet_tool *xwl_tablet_tool = data;
     struct xwl_seat *xwl_seat = xwl_tablet_tool->seat;
 
-    if (!xwl_seat->focus_window)
+    if (!xwl_seat->tablet_focus_window)
         return;
 
     xwl_tablet_tool->tilt_x = wl_fixed_to_double(tilt_x);
@@ -1620,7 +1659,7 @@ tablet_tool_rotation(void *data, struct zwp_tablet_tool_v2 *tool,
     struct xwl_seat *xwl_seat = xwl_tablet_tool->seat;
     double rotation = wl_fixed_to_double(angle);
 
-    if (!xwl_seat->focus_window)
+    if (!xwl_seat->tablet_focus_window)
         return;
 
     /* change origin (buttons facing right [libinput +90 degrees]) and
@@ -1639,7 +1678,7 @@ tablet_tool_slider(void *data, struct zwp_tablet_tool_v2 *tool,
     struct xwl_seat *xwl_seat = xwl_tablet_tool->seat;
     float position = position_raw / 65535.0;
 
-    if (!xwl_seat->focus_window)
+    if (!xwl_seat->tablet_focus_window)
         return;
 
     xwl_tablet_tool->slider = (position * 1799.0f) - 900.0f;
@@ -1652,7 +1691,7 @@ tablet_tool_wheel(void *data, struct zwp_tablet_tool_v2 *tool,
     struct xwl_tablet_tool *xwl_tablet_tool = data;
     struct xwl_seat *xwl_seat = xwl_tablet_tool->seat;
 
-    if (!xwl_seat->focus_window)
+    if (!xwl_seat->tablet_focus_window)
         return;
 
     xwl_tablet_tool->wheel_clicks = clicks;
@@ -1698,6 +1737,7 @@ tablet_tool_button_state(void *data, struct zwp_tablet_tool_v2 *tool,
 
         case 0x113: /* BTN_SIDE    */
         case 0x116: /* BTN_BACK    */
+        case 0x149: /* BTN_STYLUS3 */
             xbtn = 8;
             break;
 
@@ -1732,15 +1772,15 @@ tablet_tool_frame(void *data, struct zwp_tablet_tool_v2 *tool, uint32_t time)
     int button;
 
     valuator_mask_zero(&mask);
-    valuator_mask_set(&mask, 0, xwl_tablet_tool->x);
-    valuator_mask_set(&mask, 1, xwl_tablet_tool->y);
+    valuator_mask_set_double(&mask, 0, xwl_tablet_tool->x);
+    valuator_mask_set_double(&mask, 1, xwl_tablet_tool->y);
     valuator_mask_set(&mask, 2, xwl_tablet_tool->pressure);
-    valuator_mask_set(&mask, 3, xwl_tablet_tool->tilt_x);
-    valuator_mask_set(&mask, 4, xwl_tablet_tool->tilt_y);
-    valuator_mask_set(&mask, 5, xwl_tablet_tool->rotation + xwl_tablet_tool->slider);
+    valuator_mask_set_double(&mask, 3, xwl_tablet_tool->tilt_x);
+    valuator_mask_set_double(&mask, 4, xwl_tablet_tool->tilt_y);
+    valuator_mask_set_double(&mask, 5, xwl_tablet_tool->rotation + xwl_tablet_tool->slider);
 
     QueuePointerEvents(xwl_tablet_tool->xdevice, MotionNotify, 0,
-               POINTER_ABSOLUTE | POINTER_SCREEN, &mask);
+               POINTER_ABSOLUTE | POINTER_DESKTOP, &mask);
 
     valuator_mask_zero(&mask);
 
@@ -2146,7 +2186,7 @@ tablet_pad_done(void *data,
 {
     struct xwl_tablet_pad *pad = data;
 
-    pad->xdevice = add_device(pad->seat, "xwayland-pad",
+    pad->xdevice = add_device(pad->seat, "xwayland-tablet-pad",
                               xwl_tablet_pad_proc);
     pad->xdevice->public.devicePrivate = pad;
     ActivateDevice(pad->xdevice, TRUE);
@@ -2450,12 +2490,6 @@ static const struct wl_registry_listener input_listener = {
     global_remove,
 };
 
-Bool
-LegalModifier(unsigned int key, DeviceIntPtr pDev)
-{
-    return TRUE;
-}
-
 void
 ProcessInputEvents(void)
 {
@@ -2627,6 +2661,7 @@ xwl_pointer_warp_emulator_maybe_lock(struct xwl_pointer_warp_emulator *warp_emul
      */
     if (pointer_grab &&
         !pointer_grab->ownerEvents &&
+        sprite &&
         XYToWindow(sprite, x, y) != xwl_seat->focus_window->window)
         return;
 

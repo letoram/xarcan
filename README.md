@@ -3,112 +3,78 @@ Introduction
 This is a patched Xserver with a KDrive backend that uses the arcan-shmif to
 map Xlib/Xcb/X clients to a running arcan instance.
 
-The initial approach was simply to let the waybridge tool handle X as well,
-but after some experimentation, the nested translation model proved quite
-painful to work with, warranting something easier that can be used in the
-cases where one would not want the overhead of running a full linux-dist
-inside a QEMU session (the preferred compatibility approach).
+It currently works as a 'desktop in a window', where you supply the window
+manager and so on, and use the X side as normal. Some arcan features will be
+lost, particularly any customizations done to the keybindings - normal X
+controls for defining keyboard maps and overrides are needed.
 
 Compilation
 ====
-Normal autohell style compilation. Relevant compilation flags are:
-    --enable-kdrive --enable-xarcan --disable-xorg --disable-xwayland
-    --disable-xnest --disable-xvfb --enable-glamor --enable-glx
-		--disable-int10-module
 
-The only output you are likely to be interested in is
-hw/kdrive/arcan/Xarcan make install on existing xorg- systems is likely
-to result in pain as it has its tentacles dug into everything.
+        meson build
+        cd build ; ninja .
 
-pkg\_info need to find the normal arcan-shmif, arcan-shmifext libraries.
-
-Though a ton of other X features, could/should also be disabled.
-If you find a better set of compilation options for a feature- complete yet
-tiny X server, let me know.
-
-Note that keyboard layouts and fonts are searched on based on the build
-prefix (like --prefix=/usr), and xfonts2 may need to be built from source
-on some distributions.
+Since most installations tend to have an Xorg already present, and you don't
+want to mess with those far too much, the main binary output of interest on
+a system with Xorg is simply the Xarcan binary.
 
 Use
 ====
 From a terminal with access to connection primitives (env: ARCAN\_CONNPATH),
-just run hw/kdrive/arcan/Xarcan to start bridging connections.
+just run:
 
-For multiple instances, you can add :1 (and set DISPLAY=:1 etc. accordingly)
-and so one, forcing size with -screen 800x600 -no-dynamic and enable glamor
-(GL rendering with handle passing) using -glamor. Note that the
-ARCAN\_RENDER\_NODE will be respected (see ISSUES). The title and
-identity can be scriptably controlled with -aident identstr -atitle titlestr
+        Xarcan
 
-Clipboard management is not part of xarcan per se, there is an external tool
-in the arcan source distribution (src/tools/aclip) that can be paired with
-managers like xclip to bridge clipboard management between arcan instances
-with appls that support it and the Xserver.
+Then you want to attach a window manager, e.g.
 
-Limitations
+        DISPLAY=:0 i3 &
+				DISPLAY=:0 xterm
+
+For multiple instances, you can add :1 (and set DISPLAY=:1 etc. accordingly).
+
+To force the window size and disable resizing behavior, use
+
+There is also the option to forego Xarcan entirely, and use arcan-wayland
+from the arcan source repository:
+
+        arcan-wayland -xwl -exec xterm
+
+Planned Changes
 ====
-The strategy used here is to contain all X clients within one logical window,
-for mapping single- client windows to corresponding Arcan primitives, the plan
-is still to go through Wayland/XWayland, though that is still somewhat
-uncertain, investigations are done on a hybrid version where we can 'steal'
-single windows out from Xorg on demand. Another exception is if a DRI3 client
-goes full-screen, then the buffer we passed should switch to that one
-immediately.
 
-One big limitation is that the keyboard mapping/remapping features that some
-arcan appls like durden employ will not work here. The server only uses the
-raw OS keycodes mapped into the sanity absorbing black chasm that is Xkb.
-Since the same problem exist for bridge wayland clients, chances are that
-something more dynamic can be obtained via the github.com/39aldo39/klfc util
-as a middle man.
+Here is a list of planned changes for which contributions would be gladly
+accepted:
 
-Issues
-====
-There is still some things left to do. Quite a few of the accelerated graphics
-problems pertain to having multiple GPUs or having Xarcan working against a
-render node rather than the real device.
+1. Fix GLX-/DRI3- bindings
 
-This can be mitigated by pointing the ARCAN\_RENDER\_NODE environment variable
-to a card-node rather than a render node for starters. This also requires that
-the xarcan- connection to the running appl- scripts in arcan gets the GPU-
-delegation flag (durden: global/config/system/gpu delegation=full) as it breaks
-the privilege separation initiative from using render nodes in the first place.
+Some refactoring upstream broke the way we dealt with accelerated handle
+passing and accelerated clients. Most of this can probably be translated
+from the hw/xwayland parts about gbm/glamor/glx.
 
-Notes
-====
-(might be wildly incorrect)
+2. Swap out Epoxy resolver
 
-There seem to be some weird path/trick needed to be performed for the PRESENT-
-extension to be enabled, the full path is yet to be traced, but when working,
-it should be a mere matter of communicating timings and switching to a signal
-without block- ignore.
+Xorg uses epoxy to resolve its GL symbols. For the advanced Arcan parts
+with swapping GPUs/resetting clients, we want to (re-)query the symbols
+on a device change.
 
-The 'Output Segment' todo is a possibly neat way to solve compatibility/mapping
-for clients that requests the contents of other windows. The plan is to activate
-when a NEWSEGMENT event arrives with an output segment (i.e. an explicit push).
+3. Intercept pixmap read calls
 
-When that happens, take the pScreen and overload getImage to map/return contents
-from that segment rather than somewhere else.
+Similar to XAce, block attempts at reading screen contents by default,
+then swap in any ENCODE- pushed segments to let the arcan instance drive
+what screen recording tools etc. see.
 
-TODO
-====
-There are still a number of TODOs before all X clients can be successfully
-bridged, here are the current big points:
-(x - done, p - partial)
+4. "Native" mouse cursor
 
-- [x] Damage- Regions
-- [x] Gamma Control Bridging
-- [x] Randr/DISPLAYHINT resizing
-- [ ] Touch Input Mapping
-- [ ] Joystick Input Mapping
-- [ ] Output Segment to universal GetImage
-- [ ] mouse cursor acceleration
-- [ ] Display-correct Synchronization timing
-  - [p] PRESENT- support
-- [p] Accelerated Cursor
-- [x] Glamor/dri3/glx
-- [ ] epoxy patching (or switch gl calls to use agp-fenv)
-    - [ ] overridable lookup function (map to shmifext-)
-    - [ ] invalidate / replace
-- [ ] xenocara bringup
+Right now, the mouse cursor is rastered into the buffer. The code should
+try to allocate a custom mouse cursor and synchronize that separately.
+
+5. Aclip integration
+
+Request a clipboard via the existing shmif connection, handover-exec it
+to aclip with the X display etc. inherited.
+
+6. Keyboard translation
+
+This should also apply to arcan-wayland, but basically a keymap translator
+as a pre-step should be viable, see e.g. github.com/39aldo39/klfc.
+

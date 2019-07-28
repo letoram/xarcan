@@ -1530,7 +1530,9 @@ ActivatePointerGrab(DeviceIntPtr mouse, GrabPtr grab,
                 mouse->spriteInfo->sprite->hotPhys.y = 0;
         ConfineCursorToWindow(mouse, grab->confineTo, FALSE, TRUE);
     }
-    DoEnterLeaveEvents(mouse, mouse->id, oldWin, grab->window, NotifyGrab);
+    if (! (grabinfo->grab && oldWin == grabinfo->grab->window
+			  && oldWin == grab->window))
+        DoEnterLeaveEvents(mouse, mouse->id, oldWin, grab->window, NotifyGrab);
     mouse->valuator->motionHintWindow = NullWindow;
     if (syncEvents.playingEvents)
         grabinfo->grabTime = syncEvents.time;
@@ -1573,7 +1575,7 @@ DeactivatePointerGrab(DeviceIntPtr mouse)
                emulate a ButtonRelease here. So pretend the listener
                already has the end event */
             if (grab->grabtype == CORE || grab->grabtype == XI ||
-                    !xi2mask_isset(mouse->deviceGrab.grab->xi2mask, mouse, XI_TouchBegin)) {
+                    !xi2mask_isset(grab->xi2mask, mouse, XI_TouchBegin)) {
                 mode = XIAcceptTouch;
                 /* NOTE: we set the state here, but
                  * ProcessTouchOwnershipEvent() will still call
@@ -1640,7 +1642,9 @@ ActivateKeyboardGrab(DeviceIntPtr keybd, GrabPtr grab, TimeStamp time,
         oldWin = keybd->focus->win;
     if (keybd->valuator)
         keybd->valuator->motionHintWindow = NullWindow;
-    if (oldWin)
+    if (oldWin &&
+	! (grabinfo->grab && oldWin == grabinfo->grab->window
+			  && oldWin == grab->window))
         DoFocusEvents(keybd, oldWin, grab->window, NotifyGrab);
     if (syncEvents.playingEvents)
         grabinfo->grabTime = syncEvents.time;

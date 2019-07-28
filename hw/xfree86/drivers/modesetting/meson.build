@@ -19,6 +19,7 @@ shared_module(
         common_dep,
         udev_dep,
         libdrm_dep,
+        gbm_dep,
     ],
 
     install: true,
@@ -29,12 +30,17 @@ shared_module(
 xorg_build_root = join_paths(meson.build_root(), 'hw', 'xfree86')
 symbol_test_args = []
 symbol_test_args += join_paths(xorg_build_root, 'libxorgserver.so')
-symbol_test_args += join_paths(xorg_build_root, 'dixmods', 'libfb.so')
 symbol_test_args += join_paths(xorg_build_root, 'dixmods', 'libshadow.so')
 if gbm_dep.found()
     symbol_test_args += join_paths(xorg_build_root, 'glamor_egl', 'libglamoregl.so')
 endif
 symbol_test_args += join_paths(xorg_build_root, 'drivers', 'modesetting', 'modesetting_drv.so')
+
+install_man(configure_file(
+    input: 'modesetting.man',
+    output: 'modesetting.4',
+    configuration: manpage_config,
+))
 
 test('modesetting symbol test',
     xorg_symbol_test,

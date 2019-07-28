@@ -9,12 +9,6 @@
 /* Builder address */
 #undef BUILDERADDR
 
-/* Operating System Name */
-#undef OSNAME
-
-/* Operating System Vendor */
-#undef OSVENDOR
-
 /* Builder string */
 #undef BUILDERSTRING
 
@@ -66,9 +60,6 @@
 /* Define to 1 if you have the `cbrt' function. */
 #undef HAVE_CBRT
 
-/* Define to 1 if you have the <dbm.h> header file. */
-#undef HAVE_DBM_H
-
 /* Define to 1 if you have the declaration of `program_invocation_short_name', and
    to 0 if you don't. */
 #undef HAVE_DECL_PROGRAM_INVOCATION_SHORT_NAME
@@ -85,9 +76,6 @@
 
 /* Define to 1 if you have the <fcntl.h> header file. */
 #undef HAVE_FCNTL_H
-
-/* Define to 1 if you have the `ffs' function. */
-#undef HAVE_FFS
 
 /* Define to 1 if you have the `getdtablesize' function. */
 #undef HAVE_GETDTABLESIZE
@@ -140,6 +128,12 @@
 /* Define to 1 if you have the <linux/fb.h> header file. */
 #undef HAVE_LINUX_FB_H
 
+/* Define to 1 if you have the `memfd_create' function. */
+#undef HAVE_MEMFD_CREATE
+
+/* Define to 1 if you have the `mkostemp' function. */
+#undef HAVE_MKOSTEMP
+
 /* Define to 1 if you have the `mmap' function. */
 #undef HAVE_MMAP
 
@@ -149,17 +143,11 @@
 /* Define to 1 if you have the function pthread_setname_np(pthread_t, const char*) */
 #undef HAVE_PTHREAD_SETNAME_NP_WITH_TID
 
-/* Define to 1 if you have the <ndbm.h> header file. */
-#undef HAVE_NDBM_H
-
 /* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
 #undef HAVE_NDIR_H
 
 /* Define to 1 if you have the `reallocarray' function. */
 #undef HAVE_REALLOCARRAY
-
-/* Define to 1 if you have the <rpcsvc/dbm.h> header file. */
-#undef HAVE_RPCSVC_DBM_H
 
 /* Define to 1 if you have the `arc4random_buf' function. */
 #undef HAVE_ARC4RANDOM_BUF
@@ -319,9 +307,6 @@
 /* Support UNIX socket connections */
 #undef UNIXCONN
 
-/* unaligned word accesses behave as expected */
-#undef WORKING_UNALIGNED_INT
-
 /* Build X string registry */
 #undef XREGISTRY
 
@@ -355,14 +340,8 @@
 /* Support Xinerama extension */
 #undef XINERAMA
 
-/* Vendor release */
-#undef XORG_RELEASE
-
 /* Current Xorg version */
 #undef XORG_VERSION_CURRENT
-
-/* Xorg release date */
-#undef XORG_DATE
 
 /* Build Xv Extension */
 #undef XvExtension
@@ -476,9 +455,6 @@
 /* Wrap SIGBUS to catch MIT-SHM faults */
 #undef BUSFAULT
 
-/* Directory for shared memory temp files */
-#undef SHMDIR
-
 /* Don't let Xdefs.h define 'pointer' */
 #define _XTYPEDEF_POINTER       1
 
@@ -497,8 +473,11 @@
 /* Build glamor/gbm has linear support */
 #undef GLAMOR_HAS_GBM_LINEAR
 
-/* Build glamor use new drmGetDeviceNameFromFD2 */
-#undef GLAMOR_HAS_DRM_NAME_FROM_FD_2
+/* GBM has modifiers support */
+#undef GBM_BO_WITH_MODIFIERS
+
+/* Glamor can use eglQueryDmaBuf* functions */
+#undef GLAMOR_HAS_EGL_QUERY_DMABUF
 
 /* byte order */
 #undef X_BYTE_ORDER
@@ -529,5 +508,11 @@
 
 /* Have epoll_create1() */
 #undef HAVE_EPOLL_CREATE1
+
+/* Have <sys/sysmacros.h> header */
+#undef HAVE_SYS_SYSMACROS_H
+
+/* Have sigprocmask */
+#undef HAVE_SIGPROCMASK
 
 #endif /* _DIX_CONFIG_H_ */

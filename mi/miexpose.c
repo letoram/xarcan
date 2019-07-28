@@ -112,10 +112,6 @@ the region package can call this.
 non-existent areas to non-obscured areas of the destination.  Paint the
 background for the region, if the destination is a window.
 
-NOTE:
-     this should generally be called, even if graphicsExposures is false,
-because this is where bits get recovered from backing store.
-
 */
 
 RegionPtr
@@ -136,14 +132,11 @@ miHandleExposures(DrawablePtr pSrcDrawable, DrawablePtr pDstDrawable,
                                    the window background
                                  */
     WindowPtr pSrcWin;
-    BoxRec expBox;
+    BoxRec expBox = { 0, };
     Bool extents;
 
     /* avoid work if we can */
-    if (!pGC->graphicsExposures &&
-        (pDstDrawable->type == DRAWABLE_PIXMAP) &&
-        ((pSrcDrawable->type == DRAWABLE_PIXMAP) ||
-         (((WindowPtr) pSrcDrawable)->backStorage == 0)))
+    if (!pGC->graphicsExposures && pDstDrawable->type == DRAWABLE_PIXMAP)
         return NULL;
 
     srcBox.x1 = srcx;

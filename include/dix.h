@@ -240,6 +240,8 @@ extern _X_EXPORT void RemoveBlockAndWakeupHandlers(ServerBlockHandlerProcPtr blo
 
 extern _X_EXPORT void InitBlockAndWakeupHandlers(void);
 
+extern _X_EXPORT void ClearWorkQueue(void);
+
 extern _X_EXPORT void ProcessWorkQueue(void);
 
 extern _X_EXPORT void ProcessWorkQueueZombies(void);
@@ -261,13 +263,10 @@ extern _X_EXPORT Bool ClientSleep(ClientPtr client,
 extern _X_EXPORT Bool ClientSignal(ClientPtr /*client */ );
 #endif                          /* ___CLIENTSIGNAL_DEFINED___ */
 
-#ifndef ___CLIENTSIGNALALL_DEFINED___
-#define ___CLIENTSIGNALALL_DEFINED___
 #define CLIENT_SIGNAL_ANY ((void *)-1)
 extern _X_EXPORT int ClientSignalAll(ClientPtr /*client*/,
                                      ClientSleepProcPtr /*function*/,
                                      void * /*closure*/);
-#endif                          /* ___CLIENTSIGNALALL_DEFINED___ */
 
 extern _X_EXPORT void ClientWakeup(ClientPtr /*client */ );
 
@@ -555,11 +554,6 @@ ReinitializeRootWindow(WindowPtr win, int xoff, int yoff);
 #ifdef RANDR
 extern _X_EXPORT void
 ScreenRestructured(ScreenPtr pScreen);
-#endif
-
-#ifndef HAVE_FFS
-extern _X_EXPORT int
-ffs(int i);
 #endif
 
 /*

@@ -32,6 +32,7 @@
 #include <micmap.h>
 #include <misyncshm.h>
 #include <compositeext.h>
+#include <compint.h>
 #include <glx_extinit.h>
 #include <os.h>
 #include <xserver_poll.h>
@@ -45,12 +46,6 @@ _X_EXPORT Bool noXFree86VidModeExtension;
 void
 ddxGiveUp(enum ExitCode error)
 {
-}
-
-void
-AbortDDX(enum ExitCode error)
-{
-    ddxGiveUp(error);
 }
 
 void
@@ -73,12 +68,54 @@ ddxBeforeReset(void)
 }
 #endif
 
+#if INPUTTHREAD
+/** This function is called in Xserver/os/inputthread.c when starting
+    the input thread. */
+void
+ddxInputThreadInit(void)
+{
+}
+#endif
+
+ _X_NORETURN
+static void _X_ATTRIBUTE_PRINTF(1, 2)
+xwl_give_up(const char *f, ...)
+{
+    va_list args;
+
+    va_start(args, f);
+    VErrorFSigSafe(f, args);
+    va_end(args);
+
+    CloseWellKnownConnections();
+    OsCleanup(TRUE);
+    fflush(stderr);
+    exit(1);
+}
+
 void
 ddxUseMsg(void)
 {
     ErrorF("-rootless              run rootless, requires wm support\n");
     ErrorF("-wm fd                 create X client for wm on given fd\n");
-    ErrorF("-listen fd             add give fd as a listen socket\n");
+    ErrorF("-listenfd fd           add give fd as a listen socket\n");
+    ErrorF("-listen fd             deprecated, use \"-listenfd\" instead\n");
+    ErrorF("-eglstream             use eglstream backend for nvidia GPUs\n");
+}
+
+static int wm_fd = -1;
+static int listen_fds[5] = { -1, -1, -1, -1, -1 };
+static int listen_fd_count = 0;
+
+static void
+xwl_add_listen_fd(int argc, char *argv[], int i)
+{
+    NoListenAll = TRUE;
+    if (listen_fd_count == ARRAY_SIZE(listen_fds))
+        FatalError("Too many -listen arguments given, max is %zu\n",
+                   ARRAY_SIZE(listen_fds));
+
+    listen_fds[listen_fd_count++] = atoi(argv[i + 1]);
 }
 
 int
@@ -88,13 +125,33 @@ ddxProcessArgument(int argc, char *argv[], int i)
         return 1;
     }
     else if (strcmp(argv[i], "-listen") == 0) {
-        NoListenAll = TRUE;
+        CHECK_FOR_REQUIRED_ARGUMENTS(1);
+
+        /* Not an FD */
+        if (!isdigit(*argv[i + 1]))
+            return 0;
+
+        LogMessage(X_WARNING, "Option \"-listen\" for file descriptors is deprecated\n"
+                              "Please use \"-listenfd\" instead.\n");
+
+        xwl_add_listen_fd (argc, argv, i);
+        return 2;
+    }
+    else if (strcmp(argv[i], "-listenfd") == 0) {
+        CHECK_FOR_REQUIRED_ARGUMENTS(1);
+
+        xwl_add_listen_fd (argc, argv, i);
         return 2;
     }
     else if (strcmp(argv[i], "-wm") == 0) {
+        CHECK_FOR_REQUIRED_ARGUMENTS(1);
+        wm_fd = atoi(argv[i + 1]);
         return 2;
     }
     else if (strcmp(argv[i], "-shm") == 0) {
+        return 1;
+    }
+    else if (strcmp(argv[i], "-eglstream") == 0) {
         return 1;
     }
 
@@ -105,21 +162,10 @@ static DevPrivateKeyRec xwl_window_private_key;
 static DevPrivateKeyRec xwl_screen_private_key;
 static DevPrivateKeyRec xwl_pixmap_private_key;
 
-struct xwl_window *
-xwl_window_of_top(WindowPtr window)
+static struct xwl_window *
+xwl_window_get(WindowPtr window)
 {
     return dixLookupPrivate(&window->devPrivates, &xwl_window_private_key);
-}
-
-static struct xwl_window *
-xwl_window_of_self(WindowPtr window)
-{
-    struct xwl_window *xwl_window = dixLookupPrivate(&window->devPrivates, &xwl_window_private_key);
-
-    if (xwl_window && xwl_window->window == window)
-        return xwl_window;
-    else
-        return  NULL;
 }
 
 struct xwl_screen *
@@ -206,7 +252,7 @@ xwl_property_callback(CallbackListPtr *pcbl, void *closure,
     if (rec->win->drawable.pScreen != screen)
         return;
 
-    xwl_window = xwl_window_of_self(rec->win);
+    xwl_window = xwl_window_get(rec->win);
     if (!xwl_window)
         return;
 
@@ -245,9 +291,28 @@ xwl_close_screen(ScreenPtr screen)
     return screen->CloseScreen(screen);
 }
 
+struct xwl_window *
+xwl_window_from_window(WindowPtr window)
+{
+    struct xwl_window *xwl_window;
+
+    while (window) {
+        xwl_window = xwl_window_get(window);
+        if (xwl_window)
+            return xwl_window;
+
+        window = window->parent;
+    }
+
+    return NULL;
+}
+
 static struct xwl_seat *
 xwl_screen_get_default_seat(struct xwl_screen *xwl_screen)
 {
+    if (xorg_list_is_empty(&xwl_screen->seat_list))
+        return NULL;
+
     return container_of(xwl_screen->seat_list.prev,
                         struct xwl_seat,
                         link);
@@ -269,7 +334,10 @@ xwl_cursor_warped_to(DeviceIntPtr device,
     if (!xwl_seat)
         xwl_seat = xwl_screen_get_default_seat(xwl_screen);
 
-    xwl_window = xwl_window_of_top(window);
+    if (!window)
+        window = XYToWindow(sprite, x, y);
+
+    xwl_window = xwl_window_from_window(window);
     if (!xwl_window && xwl_seat->focus_window) {
         focus = xwl_seat->focus_window->window;
 
@@ -307,12 +375,16 @@ xwl_cursor_confined_to(DeviceIntPtr device,
     if (!xwl_seat)
         xwl_seat = xwl_screen_get_default_seat(xwl_screen);
 
+    /* xwl_seat hasn't been setup yet, don't do anything just yet */
+    if (!xwl_seat)
+        return;
+
     if (window == screen->root) {
         xwl_seat_unconfine_pointer(xwl_seat);
         return;
     }
 
-    xwl_window = xwl_window_of_top(window);
+    xwl_window = xwl_window_from_window(window);
     if (!xwl_window && xwl_seat->focus_window) {
         /* Allow confining on InputOnly windows, but only if the geometry
          * is the same than the focus window.
@@ -333,6 +405,18 @@ damage_report(DamagePtr pDamage, RegionPtr pRegion, void *data)
 {
     struct xwl_window *xwl_window = data;
     struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
+
+#ifdef GLAMOR_HAS_GBM
+    if (xwl_window->present_flipped) {
+        /* This damage is from a Present flip, which already committed a new
+         * buffer for the surface, so we don't need to do anything in response
+         */
+        RegionEmpty(DamageRegion(pDamage));
+        xorg_list_del(&xwl_window->link_damage);
+        xwl_window->present_flipped = FALSE;
+        return;
+    }
+#endif
 
     xorg_list_add(&xwl_window->link_damage, &xwl_screen->damage_window_list);
 }
@@ -428,7 +512,6 @@ xwl_realize_window(WindowPtr window)
     struct xwl_screen *xwl_screen;
     struct xwl_window *xwl_window;
     struct wl_region *region;
-    Bool create_xwl_window = TRUE;
     Bool ret;
 
     xwl_screen = xwl_screen_get(screen);
@@ -448,17 +531,11 @@ xwl_realize_window(WindowPtr window)
 
     if (xwl_screen->rootless) {
         if (window->redirectDraw != RedirectDrawManual)
-            create_xwl_window = FALSE;
+            return ret;
     }
     else {
         if (window->parent)
-            create_xwl_window = FALSE;
-    }
-
-    if (!create_xwl_window) {
-        if (window->parent)
-            dixSetPrivate(&window->devPrivates, &xwl_window_private_key, xwl_window_of_top(window->parent));
-        return ret;
+            return ret;
     }
 
     xwl_window = calloc(1, sizeof *xwl_window);
@@ -512,6 +589,8 @@ xwl_realize_window(WindowPtr window)
         goto err_surf;
     }
 
+    compRedirectWindow(serverClient, window, CompositeRedirectManual);
+
     DamageRegister(&window->drawable, xwl_window->damage);
     DamageSetReportAfterOp(xwl_window->damage, TRUE);
 
@@ -545,6 +624,8 @@ xwl_unrealize_window(WindowPtr window)
     xorg_list_for_each_entry(xwl_seat, &xwl_screen->seat_list, link) {
         if (xwl_seat->focus_window && xwl_seat->focus_window->window == window)
             xwl_seat->focus_window = NULL;
+        if (xwl_seat->tablet_focus_window && xwl_seat->tablet_focus_window->window == window)
+            xwl_seat->tablet_focus_window = NULL;
         if (xwl_seat->last_xwindow == window)
             xwl_seat->last_xwindow = NullWindow;
         if (xwl_seat->cursor_confinement_window &&
@@ -557,20 +638,24 @@ xwl_unrealize_window(WindowPtr window)
         xwl_seat_clear_touch(xwl_seat, window);
     }
 
+    compUnredirectWindow(serverClient, window, CompositeRedirectManual);
+
     screen->UnrealizeWindow = xwl_screen->UnrealizeWindow;
     ret = (*screen->UnrealizeWindow) (window);
     xwl_screen->UnrealizeWindow = screen->UnrealizeWindow;
     screen->UnrealizeWindow = xwl_unrealize_window;
 
-    xwl_window = xwl_window_of_self(window);
-    if (!xwl_window) {
-        dixSetPrivate(&window->devPrivates, &xwl_window_private_key, NULL);
+#ifdef GLAMOR_HAS_GBM
+    if (xwl_screen->present)
+        xwl_present_unrealize_window(window);
+#endif
+
+    xwl_window = xwl_window_get(window);
+    if (!xwl_window)
         return ret;
-    }
 
     wl_surface_destroy(xwl_window->surface);
-    if (RegionNotEmpty(DamageRegion(xwl_window->damage)))
-        xorg_list_del(&xwl_window->link_damage);
+    xorg_list_del(&xwl_window->link_damage);
     DamageUnregister(xwl_window->damage);
     DamageDestroy(xwl_window->damage);
     if (xwl_window->frame_callback)
@@ -580,12 +665,6 @@ xwl_unrealize_window(WindowPtr window)
     dixSetPrivate(&window->devPrivates, &xwl_window_private_key, NULL);
 
     return ret;
-}
-
-static Bool
-xwl_save_screen(ScreenPtr pScreen, int on)
-{
-    return TRUE;
 }
 
 static void
@@ -603,6 +682,31 @@ static const struct wl_callback_listener frame_listener = {
     frame_callback
 };
 
+static Bool
+xwl_destroy_window(WindowPtr window)
+{
+    ScreenPtr screen = window->drawable.pScreen;
+    struct xwl_screen *xwl_screen = xwl_screen_get(screen);
+    Bool ret;
+
+#ifdef GLAMOR_HAS_GBM
+    if (xwl_screen->present)
+        xwl_present_cleanup(window);
+#endif
+
+    screen->DestroyWindow = xwl_screen->DestroyWindow;
+
+    if (screen->DestroyWindow)
+        ret = screen->DestroyWindow (window);
+    else
+        ret = TRUE;
+
+    xwl_screen->DestroyWindow = screen->DestroyWindow;
+    screen->DestroyWindow = xwl_destroy_window;
+
+    return ret;
+}
+
 static void
 xwl_window_post_damage(struct xwl_window *xwl_window)
 {
@@ -611,24 +715,42 @@ xwl_window_post_damage(struct xwl_window *xwl_window)
     BoxPtr box;
     struct wl_buffer *buffer;
     PixmapPtr pixmap;
+    int i;
 
     assert(!xwl_window->frame_callback);
 
     region = DamageRegion(xwl_window->damage);
     pixmap = (*xwl_screen->screen->GetWindowPixmap) (xwl_window->window);
 
-#ifdef GLAMOR_HAS_GBM
+#ifdef XWL_HAS_GLAMOR
     if (xwl_screen->glamor)
-        buffer = xwl_glamor_pixmap_get_wl_buffer(pixmap);
+        buffer = xwl_glamor_pixmap_get_wl_buffer(pixmap,
+                                                 NULL);
     else
 #endif
         buffer = xwl_shm_pixmap_get_wl_buffer(pixmap);
 
+#ifdef XWL_HAS_GLAMOR
+    if (xwl_screen->glamor)
+        xwl_glamor_post_damage(xwl_window, pixmap, region);
+#endif
+
     wl_surface_attach(xwl_window->surface, buffer, 0, 0);
 
-    box = RegionExtents(region);
-    wl_surface_damage(xwl_window->surface, box->x1, box->y1,
-                        box->x2 - box->x1, box->y2 - box->y1);
+    /* Arbitrary limit to try to avoid flooding the Wayland
+     * connection. If we flood it too much anyway, this could
+     * abort in libwayland-client.
+     */
+    if (RegionNumRects(region) > 256) {
+        box = RegionExtents(region);
+        wl_surface_damage(xwl_window->surface, box->x1, box->y1,
+                          box->x2 - box->x1, box->y2 - box->y1);
+    } else {
+        box = RegionRects(region);
+        for (i = 0; i < RegionNumRects(region); i++, box++)
+            wl_surface_damage(xwl_window->surface, box->x1, box->y1,
+                              box->x2 - box->x1, box->y2 - box->y1);
+    }
 
     xwl_window->frame_callback = wl_surface_frame(xwl_window->surface);
     wl_callback_add_listener(xwl_window->frame_callback, &frame_listener, xwl_window);
@@ -653,6 +775,11 @@ xwl_screen_post_damage(struct xwl_screen *xwl_screen)
 
         if (!xwl_window->allow_commits)
             continue;
+
+#ifdef XWL_HAS_GLAMOR
+        if (xwl_screen->glamor && !xwl_glamor_allow_commits(xwl_window))
+            continue;
+#endif
 
         xwl_window_post_damage(xwl_window);
     }
@@ -679,10 +806,15 @@ registry_global(void *data, struct wl_registry *registry, uint32_t id,
         if (xwl_output_create(xwl_screen, id))
             xwl_screen->expecting_event++;
     }
-#ifdef GLAMOR_HAS_GBM
-    else if (xwl_screen->glamor &&
-             strcmp(interface, "wl_drm") == 0 && version >= 2) {
-        xwl_screen_init_glamor(xwl_screen, id, version);
+    else if (strcmp(interface, "zxdg_output_manager_v1") == 0) {
+        xwl_screen->xdg_output_manager =
+            wl_registry_bind(registry, id, &zxdg_output_manager_v1_interface, 1);
+        xwl_screen_init_xdg_output(xwl_screen);
+    }
+#ifdef XWL_HAS_GLAMOR
+    else if (xwl_screen->glamor) {
+        xwl_glamor_init_wl_registry(xwl_screen, registry, id, interface,
+                                    version);
     }
 #endif
 }
@@ -717,13 +849,13 @@ xwl_read_events (struct xwl_screen *xwl_screen)
 
     ret = wl_display_read_events(xwl_screen->display);
     if (ret == -1)
-        FatalError("failed to read Wayland events: %s\n", strerror(errno));
+        xwl_give_up("failed to read Wayland events: %s\n", strerror(errno));
 
     xwl_screen->prepare_read = 0;
 
     ret = wl_display_dispatch_pending(xwl_screen->display);
     if (ret == -1)
-        FatalError("failed to dispatch Wayland events: %s\n", strerror(errno));
+        xwl_give_up("failed to dispatch Wayland events: %s\n", strerror(errno));
 }
 
 static int
@@ -750,7 +882,7 @@ xwl_dispatch_events (struct xwl_screen *xwl_screen)
            wl_display_prepare_read(xwl_screen->display) == -1) {
         ret = wl_display_dispatch_pending(xwl_screen->display);
         if (ret == -1)
-            FatalError("failed to dispatch Wayland events: %s\n",
+            xwl_give_up("failed to dispatch Wayland events: %s\n",
                        strerror(errno));
     }
 
@@ -759,13 +891,13 @@ xwl_dispatch_events (struct xwl_screen *xwl_screen)
 pollout:
     ready = xwl_display_pollout(xwl_screen, 5);
     if (ready == -1 && errno != EINTR)
-        FatalError("error polling on XWayland fd: %s\n", strerror(errno));
+        xwl_give_up("error polling on XWayland fd: %s\n", strerror(errno));
 
     if (ready > 0)
         ret = wl_display_flush(xwl_screen->display);
 
     if (ret == -1 && errno != EAGAIN)
-        FatalError("failed to write to XWayland fd: %s\n", strerror(errno));
+        xwl_give_up("failed to write to XWayland fd: %s\n", strerror(errno));
 
     xwl_screen->wait_flush = (ready == 0 || ready == -1 || ret == -1);
 }
@@ -802,9 +934,7 @@ xwl_sync_events (struct xwl_screen *xwl_screen)
 static CARD32
 add_client_fd(OsTimerPtr timer, CARD32 time, void *arg)
 {
-    struct xwl_screen *xwl_screen = arg;
-
-    if (!AddClientOnOpenFD(xwl_screen->wm_fd))
+    if (!AddClientOnOpenFD(wm_fd))
         FatalError("Failed to add wm client\n");
 
     TimerFree(timer);
@@ -813,12 +943,12 @@ add_client_fd(OsTimerPtr timer, CARD32 time, void *arg)
 }
 
 static void
-listen_on_fds(struct xwl_screen *xwl_screen)
+listen_on_fds(void)
 {
     int i;
 
-    for (i = 0; i < xwl_screen->listen_fd_count; i++)
-        ListenOnOpenFD(xwl_screen->listen_fds[i], FALSE);
+    for (i = 0; i < listen_fd_count; i++)
+        ListenOnOpenFD(listen_fds[i], FALSE);
 }
 
 static void
@@ -835,7 +965,7 @@ wm_selection_callback(CallbackListPtr *p, void *data, void *arg)
         info->kind != SelectionSetOwner)
         return;
 
-    listen_on_fds(xwl_screen);
+    listen_on_fds();
 
     DeleteCallback(&SelectionCallback, wm_selection_callback, xwl_screen);
 }
@@ -847,11 +977,11 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
     struct xwl_screen *xwl_screen;
     Pixel red_mask, blue_mask, green_mask;
     int ret, bpc, green_bpc, i;
+    Bool use_eglstreams = FALSE;
 
     xwl_screen = calloc(1, sizeof *xwl_screen);
     if (xwl_screen == NULL)
         return FALSE;
-    xwl_screen->wm_fd = -1;
 
     if (!dixRegisterPrivateKey(&xwl_screen_private_key, PRIVATE_SCREEN, 0))
         return FALSE;
@@ -863,7 +993,7 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
     dixSetPrivate(&pScreen->devPrivates, &xwl_screen_private_key, xwl_screen);
     xwl_screen->screen = pScreen;
 
-#ifdef GLAMOR_HAS_GBM
+#ifdef XWL_HAS_GLAMOR
     xwl_screen->glamor = 1;
 #endif
 
@@ -871,25 +1001,22 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
         if (strcmp(argv[i], "-rootless") == 0) {
             xwl_screen->rootless = 1;
         }
-        else if (strcmp(argv[i], "-wm") == 0) {
-            xwl_screen->wm_fd = atoi(argv[i + 1]);
-            i++;
-            TimerSet(NULL, 0, 1, add_client_fd, xwl_screen);
-        }
-        else if (strcmp(argv[i], "-listen") == 0) {
-            if (xwl_screen->listen_fd_count ==
-                ARRAY_SIZE(xwl_screen->listen_fds))
-                FatalError("Too many -listen arguments given, max is %ld\n",
-                           ARRAY_SIZE(xwl_screen->listen_fds));
-
-            xwl_screen->listen_fds[xwl_screen->listen_fd_count++] =
-                atoi(argv[i + 1]);
-            i++;
-        }
         else if (strcmp(argv[i], "-shm") == 0) {
             xwl_screen->glamor = 0;
         }
+        else if (strcmp(argv[i], "-eglstream") == 0) {
+#ifdef XWL_HAS_EGLSTREAM
+            use_eglstreams = TRUE;
+#else
+            ErrorF("xwayland glamor: this build does not have EGLStream support\n");
+#endif
+        }
     }
+
+#ifdef XWL_HAS_GLAMOR
+    if (xwl_screen->glamor)
+        xwl_glamor_init_backends(xwl_screen, use_eglstreams);
+#endif
 
     /* In rootless mode, we don't have any screen storage, and the only
      * rendering should be to redirected mode. */
@@ -897,13 +1024,6 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
         xwl_screen->root_clip_mode = ROOT_CLIP_INPUT_ONLY;
     else
         xwl_screen->root_clip_mode = ROOT_CLIP_FULL;
-
-    if (xwl_screen->listen_fd_count > 0) {
-        if (xwl_screen->wm_fd >= 0)
-            AddCallback(&SelectionCallback, wm_selection_callback, xwl_screen);
-        else
-            listen_on_fds(xwl_screen);
-    }
 
     xorg_list_init(&xwl_screen->output_list);
     xorg_list_init(&xwl_screen->seat_list);
@@ -963,8 +1083,6 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
     SetNotifyFd(xwl_screen->wayland_fd, socket_handler, X_NOTIFY_READ, xwl_screen);
     RegisterBlockAndWakeupHandlers(block_handler, wakeup_handler, xwl_screen);
 
-    pScreen->SaveScreen = xwl_save_screen;
-
     pScreen->blackPixel = 0;
     pScreen->whitePixel = 1;
 
@@ -973,11 +1091,18 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
     if (!xwl_screen_init_cursor(xwl_screen))
         return FALSE;
 
-#ifdef GLAMOR_HAS_GBM
-    if (xwl_screen->glamor && !xwl_glamor_init(xwl_screen)) {
-        ErrorF("Failed to initialize glamor, falling back to sw\n");
-        xwl_screen->glamor = 0;
+#ifdef XWL_HAS_GLAMOR
+    if (xwl_screen->glamor) {
+        xwl_glamor_select_backend(xwl_screen, use_eglstreams);
+
+        if (xwl_screen->egl_backend == NULL || !xwl_glamor_init(xwl_screen)) {
+           ErrorF("Failed to initialize glamor, falling back to sw\n");
+           xwl_screen->glamor = 0;
+        }
     }
+
+    if (xwl_screen->glamor && xwl_screen->rootless)
+        xwl_screen->present = xwl_present_init(pScreen);
 #endif
 
     if (!xwl_screen->glamor) {
@@ -993,6 +1118,9 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
     xwl_screen->UnrealizeWindow = pScreen->UnrealizeWindow;
     pScreen->UnrealizeWindow = xwl_unrealize_window;
 
+    xwl_screen->DestroyWindow = pScreen->DestroyWindow;
+    pScreen->DestroyWindow = xwl_destroy_window;
+
     xwl_screen->CloseScreen = pScreen->CloseScreen;
     pScreen->CloseScreen = xwl_close_screen;
 
@@ -1006,6 +1134,10 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
         return FALSE;
 
     AddCallback(&PropertyStateCallback, xwl_property_callback, pScreen);
+
+    wl_display_roundtrip(xwl_screen->display);
+    while (xwl_screen->expecting_event)
+        wl_display_roundtrip(xwl_screen->display);
 
     return ret;
 }
@@ -1021,9 +1153,6 @@ xwl_log_handler(const char *format, va_list args)
 }
 
 static const ExtensionModule xwayland_extensions[] = {
-#ifdef GLXEXT
-    { GlxExtensionInit, "GLX", &noGlxExtension },
-#endif
 #ifdef XF86VIDMODE
     { xwlVidModeExtensionInit, XF86VIDMODENAME, &noXFree86VidModeExtension },
 #endif
@@ -1061,5 +1190,14 @@ InitOutput(ScreenInfo * screen_info, int argc, char **argv)
         FatalError("Couldn't add screen\n");
     }
 
+    xorgGlxCreateVendor();
+
     LocalAccessScopeUser();
+
+    if (wm_fd >= 0) {
+        TimerSet(NULL, 0, 1, add_client_fd, NULL);
+        AddCallback(&SelectionCallback, wm_selection_callback, NULL);
+    } else if (listen_fd_count > 0) {
+        listen_on_fds();
+    }
 }

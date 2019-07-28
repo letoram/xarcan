@@ -8,16 +8,27 @@ srcs_xext = [
     'xtest.c',
 ]
 
+hdrs_xext = [
+    'geext.h',
+    'geint.h',
+    'syncsdk.h',
+]
+
 if build_dpms
     srcs_xext += 'dpms.c'
 endif
 
 if build_mitshm
     srcs_xext += 'shm.c'
+    hdrs_xext += ['shmint.h']
+endif
+
+if build_hashtable
+    srcs_xext += 'hashtable.c'
 endif
 
 if build_res
-    srcs_xext += ['hashtable.c', 'xres.c']
+    srcs_xext += 'xres.c'
 endif
 
 if build_screensaver
@@ -26,6 +37,7 @@ endif
 
 if build_xace
     srcs_xext += 'xace.c'
+    hdrs_xext += ['xace.h', 'xacestr.h']
 endif
 
 if build_xf86bigfont
@@ -34,6 +46,7 @@ endif
 
 if build_xinerama
     srcs_xext += ['panoramiX.c', 'panoramiXprocs.c', 'panoramiXSwap.c']
+    hdrs_xext += ['panoramiX.h', 'panoramiXsrv.h']
 endif
 
 if build_xsecurity
@@ -46,6 +59,7 @@ endif
 
 if build_xv
     srcs_xext += ['xvmain.c', 'xvdisp.c', 'xvmc.c']
+    hdrs_xext += ['xvdix.h', 'xvmcext.h']
 endif
 
 libxserver_xext = static_library('libxserver_xext',
@@ -59,3 +73,5 @@ libxserver_xext_vidmode = static_library('libxserver_xext_vidmode',
     include_directories: inc,
     dependencies: common_dep,
 )
+
+install_data(hdrs_xext, install_dir: xorgsdkdir)

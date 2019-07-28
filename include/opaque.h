@@ -35,7 +35,6 @@ from The Open Group.
 
 extern _X_EXPORT const char *defaultTextFont;
 extern _X_EXPORT const char *defaultCursorFont;
-extern _X_EXPORT int MaxClients;
 extern _X_EXPORT int LimitClients;
 extern _X_EXPORT volatile char isItTimeToYield;
 extern _X_EXPORT volatile char dispatchException;
@@ -54,7 +53,6 @@ extern _X_EXPORT const char *display;
 extern _X_EXPORT int displayfd;
 extern _X_EXPORT Bool explicit_display;
 
-extern _X_EXPORT int defaultBackingStore;
 extern _X_EXPORT Bool disableBackingStore;
 extern _X_EXPORT Bool enableBackingStore;
 extern _X_EXPORT Bool enableIndirectGLX;

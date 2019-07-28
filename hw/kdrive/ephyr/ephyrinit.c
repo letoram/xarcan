@@ -58,25 +58,9 @@ InitCard(char *name)
     KdCardInfoAdd(&ephyrFuncs, 0);
 }
 
-static const ExtensionModule ephyrExtensions[] = {
-#ifdef GLXEXT
- { GlxExtensionInit, "GLX", &noGlxExtension },
-#endif
-};
-
-static
-void ephyrExtensionInit(void)
-{
-    LoadExtensionList(ephyrExtensions, ARRAY_SIZE(ephyrExtensions), TRUE);
-}
-
-
 void
 InitOutput(ScreenInfo * pScreenInfo, int argc, char **argv)
 {
-    if (serverGeneration == 1)
-        ephyrExtensionInit();
-
     KdInitOutput(pScreenInfo, argc, argv);
 }
 
@@ -115,6 +99,15 @@ CloseInput(void)
 {
     KdCloseInput();
 }
+
+#if INPUTTHREAD
+/** This function is called in Xserver/os/inputthread.c when starting
+    the input thread. */
+void
+ddxInputThreadInit(void)
+{
+}
+#endif
 
 #ifdef DDXBEFORERESET
 void

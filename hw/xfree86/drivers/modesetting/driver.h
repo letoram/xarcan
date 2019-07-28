@@ -32,6 +32,7 @@
 #include <xf86drm.h>
 #include <xf86Crtc.h>
 #include <damage.h>
+#include <X11/extensions/dpmsconst.h>
 
 #ifdef GLAMOR_HAS_GBM
 #define GLAMOR_FOR_XORG 1
@@ -40,7 +41,6 @@
 #endif
 
 #include "drmmode_display.h"
-#define DRV_ERROR(msg)	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, msg);
 #define MS_LOGLEVEL_DEBUG 4
 
 typedef enum {
@@ -84,6 +84,7 @@ struct ms_drm_queue {
 
 typedef struct _modesettingRec {
     int fd;
+    Bool fd_passed;
 
     int Chipset;
     EntityInfoPtr pEnt;
@@ -105,12 +106,20 @@ typedef struct _modesettingRec {
      * Page flipping stuff.
      *  @{
      */
+    Bool atomic_modeset;
+    Bool pending_modeset;
     /** @} */
 
     DamagePtr damage;
     Bool dirty_enabled;
 
     uint32_t cursor_width, cursor_height;
+
+    Bool has_queue_sequence;
+    Bool tried_queue_sequence;
+
+    Bool kms_has_modifiers;
+
 } modesettingRec, *modesettingPtr;
 
 #define modesettingPTR(p) ((modesettingPtr)((p)->driverPrivate))
@@ -120,6 +129,15 @@ uint32_t ms_drm_queue_alloc(xf86CrtcPtr crtc,
                             void *data,
                             ms_drm_handler_proc handler,
                             ms_drm_abort_proc abort);
+
+typedef enum ms_queue_flag {
+    MS_QUEUE_ABSOLUTE = 0,
+    MS_QUEUE_RELATIVE = 1,
+    MS_QUEUE_NEXT_ON_MISS = 2
+} ms_queue_flag;
+
+Bool ms_queue_vblank(xf86CrtcPtr crtc, ms_queue_flag flags,
+                     uint64_t msc, uint64_t *msc_queued, uint32_t seq);
 
 void ms_drm_abort(ScrnInfoPtr scrn,
                   Bool (*match)(void *data, void *match_data),
@@ -132,8 +150,7 @@ xf86CrtcPtr ms_dri2_crtc_covering_drawable(DrawablePtr pDraw);
 
 int ms_get_crtc_ust_msc(xf86CrtcPtr crtc, CARD64 *ust, CARD64 *msc);
 
-uint32_t ms_crtc_msc_to_kernel_msc(xf86CrtcPtr crtc, uint64_t expect);
-uint64_t ms_kernel_msc_to_crtc_msc(xf86CrtcPtr crtc, uint32_t sequence);
+uint64_t ms_kernel_msc_to_crtc_msc(xf86CrtcPtr crtc, uint64_t sequence, Bool is64bit);
 
 
 Bool ms_dri2_screen_init(ScreenPtr screen);

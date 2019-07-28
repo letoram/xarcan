@@ -28,6 +28,7 @@
 #include "glxserver.h"
 #include "glxext.h"
 #include "indirect_dispatch.h"
+#include "opaque.h"
 
 #define ALL_VALID_FLAGS \
     (GLX_CONTEXT_DEBUG_BIT_ARB | GLX_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB \
@@ -87,13 +88,11 @@ __glXDisp_CreateContextAttribsARB(__GLXclientState * cl, GLbyte * pc)
     int minor_version = 0;
     uint32_t flags = 0;
     uint32_t render_type = GLX_RGBA_TYPE;
-#ifdef GLX_CONTEXT_RELEASE_BEHAVIOR_ARB
     uint32_t flush = GLX_CONTEXT_RELEASE_BEHAVIOR_FLUSH_ARB;
-#endif
     __GLXcontext *ctx = NULL;
     __GLXcontext *shareCtx = NULL;
     __GLXscreen *glxScreen;
-    __GLXconfig *config;
+    __GLXconfig *config = NULL;
     int err;
 
     /* The GLX_ARB_create_context_robustness spec says:
@@ -123,8 +122,6 @@ __glXDisp_CreateContextAttribsARB(__GLXclientState * cl, GLbyte * pc)
     if (req->length != expected_size)
         return BadLength;
 
-    LEGAL_NEW_RESOURCE(req->context, client);
-
     /* The GLX_ARB_create_context spec says:
      *
      *     "* If <config> is not a valid GLXFBConfig, GLXBadFBConfig is
@@ -136,8 +133,10 @@ __glXDisp_CreateContextAttribsARB(__GLXclientState * cl, GLbyte * pc)
     if (!validGlxScreen(client, req->screen, &glxScreen, &err))
         return __glXError(GLXBadFBConfig);
 
-    if (!validGlxFBConfig(client, glxScreen, req->fbconfig, &config, &err))
-        return __glXError(GLXBadFBConfig);
+    if (req->fbconfig) {
+        if (!validGlxFBConfig(client, glxScreen, req->fbconfig, &config, &err))
+            return __glXError(GLXBadFBConfig);
+    }
 
     /* Validate the context with which the new context should share resources.
      */
@@ -182,6 +181,9 @@ __glXDisp_CreateContextAttribsARB(__GLXclientState * cl, GLbyte * pc)
             break;
 
         case GLX_RENDER_TYPE:
+            /* Not valid for GLX_EXT_no_config_context */
+            if (!req->fbconfig)
+                return BadValue;
             render_type = attribs[2 * i + 1];
             break;
 
@@ -197,14 +199,25 @@ __glXDisp_CreateContextAttribsARB(__GLXclientState * cl, GLbyte * pc)
 
             break;
 
-#ifdef GLX_CONTEXT_RELEASE_BEHAVIOR_ARB
         case GLX_CONTEXT_RELEASE_BEHAVIOR_ARB:
             flush = attribs[2 * i + 1];
             if (flush != GLX_CONTEXT_RELEASE_BEHAVIOR_NONE_ARB
                 && flush != GLX_CONTEXT_RELEASE_BEHAVIOR_FLUSH_ARB)
                 return BadValue;
             break;
-#endif
+
+        case GLX_SCREEN:
+            /* Only valid for GLX_EXT_no_config_context */
+            if (req->fbconfig)
+                return BadValue;
+            /* Must match the value in the request header */
+            if (attribs[2 * i + 1] != req->screen)
+                return BadValue;
+            break;
+
+        case GLX_CONTEXT_OPENGL_NO_ERROR_ARB:
+            /* ignore */
+            break;
 
         default:
             if (!req->isDirect)
@@ -304,6 +317,17 @@ __glXDisp_CreateContextAttribsARB(__GLXclientState * cl, GLbyte * pc)
         err = BadAlloc;
     }
     else {
+        /* Only allow creating indirect GLX contexts if allowed by
+         * server command line.  Indirect GLX is of limited use (since
+         * it's only GL 1.4), it's slower than direct contexts, and
+         * it's a massive attack surface for buffer overflow type
+         * errors.
+         */
+        if (!enableIndirectGLX) {
+            client->errorValue = req->isDirect;
+            return BadValue;
+        }
+
         ctx = glxScreen->createContext(glxScreen, config, shareCtx,
                                        req->numAttribs, (uint32_t *) attribs,
                                        &err);
@@ -320,9 +344,7 @@ __glXDisp_CreateContextAttribsARB(__GLXclientState * cl, GLbyte * pc)
     ctx->isDirect = req->isDirect;
     ctx->renderMode = GL_RENDER;
     ctx->resetNotificationStrategy = reset;
-#ifdef GLX_CONTEXT_RELEASE_BEHAVIOR_ARB
     ctx->releaseBehavior = flush;
-#endif
 
     /* Add the new context to the various global tables of GLX contexts.
      */

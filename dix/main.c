@@ -136,8 +136,6 @@ dix_main(int argc, char *argv[], char *envp[])
 
     CheckUserAuthorization();
 
-    InitConnectionLimits();
-
     ProcessCommandLine(argc, argv);
 
     alwaysCheckForInput[0] = 0;
@@ -341,6 +339,8 @@ dix_main(int argc, char *argv[], char *envp[])
         FreeAuditTimer();
 
         DeleteCallbackManager();
+
+        ClearWorkQueue();
 
         if (dispatchException & DE_TERMINATE) {
             CloseWellKnownConnections();

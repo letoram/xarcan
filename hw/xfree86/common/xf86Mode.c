@@ -86,6 +86,7 @@
 
 #include <X11/X.h>
 #include "xf86Modes.h"
+#include "xf86Crtc.h"
 #include "os.h"
 #include "servermd.h"
 #include "globals.h"
@@ -477,7 +478,7 @@ xf86LookupMode(ScrnInfoPtr scrp, DisplayModePtr modep,
         M_T_DRIVER,
         0
     };
-    const int ntypes = sizeof(types) / sizeof(int);
+    const int ntypes = ARRAY_SIZE(types);
 
     strategy &= ~(LOOKUP_CLKDIV2 | LOOKUP_OPTIONAL_TOLERANCES);
 
@@ -1643,12 +1644,8 @@ xf86ValidateModes(ScrnInfoPtr scrp, DisplayModePtr availModes,
     }
 
     /* Lookup each mode */
-#ifdef RANDR
-    if (!xf86Info.disableRandR
 #ifdef PANORAMIX
-        && noPanoramiXExtension
-#endif
-        )
+    if (noPanoramiXExtension)
         validateAllDefaultModes = TRUE;
 #endif
 
@@ -1853,7 +1850,7 @@ xf86ValidateModes(ScrnInfoPtr scrp, DisplayModePtr availModes,
                 M_T_DRIVER,
                 0
             };
-            const int ntypes = sizeof(types) / sizeof(int);
+            const int ntypes = ARRAY_SIZE(types);
             int n;
 
             /*

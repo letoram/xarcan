@@ -86,9 +86,7 @@
 #include "xf86platformBus.h"
 #include "systemd-logind.h"
 
-#ifdef XF86PM
 extern void (*xf86OSPMClose) (void);
-#endif
 
 static void xf86VTSwitch(void);
 
@@ -106,12 +104,6 @@ typedef struct x_IHRec {
 } IHRec, *IHPtr;
 
 static IHPtr InputHandlers = NULL;
-
-Bool
-LegalModifier(unsigned int key, DeviceIntPtr pDev)
-{
-    return TRUE;
-}
 
 /*
  * TimeSinceLastInputEvent --
@@ -168,9 +160,6 @@ xf86ProcessActionEvent(ActionEvent action, void *arg)
     case ACTION_TERMINATE:
         if (!xf86Info.dontZap) {
             xf86Msg(X_INFO, "Server zapped. Shutting down.\n");
-#ifdef XFreeXDGA
-            DGAShutdown();
-#endif
             GiveUp(0);
         }
         break;
@@ -265,44 +254,6 @@ void
 xf86RemoveEnabledDevice(InputInfoPtr pInfo)
 {
     InputThreadUnregisterDev(pInfo->fd);
-}
-
-static int *xf86SignalIntercept = NULL;
-
-void
-xf86InterceptSignals(int *signo)
-{
-    if ((xf86SignalIntercept = signo))
-        *signo = -1;
-}
-
-static void (*xf86SigIllHandler) (void) = NULL;
-
-void
-xf86InterceptSigIll(void (*sigillhandler) (void))
-{
-    xf86SigIllHandler = sigillhandler;
-}
-
-/*
- * xf86SigWrapper --
- *    Catch unexpected signals and exit or continue cleanly.
- */
-int
-xf86SigWrapper(int signo)
-{
-    if ((signo == SIGILL) && xf86SigIllHandler) {
-        (*xf86SigIllHandler) ();
-        return 0;               /* continue */
-    }
-
-    if (xf86SignalIntercept && (*xf86SignalIntercept < 0)) {
-        *xf86SignalIntercept = signo;
-        return 0;               /* continue */
-    }
-
-    xf86Info.caughtSignal = TRUE;
-    return 1;                   /* abort */
 }
 
 /*
@@ -434,11 +385,9 @@ xf86VTLeave(void)
     if (!xf86VTSwitchAway())
         goto switch_failed;
 
-#ifdef XF86PM
     if (xf86OSPMClose)
         xf86OSPMClose();
     xf86OSPMClose = NULL;
-#endif
 
     for (i = 0; i < xf86NumScreens; i++) {
         /*
@@ -494,9 +443,7 @@ xf86VTEnter(void)
     if (!xf86VTSwitchTo())
         return;
 
-#ifdef XF86PM
     xf86OSPMClose = xf86OSPMOpen();
-#endif
 
     if (xorgHWAccess)
         xf86EnableIO();

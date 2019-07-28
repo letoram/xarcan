@@ -23,22 +23,19 @@
 static Bool
 get_drm_info(struct OdevAttributes *attribs, char *path, int delayed_index)
 {
-    drmSetVersion sv;
     drmVersionPtr v;
-    char *buf;
-    int major, minor, fd;
+    int fd;
     int err = 0;
     Bool paused, server_fd = FALSE;
 
-    major = attribs->major;
-    minor = attribs->minor;
+    LogMessage(X_INFO, "Platform probe for %s\n", attribs->syspath);
 
-    fd = systemd_logind_take_fd(major, minor, path, &paused);
+    fd = systemd_logind_take_fd(attribs->major, attribs->minor, path, &paused);
     if (fd != -1) {
         if (paused) {
             LogMessage(X_ERROR,
                     "Error systemd-logind returned paused fd for drm node\n");
-            systemd_logind_release_fd(major, minor, -1);
+            systemd_logind_release_fd(attribs->major, attribs->minor, -1);
             return FALSE;
         }
         attribs->fd = fd;
@@ -46,22 +43,10 @@ get_drm_info(struct OdevAttributes *attribs, char *path, int delayed_index)
     }
 
     if (fd == -1)
-        fd = open(path, O_RDWR, O_CLOEXEC);
+        fd = open(path, O_RDWR | O_CLOEXEC, 0);
 
     if (fd == -1)
         return FALSE;
-
-    sv.drm_di_major = 1;
-    sv.drm_di_minor = 4;
-    sv.drm_dd_major = -1;       /* Don't care */
-    sv.drm_dd_minor = -1;       /* Don't care */
-
-    err = drmSetInterfaceVersion(fd, &sv);
-    if (err) {
-        xf86Msg(X_ERROR, "%s: failed to set DRM interface version 1.4: %s\n",
-                path, strerror(-err));
-        goto out;
-    }
 
     /* for a delayed probe we've already added the device */
     if (delayed_index == -1) {
@@ -71,10 +56,6 @@ get_drm_info(struct OdevAttributes *attribs, char *path, int delayed_index)
 
     if (server_fd)
         xf86_platform_devices[delayed_index].flags |= XF86_PDEV_SERVER_FD;
-
-    buf = drmGetBusid(fd);
-    xf86_platform_odev_attributes(delayed_index)->busid = XNFstrdup(buf);
-    drmFreeBusid(buf);
 
     v = drmGetVersion(fd);
     if (!v) {

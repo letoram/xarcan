@@ -38,6 +38,7 @@
 #include <os.h>
 #include <colormapst.h>
 
+#include "extinit.h"
 #include "privates.h"
 #include "glxserver.h"
 #include "glxutil.h"
@@ -271,10 +272,22 @@ pickFBConfig(__GLXscreen * pGlxScreen, VisualPtr visual)
         /* If it's the 32-bit RGBA visual, demand a 32-bit fbconfig. */
         if (visual->nplanes == 32 && config->rgbBits != 32)
             continue;
+        /* If it's the 32-bit RGBA visual, do not pick sRGB capable config.
+         * This can cause issues with compositors that are not sRGB aware.
+         */
+        if (visual->nplanes == 32 && config->sRGBCapable == GL_TRUE)
+            continue;
         /* Can't use the same FBconfig for multiple X visuals.  I think. */
         if (config->visualID != 0)
             continue;
-
+#ifdef COMPOSITE
+        if (!noCompositeExtension) {
+            /* Use only duplicated configs for compIsAlternateVisuals */
+            if (!!compIsAlternateVisual(pGlxScreen->pScreen, visual->vid) !=
+                !!config->duplicatedForComp)
+                continue;
+        }
+#endif
         /*
          * If possible, use the same swapmethod for all built-in visual
          * fbconfigs, to avoid getting the 32-bit composite visual when
@@ -343,8 +356,10 @@ __glXScreenInit(__GLXscreen * pGlxScreen, ScreenPtr pScreen)
             pGlxScreen->visuals[pGlxScreen->numVisuals++] = config;
             config->visualID = visual->vid;
 #ifdef COMPOSITE
-            if (compIsAlternateVisual(pScreen, visual->vid))
-                config->visualSelectGroup++;
+            if (!noCompositeExtension) {
+                if (compIsAlternateVisual(pScreen, visual->vid))
+                    config->visualSelectGroup++;
+            }
 #endif
         }
     }
@@ -365,7 +380,14 @@ __glXScreenInit(__GLXscreen * pGlxScreen, ScreenPtr pScreen)
          * set up above is for.
          */
         depth = config->redBits + config->greenBits + config->blueBits;
-
+#ifdef COMPOSITE
+        if (!noCompositeExtension) {
+            if (config->duplicatedForComp) {
+                    depth += config->alphaBits;
+                    config->visualSelectGroup++;
+            }
+        }
+#endif
         /* Make sure that our FBconfig's depth can actually be displayed
          * (corresponds to an existing visual).
          */
@@ -388,6 +410,12 @@ __glXScreenInit(__GLXscreen * pGlxScreen, ScreenPtr pScreen)
         if (visual == NULL)
             continue;
 
+#ifdef COMPOSITE
+        if (!noCompositeExtension) {
+            if (config->duplicatedForComp)
+                (void) CompositeRegisterAlternateVisuals(pScreen, &visual->vid, 1);
+        }
+#endif
         pGlxScreen->visuals[pGlxScreen->numVisuals++] = config;
         initGlxVisual(visual, config);
     }
@@ -409,8 +437,15 @@ __glXScreenInit(__GLXscreen * pGlxScreen, ScreenPtr pScreen)
 void
 __glXScreenDestroy(__GLXscreen * screen)
 {
+    __GLXconfig *config, *next;
+
     free(screen->glvnd);
     free(screen->GLXextensions);
     free(screen->GLextensions);
     free(screen->visuals);
+
+    for (config = screen->fbconfigs; config != NULL; config = next) {
+        next = config->next;
+        free(config);
+    }
 }

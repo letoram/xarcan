@@ -116,16 +116,36 @@ hwDisableIO(void)
 static Bool
 hwEnableIO(void)
 {
-    if (ioperm(0, 1024, 1) || iopl(3)) {
-        ErrorF("xf86EnableIOPorts: failed to set IOPL for I/O (%s)\n",
+    short i;
+    size_t n=0;
+    int begin, end;
+    char *buf=NULL, target[4];
+    FILE *fp;
+
+    if (ioperm(0, 1024, 1)) {
+        ErrorF("xf86EnableIO: failed to enable I/O ports 0000-03ff (%s)\n",
                strerror(errno));
         return FALSE;
     }
+
 #if !defined(__alpha__)
-    /* XXX: this is actually not trapping anything because of iopl(3)
-     * above */
-    ioperm(0x40, 4, 0);         /* trap access to the timer chip */
-    ioperm(0x60, 4, 0);         /* trap access to the keyboard controller */
+    /* trap access to the keyboard controller(s) and timer chip(s) */
+    fp = fopen("/proc/ioports", "r");
+    while (getline(&buf, &n, fp) != -1) {
+        if ((strstr(buf, "keyboard") != NULL) || (strstr(buf, "timer") != NULL)) {
+            for (i=0; i<4; i++)
+                target[i] = buf[i+2];
+            begin = atoi(target);
+
+            for (i=0; i<4; i++)
+                target[i] = buf[i+7];
+            end = atoi(target);
+
+            ioperm(begin, end-begin+1, 0);
+        }
+    }
+    free(buf);
+    fclose(fp);
 #endif
 
     return TRUE;
@@ -166,30 +186,3 @@ xf86DisableIO(void)
 
     ExtendedEnabled = FALSE;
 }
-
-#if defined (__alpha__)
-
-extern int readDense8(void *Base, register unsigned long Offset);
-extern int readDense16(void *Base, register unsigned long Offset);
-extern int readDense32(void *Base, register unsigned long Offset);
-extern void
- writeDense8(int Value, void *Base, register unsigned long Offset);
-extern void
- writeDense16(int Value, void *Base, register unsigned long Offset);
-extern void
- writeDense32(int Value, void *Base, register unsigned long Offset);
-
-void (*xf86WriteMmio8) (int Value, void *Base, unsigned long Offset)
-    = writeDense8;
-void (*xf86WriteMmio16) (int Value, void *Base, unsigned long Offset)
-    = writeDense16;
-void (*xf86WriteMmio32) (int Value, void *Base, unsigned long Offset)
-    = writeDense32;
-int (*xf86ReadMmio8) (void *Base, unsigned long Offset)
-    = readDense8;
-int (*xf86ReadMmio16) (void *Base, unsigned long Offset)
-    = readDense16;
-int (*xf86ReadMmio32) (void *Base, unsigned long Offset)
-    = readDense32;
-
-#endif                          /* __alpha__ */

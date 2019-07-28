@@ -42,7 +42,7 @@ expand_source_and_mask(CursorPtr cursor, CARD32 *data)
         (cursor->foreGreen & 0xff00) | (cursor->foreGreen >> 8);
     bg = ((cursor->backRed & 0xff00) << 8) |
         (cursor->backGreen & 0xff00) | (cursor->backGreen >> 8);
-    stride = (bits->width / 8 + 3) & ~3;
+    stride = BitmapBytePad(bits->width);
     for (y = 0; y < bits->height; y++)
         for (x = 0; x < bits->width; x++) {
             i = y * stride + x / 8;
@@ -188,6 +188,8 @@ xwl_tablet_tool_set_cursor(struct xwl_tablet_tool *xwl_tablet_tool)
         zwp_tablet_tool_v2_set_cursor(xwl_tablet_tool->tool,
                                       xwl_tablet_tool->proximity_in_serial,
                                       NULL, 0, 0);
+        clear_cursor_frame_callback(xwl_cursor);
+        xwl_cursor->needs_update = FALSE;
         return;
     }
 

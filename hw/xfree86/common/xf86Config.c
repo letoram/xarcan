@@ -619,7 +619,6 @@ configFiles(XF86ConfFilesPtr fileconf)
 }
 
 typedef enum {
-    FLAG_NOTRAPSIGNALS,
     FLAG_DONTVTSWITCH,
     FLAG_DONTZAP,
     FLAG_DONTZOOM,
@@ -634,7 +633,6 @@ typedef enum {
     FLAG_XINERAMA,
     FLAG_LOG,
     FLAG_RENDER_COLORMAP_MODE,
-    FLAG_RANDR,
     FLAG_IGNORE_ABI,
     FLAG_ALLOW_EMPTY_INPUT,
     FLAG_USE_DEFAULT_FONT_PATH,
@@ -646,6 +644,7 @@ typedef enum {
     FLAG_AUTO_ADD_GPU,
     FLAG_MAX_CLIENTS,
     FLAG_IGLX,
+    FLAG_DEBUG,
 } FlagValues;
 
 /**
@@ -653,8 +652,6 @@ typedef enum {
  * if the parser found the option in the config file.
  */
 static OptionInfoRec FlagOptions[] = {
-    {FLAG_NOTRAPSIGNALS, "NoTrapSignals", OPTV_BOOLEAN,
-     {0}, FALSE},
     {FLAG_DONTVTSWITCH, "DontVTSwitch", OPTV_BOOLEAN,
      {0}, FALSE},
     {FLAG_DONTZAP, "DontZap", OPTV_BOOLEAN,
@@ -683,8 +680,6 @@ static OptionInfoRec FlagOptions[] = {
      {0}, FALSE},
     {FLAG_RENDER_COLORMAP_MODE, "RenderColormapMode", OPTV_STRING,
      {0}, FALSE},
-    {FLAG_RANDR, "RandR", OPTV_BOOLEAN,
-     {0}, FALSE},
     {FLAG_IGNORE_ABI, "IgnoreABI", OPTV_BOOLEAN,
      {0}, FALSE},
     {FLAG_USE_DEFAULT_FONT_PATH, "UseDefaultFontPath", OPTV_BOOLEAN,
@@ -704,6 +699,8 @@ static OptionInfoRec FlagOptions[] = {
     {FLAG_MAX_CLIENTS, "MaxClients", OPTV_INTEGER,
      {0}, FALSE },
     {FLAG_IGLX, "IndirectGLX", OPTV_BOOLEAN,
+     {0}, FALSE},
+    {FLAG_DEBUG, "Debug", OPTV_STRING,
      {0}, FALSE},
     {-1, NULL, OPTV_NONE,
      {0}, FALSE},
@@ -737,7 +734,6 @@ configServerFlags(XF86ConfFlagsPtr flagsconf, XF86OptionPtr layoutopts)
 
     xf86ProcessOptions(-1, optp, FlagOptions);
 
-    xf86GetOptValBool(FlagOptions, FLAG_NOTRAPSIGNALS, &xf86Info.notrapSignals);
     xf86GetOptValBool(FlagOptions, FLAG_DONTVTSWITCH, &xf86Info.dontVTSwitch);
     xf86GetOptValBool(FlagOptions, FLAG_DONTZAP, &xf86Info.dontZap);
     xf86GetOptValBool(FlagOptions, FLAG_DONTZOOM, &xf86Info.dontZoom);
@@ -827,15 +823,6 @@ configServerFlags(XF86ConfFlagsPtr flagsconf, XF86OptionPtr layoutopts)
         }
     }
 
-#ifdef RANDR
-    xf86Info.disableRandR = FALSE;
-    xf86Info.randRFrom = X_DEFAULT;
-    if (xf86GetOptValBool(FlagOptions, FLAG_RANDR, &value)) {
-        xf86Info.disableRandR = !value;
-        xf86Info.randRFrom = X_CONFIG;
-    }
-#endif
-
 #ifdef GLXEXT
     xf86Info.glxVisuals = XF86_GlxVisualsTypical;
     xf86Info.glxVisualsFrom = X_DEFAULT;
@@ -861,6 +848,8 @@ configServerFlags(XF86ConfFlagsPtr flagsconf, XF86OptionPtr layoutopts)
         }
     }
 #endif
+
+    xf86Info.debug = xf86GetOptValString(FlagOptions, FLAG_DEBUG);
 
     /* if we're not hotplugging, force some input devices to exist */
     xf86Info.forceInputDevices = !(xf86Info.autoAddDevices &&
@@ -946,10 +935,12 @@ configServerFlags(XF86ConfFlagsPtr flagsconf, XF86OptionPtr layoutopts)
 	from = X_CMDLINE;
     i = -1;
     if (xf86GetOptValInteger(FlagOptions, FLAG_MAX_CLIENTS, &i)) {
-	if (i != 64 && i != 128 && i != 256 && i != 512)
-		ErrorF("MaxClients must be one of 64, 128, 256 or 512\n");
-	from = X_CONFIG;
-	LimitClients = i;
+        if (Ones(i) != 1 || i < 64 || i > 2048) {
+	    ErrorF("MaxClients must be one of 64, 128, 256, 512, 1024, or 2048\n");
+        } else {
+            from = X_CONFIG;
+            LimitClients = i;
+        }
     }
     xf86Msg(from, "Max clients allowed: %i, resource mask: 0x%x\n",
 	    LimitClients, RESOURCE_ID_MASK);
@@ -2287,7 +2278,7 @@ xf86HandleConfigFile(Bool autoconfig)
         MessageType filefrom = X_DEFAULT;
         MessageType dirfrom = X_DEFAULT;
 
-        if (!xf86PrivsElevated()) {
+        if (!PrivsElevated()) {
             filesearch = ALL_CONFIGPATH;
             dirsearch = ALL_CONFIGDIRPATH;
         }

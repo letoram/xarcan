@@ -111,11 +111,8 @@ static PixmapFormatRec g_PixmapFormats[] = {
     {32, 32, BITMAP_SCANLINE_PAD}
 };
 
-const int NUMFORMATS = sizeof(g_PixmapFormats) / sizeof(g_PixmapFormats[0]);
-
 static const ExtensionModule xwinExtensions[] = {
 #ifdef GLXEXT
-  { GlxExtensionInit, "GLX", &noGlxExtension },
 #ifdef XWIN_WINDOWS_DRI
   { WindowsDRIExtensionInit, "Windows-DRI", &noDriExtension },
 #endif
@@ -151,6 +148,15 @@ ddxBeforeReset(void)
     winDebug("ddxBeforeReset - Hello\n");
 
     winClipboardShutdown();
+}
+#endif
+
+#if INPUTTHREAD
+/** This function is called in Xserver/os/inputthread.c when starting
+    the input thread. */
+void
+ddxInputThreadInit(void)
+{
 }
 #endif
 
@@ -241,16 +247,6 @@ ddxGiveUp(enum ExitCode error)
     }
 
     winDebug("ddxGiveUp - End\n");
-}
-
-/* See Porting Layer Definition - p. 57 */
-void
-AbortDDX(enum ExitCode error)
-{
-#if CYGDEBUG
-    winDebug("AbortDDX\n");
-#endif
-    ddxGiveUp(error);
 }
 
 #ifdef __CYGWIN__
@@ -720,6 +716,13 @@ winUseMsg(void)
            "\tthe updated region when num_boxes, or more, are in the\n"
            "\tupdated region.\n");
 
+    ErrorF("-[no]compositealpha\n"
+           "\tX windows with per-pixel alpha are composited into the Windows desktop.\n");
+    ErrorF("-[no]compositewm\n"
+           "\tUse the Composite extension to keep a bitmap image of each top-level\n"
+           "\tX window, so window contents which are occluded show correctly in\n"
+           "\ttask bar and task switcher previews.\n");
+
 #ifdef XWIN_XF86CONFIG
     ErrorF("-config\n" "\tSpecify a configuration file.\n");
 
@@ -787,11 +790,6 @@ winUseMsg(void)
 
     ErrorF("-multiwindow\n" "\tRun the server in multi-window mode.\n");
 
-#ifdef XWIN_MULTIWINDOWEXTWM
-    ErrorF("-mwextwm\n"
-           "\tRun the server in multi-window external window manager mode.\n");
-#endif
-
     ErrorF("-nodecoration\n"
            "\tDo not draw a window border, title bar, etc.  Windowed\n"
            "\tmode only.\n");
@@ -807,7 +805,7 @@ winUseMsg(void)
            "\tSpecify an optional refresh rate to use in fullscreen mode\n"
            "\twith a DirectDraw engine.\n");
 
-    ErrorF("-resize=none|scrollbars|randr"
+    ErrorF("-resize=none|scrollbars|randr\n"
            "\tIn windowed mode, [don't] allow resizing of the window. 'scrollbars'\n"
            "\tmode gives the window scrollbars as needed, 'randr' mode uses the RANR\n"
            "\textension to resize the X screen.  'randr' is the default.\n");
@@ -932,10 +930,10 @@ InitOutput(ScreenInfo * pScreenInfo, int argc, char *argv[])
     pScreenInfo->bitmapScanlinePad = BITMAP_SCANLINE_PAD;
     pScreenInfo->bitmapScanlineUnit = BITMAP_SCANLINE_UNIT;
     pScreenInfo->bitmapBitOrder = BITMAP_BIT_ORDER;
-    pScreenInfo->numPixmapFormats = NUMFORMATS;
+    pScreenInfo->numPixmapFormats = ARRAY_SIZE(g_PixmapFormats);
 
     /* Describe how we want common pixmap formats padded */
-    for (i = 0; i < NUMFORMATS; i++) {
+    for (i = 0; i < ARRAY_SIZE(g_PixmapFormats); i++) {
         pScreenInfo->formats[i] = g_PixmapFormats[i];
     }
 
@@ -983,8 +981,7 @@ InitOutput(ScreenInfo * pScreenInfo, int argc, char *argv[])
           for (iMonitor = 1; ; iMonitor++)
             {
               struct GetMonitorInfoData data;
-              QueryMonitor(iMonitor, &data);
-              if (data.bMonitorSpecifiedExists)
+              if (QueryMonitor(iMonitor, &data))
                 {
                   MONITORINFO mi;
                   mi.cbSize = sizeof(MONITORINFO);
@@ -1014,6 +1011,8 @@ InitOutput(ScreenInfo * pScreenInfo, int argc, char *argv[])
             }
         }
     }
+
+    xorgGlxCreateVendor();
 
     /* Generate a cookie used by internal clients for authorization */
     if (g_fXdmcpEnabled || g_fAuthEnabled)

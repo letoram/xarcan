@@ -532,13 +532,10 @@ dmxDisplayInit(DMXScreenInfo * dmxScreen)
     dmxGetPixmapFormats(dmxScreen);
 }
 
-static void dmxAddExtensions(Bool glxSupported)
+static void dmxAddExtensions(void)
 {
     const ExtensionModule dmxExtensions[] = {
         { DMXExtensionInit, DMX_EXTENSION_NAME, NULL },
-#ifdef GLXEXT
-        { GlxExtensionInit, "GLX", &glxSupported },
-#endif
     };
 
     LoadExtensionList(dmxExtensions, ARRAY_SIZE(dmxExtensions), TRUE);
@@ -550,12 +547,6 @@ InitOutput(ScreenInfo * pScreenInfo, int argc, char *argv[])
 {
     int i;
     static unsigned long dmxGeneration = 0;
-
-#ifdef GLXEXT
-    static Bool glxSupported = TRUE;
-#else
-    const Bool glxSupported = FALSE;
-#endif
 
     if (dmxGeneration != serverGeneration) {
         int vendrel = VENDOR_RELEASE;
@@ -646,7 +637,7 @@ InitOutput(ScreenInfo * pScreenInfo, int argc, char *argv[])
     for (i = 0; i < dmxNumScreens; i++)
         dmxDisplayInit(&dmxScreens[i]);
 
-#if PANORAMIX
+#ifdef PANORAMIX
     /* Register a Xinerama callback which will run from within
      * PanoramiXCreateConnectionBlock.  We can use the callback to
      * determine if Xinerama is loaded and to check the visuals
@@ -676,17 +667,17 @@ InitOutput(ScreenInfo * pScreenInfo, int argc, char *argv[])
 #ifdef GLXEXT
     /* Check if GLX extension exists on all back-end servers */
     for (i = 0; i < dmxNumScreens; i++)
-        glxSupported &= (dmxScreens[i].glxMajorOpcode > 0);
+        noGlxExtension |= (dmxScreens[i].glxMajorOpcode == 0);
 #endif
 
     if (serverGeneration == 1)
-        dmxAddExtensions(glxSupported);
+        dmxAddExtensions();
 
     /* Tell dix layer about the backend displays */
     for (i = 0; i < dmxNumScreens; i++) {
 
 #ifdef GLXEXT
-        if (glxSupported) {
+        if (!noGlxExtension) {
             /*
              * Builds GLX configurations from the list of visuals
              * supported by the back-end server, and give that
@@ -814,11 +805,12 @@ dmxSetDefaultFontPath(const char *fp)
     defaultFontPath = dmxFontPath;
 }
 
-/** This function is called in Xserver/os/utils.c from \a AbortServer().
- * We must ensure that backend and console state is restored in the
- * event the server shutdown wasn't clean. */
+/** This function is called in Xserver/dix/main.c from \a main() when
+ * dispatchException & DE_TERMINATE (which is the only way to exit the
+ * main loop without an interruption), and from AbortServer on
+ * abnormal exit. */
 void
-AbortDDX(enum ExitCode error)
+ddxGiveUp(enum ExitCode error)
 {
     int i;
 
@@ -838,14 +830,14 @@ ddxBeforeReset(void)
 }
 #endif
 
-/** This function is called in Xserver/dix/main.c from \a main() when
- * dispatchException & DE_TERMINATE (which is the only way to exit the
- * main loop without an interruption. */
+#if INPUTTHREAD
+/** This function is called in Xserver/os/inputthread.c when starting
+    the input thread. */
 void
-ddxGiveUp(enum ExitCode error)
+ddxInputThreadInit(void)
 {
-    AbortDDX(error);
 }
+#endif
 
 /** This function is called in Xserver/os/osinit.c from \a OsInit(). */
 void

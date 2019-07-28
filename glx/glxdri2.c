@@ -42,10 +42,10 @@
 #include <xf86.h>
 #include <dri2.h>
 
+#include <GL/glxtokens.h>
 #include "glxserver.h"
 #include "glxutil.h"
 #include "glxdricommon.h"
-#include <GL/glxtokens.h>
 
 #include "extension_string.h"
 
@@ -402,6 +402,12 @@ dri2_convert_glx_attribs(__GLXDRIscreen *screen, unsigned num_attribs,
                 return FALSE;
             }
             break;
+        case GLX_SCREEN:
+            /* already checked for us */
+            break;
+        case GLX_CONTEXT_OPENGL_NO_ERROR_ARB:
+            /* ignore */
+            break;
         default:
             /* If an unknown attribute is received, fail.
              */
@@ -440,6 +446,7 @@ create_driver_context(__GLXDRIcontext * context,
                       const uint32_t *attribs,
                       int *error)
 {
+    const __DRIconfig *driConfig = config ? config->driConfig : NULL;
     context->driContext = NULL;
 
     if (screen->dri2->base.version >= 3) {
@@ -483,10 +490,8 @@ create_driver_context(__GLXDRIcontext * context,
         }
 
         context->driContext =
-            (*screen->dri2->createContextAttribs)(screen->driScreen,
-                                                  api,
-                                                  config->driConfig,
-                                                  driShare,
+            (*screen->dri2->createContextAttribs)(screen->driScreen, api,
+                                                  driConfig, driShare,
                                                   num_ctx_attribs / 2,
                                                   ctx_attribs,
                                                   &dri_err,
@@ -522,8 +527,7 @@ create_driver_context(__GLXDRIcontext * context,
     }
 
     context->driContext =
-        (*screen->dri2->createNewContext) (screen->driScreen,
-                                           config->driConfig,
+        (*screen->dri2->createNewContext) (screen->driScreen, driConfig,
                                            driShare, context);
 }
 
@@ -552,6 +556,7 @@ __glXDRIscreenCreateContext(__GLXscreen * baseScreen,
         return NULL;
     }
 
+    context->base.config = glxConfig;
     context->base.destroy = __glXDRIcontextDestroy;
     context->base.makeCurrent = __glXDRIcontextMakeCurrent;
     context->base.loseCurrent = __glXDRIcontextLoseCurrent;
@@ -828,56 +833,40 @@ initializeExtensions(__GLXscreen * screen)
     extensions = dri->core->getExtensions(dri->driScreen);
 
     __glXEnableExtension(screen->glx_enable_bits, "GLX_MESA_copy_sub_buffer");
-    LogMessage(X_INFO, "AIGLX: enabled GLX_MESA_copy_sub_buffer\n");
+    __glXEnableExtension(screen->glx_enable_bits, "GLX_EXT_no_config_context");
 
     if (dri->dri2->base.version >= 3) {
         __glXEnableExtension(screen->glx_enable_bits,
                              "GLX_ARB_create_context");
+        __glXEnableExtension(screen->glx_enable_bits,
+                             "GLX_ARB_create_context_no_error");
         __glXEnableExtension(screen->glx_enable_bits,
                              "GLX_ARB_create_context_profile");
         __glXEnableExtension(screen->glx_enable_bits,
                              "GLX_EXT_create_context_es_profile");
         __glXEnableExtension(screen->glx_enable_bits,
                              "GLX_EXT_create_context_es2_profile");
-        LogMessage(X_INFO, "AIGLX: enabled GLX_ARB_create_context\n");
-        LogMessage(X_INFO, "AIGLX: enabled GLX_ARB_create_context_profile\n");
-        LogMessage(X_INFO,
-                   "AIGLX: enabled GLX_EXT_create_context_es{,2}_profile\n");
     }
 
     if (DRI2HasSwapControl(pScreen)) {
         __glXEnableExtension(screen->glx_enable_bits, "GLX_INTEL_swap_event");
         __glXEnableExtension(screen->glx_enable_bits, "GLX_SGI_swap_control");
-        LogMessage(X_INFO, "AIGLX: enabled GLX_INTEL_swap_event\n");
-        LogMessage(X_INFO, "AIGLX: enabled GLX_SGI_swap_control\n");
     }
 
     /* enable EXT_framebuffer_sRGB extension (even if there are no sRGB capable fbconfigs) */
-    {
-        __glXEnableExtension(screen->glx_enable_bits,
-                 "GLX_EXT_framebuffer_sRGB");
-        LogMessage(X_INFO, "AIGLX: enabled GLX_EXT_framebuffer_sRGB\n");
-    }
+    __glXEnableExtension(screen->glx_enable_bits, "GLX_EXT_framebuffer_sRGB");
 
     /* enable ARB_fbconfig_float extension (even if there are no float fbconfigs) */
-    {
-        __glXEnableExtension(screen->glx_enable_bits, "GLX_ARB_fbconfig_float");
-        LogMessage(X_INFO, "AIGLX: enabled GLX_ARB_fbconfig_float\n");
-    }
+    __glXEnableExtension(screen->glx_enable_bits, "GLX_ARB_fbconfig_float");
 
     /* enable EXT_fbconfig_packed_float (even if there are no packed float fbconfigs) */
-    {
-        __glXEnableExtension(screen->glx_enable_bits, "GLX_EXT_fbconfig_packed_float");
-        LogMessage(X_INFO, "AIGLX: enabled GLX_EXT_fbconfig_packed_float\n");
-    }
+    __glXEnableExtension(screen->glx_enable_bits, "GLX_EXT_fbconfig_packed_float");
 
     for (i = 0; extensions[i]; i++) {
         if (strcmp(extensions[i]->name, __DRI_TEX_BUFFER) == 0) {
             dri->texBuffer = (const __DRItexBufferExtension *) extensions[i];
             __glXEnableExtension(screen->glx_enable_bits,
                                  "GLX_EXT_texture_from_pixmap");
-            LogMessage(X_INFO,
-                       "AIGLX: GLX_EXT_texture_from_pixmap backed by buffer objects\n");
         }
 
         if (strcmp(extensions[i]->name, __DRI2_FLUSH) == 0 &&
@@ -889,14 +878,12 @@ initializeExtensions(__GLXscreen * screen)
             dri->dri2->base.version >= 3) {
             __glXEnableExtension(screen->glx_enable_bits,
                                  "GLX_ARB_create_context_robustness");
-            LogMessage(X_INFO,
-                       "AIGLX: enabled GLX_ARB_create_context_robustness\n");
         }
 
 #ifdef __DRI2_FLUSH_CONTROL
         if (strcmp(extensions[i]->name, __DRI2_FLUSH_CONTROL) == 0) {
             __glXEnableExtension(screen->glx_enable_bits,
-                                 "GLX_ARB_context_flush_control\n");
+                                 "GLX_ARB_context_flush_control");
         }
 #endif
 

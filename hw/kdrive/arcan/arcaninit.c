@@ -26,6 +26,9 @@
 #include "arcan.h"
 #include "glx_extinit.h"
 
+extern Bool kdHasPointer;
+extern Bool kdHasKbd;
+
 static inline void trace(const char* msg, ...)
 {
 #ifdef ARCAN_TRACE
@@ -47,7 +50,7 @@ InitCard(char *name)
 
 static const ExtensionModule arcanExtensions[] = {
 #ifdef GLXEXT
-	{ GlxExtensionInit, "GLX", &noGlxExtension }
+    { GlxExtensionInit, "GLX", &noGlxExtension }
 #endif
 };
 
@@ -83,28 +86,38 @@ InitInput(int argc, char **argv)
     struct arcan_shmif_cont* con;
     KdPointerInfo* pi;
     KdKeyboardInfo* ki;
+    if (!SeatId) {
+        trace("ArcanInit:InitInput");
+        KdAddPointerDriver(&arcanPointerDriver);
+        if (!kdHasPointer){
+            pi = KdNewPointer();
+            if (!pi)
+                FatalError("Couldn't create Xarcan keyboard\n");
+            pi->driver = &arcanPointerDriver;
+            KdAddPointer(pi);
+        }
 
-    trace("ArcanInit:InitInput");
-    KdAddPointerDriver(&arcanPointerDriver);
-    pi = KdParsePointer("arcan");
-    KdAddPointer(pi);
-
-    KdAddKeyboardDriver(&arcanKeyboardDriver);
-    ki = KdParseKeyboard("arcan");
-    KdAddKeyboard(ki);
+        if (!kdHasKbd){
+            ki = KdNewKeyboard();
+            if (!ki)
+                FatalError("Couldn't create Xarcan keyboard\n");
+            ki->driver = &arcanKeyboardDriver;
+            KdAddKeyboard(ki);
+          }
+        }
 
     KdInitInput();
 
 /*
- * 	DEBUGGING - enable this help somewhat
+ *     DEBUGGING - enable this help somewhat
     LogInit("yeahlog", ".old");
-		LogSetParameter(XLOG_FILE_VERBOSITY, 100000);
+        LogSetParameter(XLOG_FILE_VERBOSITY, 100000);
  */
 
 /* Register won't work unless we're in init input state */
     con = arcan_shmif_primary(SHMIF_INPUT);
     if (con){
-        KdRegisterFd(con->epipe, (void*) arcanFlushEvents, con);
+			  InputThreadRegisterDev(con->epipe, (void*) arcanFlushEvents, con);
     }
     else {
         ErrorF("kdrive:arcan - No Primary Segment during InitInput\n");
@@ -117,7 +130,7 @@ CloseInput(void)
     struct arcan_shmif_cont* con = arcan_shmif_primary(SHMIF_INPUT);
     trace("ArcanInit:CloseInput");
     if (con){
-        KdUnregisterFd(con, con->epipe, FALSE);
+			  InputThreadUnregisterDev(con->epipe);
     }
     KdCloseInput();
 }
@@ -149,7 +162,7 @@ ddxProcessArgument(int argc, char **argv, int i)
 {
 #ifdef GLAMOR
     if (strcmp(argv[i], "-glamor") == 0){
-		arcanGlamor = 1;
+        arcanGlamor = 1;
         arcanFuncs.initAccel = arcanGlamorInit;
         arcanFuncs.enableAccel = arcanGlamorEnable;
         arcanFuncs.disableAccel = arcanGlamorDisable;
@@ -185,22 +198,13 @@ ddxProcessArgument(int argc, char **argv, int i)
     else if (strcmp(argv[i], "-accel_cursor") == 0){
         arcanConfigPriv.accel_cursor = true;
     }
-/*
- * rather useless, txpass would act pretty much the same as glamor,
- * except for the actual drawing that is
- *
-    else if (strcmp(argv[i], "-txpass") == 0){
-        arcanConfigPriv.txpass = true;
-        return 1;
-    }
- */
     return KdProcessArgument(argc, argv, i);
 }
 
 void
 OsVendorInit(void)
 {
-    KdOsInit(&arcanOsFuncs);
+    arcanInit();
 }
 
 KdCardFuncs arcanFuncs = {
@@ -209,19 +213,10 @@ KdCardFuncs arcanFuncs = {
     arcanInitScreen,             /* initScreen */
     arcanFinishInitScreen,       /* finishInitScreen */
     arcanCreateResources,        /* createRes */
-    arcanPreserve,               /* preserve */
-    arcanEnable,                 /* enable */
-    arcanDPMS,                   /* dpms */
-    arcanDisable,                /* disable */
-    arcanRestore,                /* restore */
     arcanScreenFini,             /* scrfini */
     arcanCardFini,               /* cardfini */
 
     0,                          /* initCursor */
-    0,                          /* enableCursor */
-    0,                          /* disableCursor */
-    0,                          /* finiCursor */
-    0,                          /* recolorCursor */
 
     0,                          /* initAccel */
     0,                          /* enableAccel */

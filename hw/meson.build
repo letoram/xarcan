@@ -1,4 +1,4 @@
-if get_option('xephyr')
+if (get_option('xephyr') or build_xarcan)
     subdir('kdrive')
 endif
 
@@ -6,7 +6,9 @@ if get_option('dmx')
     subdir('dmx')
 endif
 
-subdir('vfb')
+if get_option('xvfb')
+    subdir('vfb')
+endif
 
 if build_xnest
     subdir('xnest')

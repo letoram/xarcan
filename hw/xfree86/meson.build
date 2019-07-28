@@ -51,6 +51,7 @@ srcs_xorg = [
 
 xorg_link = [
     libxserver,
+    libglxvnd,
     xorg_common,
     xorg_loader,
     xorg_ddc,
@@ -60,6 +61,7 @@ xorg_link = [
     xorg_os_support,
     xorg_parser,
     xorg_ramdac,
+    libxserver_fb,
     libxserver_xext_vidmode,
     libxserver_main,
     libxserver_config,
@@ -91,7 +93,13 @@ xorg_deps = [
     libdrm_dep,
 ]
 
-executable(
+if get_option('suid_wrapper')
+    xorg_install_dir = get_option('libexecdir')
+else
+    xorg_install_dir = get_option('bindir')
+endif
+
+e = executable(
     'Xorg',
     srcs_xorg,
     include_directories: [inc, xorg_inc],
@@ -100,6 +108,8 @@ executable(
     link_args: linker_export_flags,
     c_args: xorg_c_args,
     install: true,
+    install_dir: xorg_install_dir,
+    implib: true,
 )
 
 # subdirs for modules loadable by Xorg
@@ -109,7 +119,7 @@ subdir('fbdevhw')
 if gbm_dep.found()
     subdir('glamor_egl')
 endif
-if int10 != 'disabled'
+if int10 != 'false'
     if int10 == 'x86emu'
         subdir('x86emu')
     endif
@@ -126,6 +136,41 @@ if build_modesetting
    subdir('drivers/modesetting')
 endif
 
+if get_option('suid_wrapper')
+    executable('Xorg.wrap',
+        'xorg-wrapper.c',
+        include_directories: [inc, xorg_inc],
+        dependencies: xorg_deps,
+        c_args: xorg_c_args,
+        install: true,
+        install_dir: get_option('libexecdir'),
+        # install_mode: ['r-sr-xr-x', 0, 0],
+    )
+    configure_file(
+        input: 'Xorg.sh.in',
+        output: 'Xorg',
+        configuration: conf_data,
+        install_dir: join_paths(get_option('prefix'), get_option('bindir')),
+    )
+endif
+
+executable('cvt',
+    ['utils/cvt/cvt.c', 'modes/xf86cvt.c'],
+    include_directories: [inc, xorg_inc],
+    dependencies: xorg_deps,
+    link_with: libxserver_os,
+    c_args: xorg_c_args,
+    install: true,
+)
+
+executable('gtf',
+    'utils/gtf/gtf.c',
+    include_directories: [inc, xorg_inc],
+    dependencies: xorg_deps,
+    c_args: xorg_c_args,
+    install: true,
+)
+
 # For symbol presence testing only
 xorgserver_lib = shared_library(
     'xorgserver',
@@ -139,3 +184,47 @@ xorgserver_lib = shared_library(
 )
 
 xorgserver_dep = declare_dependency(link_with: xorgserver_lib)
+
+install_man(configure_file(
+    input: 'man/Xorg.man',
+    output: 'Xorg.1',
+    configuration: manpage_config,
+))
+
+if get_option('suid_wrapper')
+    install_man(configure_file(
+        input: 'man/Xorg.wrap.man',
+        output: 'Xorg.wrap.1',
+        configuration: manpage_config,
+    ))
+
+    install_man(configure_file(
+        input: 'man/Xwrapper.config.man',
+        output: 'Xwrapper.config.5',
+        configuration: manpage_config,
+    ))
+endif
+
+install_man(configure_file(
+    input: 'man/xorg.conf.man',
+    output: 'xorg.conf.5',
+    configuration: manpage_config,
+))
+
+install_man(configure_file(
+    input: 'man/xorg.conf.d.man',
+    output: 'xorg.conf.d.5',
+    configuration: manpage_config,
+))
+
+install_man(configure_file(
+    input: 'utils/man/cvt.man',
+    output: 'cvt.1',
+    configuration: manpage_config,
+))
+
+install_man(configure_file(
+    input: 'utils/man/gtf.man',
+    output: 'gtf.1',
+    configuration: manpage_config,
+))

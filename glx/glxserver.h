@@ -50,6 +50,10 @@
 #include <GL/glext.h>
 #include <GL/glxproto.h>
 
+#ifndef GLX_CONTEXT_OPENGL_NO_ERROR_ARB
+#define GLX_CONTEXT_OPENGL_NO_ERROR_ARB 0x31B3
+#endif
+
 /*
 ** GLX resources.
 */
@@ -63,6 +67,7 @@ typedef struct __GLXcontext __GLXcontext;
 #include "glxscreens.h"
 #include "glxdrawable.h"
 #include "glxcontext.h"
+#include "glx_extinit.h"
 
 extern __GLXscreen *glxGetScreen(ScreenPtr pScreen);
 extern __GLXclientState *glxGetClient(ClientPtr pClient);
@@ -80,16 +85,6 @@ extern __GLXcontext *__glXForceCurrent(__GLXclientState *, GLXContextTag,
 int __glXError(int error);
 
 /************************************************************************/
-
-typedef struct __GLXprovider __GLXprovider;
-struct __GLXprovider {
-    __GLXscreen *(*screenProbe) (ScreenPtr pScreen);
-    const char *name;
-    __GLXprovider *next;
-};
-extern __GLXprovider __glXDRISWRastProvider;
-
-void GlxPushProvider(__GLXprovider * provider);
 
 enum {
     GLX_MINIMAL_VISUALS,
@@ -119,25 +114,10 @@ __glXregisterPresentCompleteNotify(void);
 */
 struct __GLXclientStateRec {
     /*
-     ** Whether this structure is currently being used to support a client.
-     */
-    Bool inUse;
-
-    /*
      ** Buffer for returned data.
      */
     GLbyte *returnBuf;
     GLint returnBufSize;
-
-    /*
-     ** Keep track of large rendering commands, which span multiple requests.
-     */
-    GLint largeCmdBytesSoFar;   /* bytes received so far        */
-    GLint largeCmdBytesTotal;   /* total bytes expected         */
-    GLint largeCmdRequestsSoFar;        /* requests received so far     */
-    GLint largeCmdRequestsTotal;        /* total requests expected      */
-    GLbyte *largeCmdBuf;
-    GLint largeCmdBufSize;
 
     /* Back pointer to X client record */
     ClientPtr client;
