@@ -7,7 +7,6 @@ srcs = [
     'xwayland-drm-lease.h',
     'xwayland-drm-lease.c',
     'xwayland-glamor.h',
-    'xwayland-glx.h',
     'xwayland-pixmap.c',
     'xwayland-pixmap.h',
     'xwayland-present.h',
@@ -105,9 +104,6 @@ xwayland_glamor = []
 eglstream_srcs = []
 if build_glamor
     srcs += 'xwayland-glamor.c'
-    if build_glx
-        srcs += 'xwayland-glx.c'
-    endif
     if gbm_dep.found()
         srcs += [
                   'xwayland-glamor-gbm.c',

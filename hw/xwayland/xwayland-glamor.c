@@ -33,6 +33,7 @@
 
 #include <glamor.h>
 #include <glamor_context.h>
+#include <glamor_glx_provider.h>
 #ifdef GLXEXT
 #include "glx_extinit.h"
 #endif
@@ -42,7 +43,6 @@
 #include <drm_fourcc.h>
 
 #include "xwayland-glamor.h"
-#include "xwayland-glx.h"
 #include "xwayland-screen.h"
 #include "xwayland-window.h"
 #include "xwayland-window-buffers.h"

@@ -27,11 +27,11 @@
 #ifndef XWAYLAND_GLX_H
 #define XWAYLAND_GLX_H
 
-#include <xwayland-config.h>
+#include <dix-config.h>
 
 #ifdef GLXEXT
 #include "glx_extinit.h"
-extern __GLXprovider glamor_provider;
+extern _X_EXPORT __GLXprovider glamor_provider;
 #endif
 
 #endif /* XWAYLAND_GLX_H */

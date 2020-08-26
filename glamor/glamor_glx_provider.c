@@ -30,20 +30,17 @@
  * can do, which often does not include things like multisample visuals.
  */
 
-#include <xwayland-config.h>
+#include <dix-config.h>
 
 #define MESA_EGL_NO_X11_HEADERS
 #define EGL_NO_X11
-// #include <EGL/egl.h>
 #include <epoxy/egl.h>
 #include "glxserver.h"
 #include "glxutil.h"
 #include "compint.h"
 #include <X11/extensions/composite.h>
-#include "glamor_context.h"
+#include "glamor_priv.h"
 #include "glamor.h"
-
-#include "xwayland-screen.h"
 
 /* Can't get these from <GL/glx.h> since it pulls in client headers */
 #define GLX_RGBA_BIT		0x00000001
@@ -364,11 +361,15 @@ static __GLXscreen *
 egl_screen_probe(ScreenPtr pScreen)
 {
     struct egl_screen *screen;
-    struct xwl_screen *xwl_screen = xwl_screen_get(pScreen);
+    glamor_screen_private *glamor_screen;
     __GLXscreen *base;
 
     if (enableIndirectGLX)
         return NULL; /* not implemented */
+
+    glamor_screen = glamor_get_screen_private(pScreen);
+    if (!glamor_screen)
+        return NULL;
 
     if (!(screen = calloc(1, sizeof *screen)))
         return NULL;
@@ -378,7 +379,7 @@ egl_screen_probe(ScreenPtr pScreen)
     base->createDrawable = egl_create_glx_drawable;
     /* base.swapInterval = NULL; */
 
-    screen->display = xwl_screen->glamor_ctx->display;
+    screen->display = glamor_screen->ctx.display;
 
     __glXInitExtensionEnableBits(screen->base.glx_enable_bits);
     __glXEnableExtension(base->glx_enable_bits, "GLX_ARB_context_flush_control");
@@ -402,8 +403,8 @@ egl_screen_probe(ScreenPtr pScreen)
         return NULL;
     }
 
-    if (!screen->base.glvnd && xwl_screen->glvnd_vendor)
-        screen->base.glvnd = strdup(xwl_screen->glvnd_vendor);
+    if (!screen->base.glvnd && glamor_screen->glvnd_vendor)
+        screen->base.glvnd = strdup(glamor_screen->glvnd_vendor);
 
     if (!screen->base.glvnd)
         screen->base.glvnd = strdup("mesa");
