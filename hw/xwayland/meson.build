@@ -92,6 +92,15 @@ srcs += code.process(shortcuts_inhibit_xml)
 srcs += code.process(xwayland_shell_xml)
 srcs += code.process(tearing_xml)
 
+if build_ei
+    xwayland_dep += libei_dep
+    srcs += [ 'xwayland-xtest.c', 'xwayland-xtest.h' ]
+
+    if build_ei_portal
+        xwayland_dep += liboeffis_dep
+    endif
+endif
+
 xwayland_glamor = []
 eglstream_srcs = []
 if build_glamor

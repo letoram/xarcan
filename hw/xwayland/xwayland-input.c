@@ -44,6 +44,10 @@
 #include "xwayland-window.h"
 #include "xwayland-screen.h"
 
+#ifdef XWL_HAS_EI
+#include "xwayland-xtest.h"
+#endif
+
 #include "pointer-constraints-unstable-v1-client-protocol.h"
 #include "relative-pointer-unstable-v1-client-protocol.h"
 #include "tablet-unstable-v2-client-protocol.h"
@@ -3492,6 +3496,10 @@ InitInput(int argc, char *argv[])
     pScreen->XYToWindow = xwl_xy_to_window;
 
     xwl_screen_roundtrip(xwl_screen);
+#ifdef XWL_HAS_EI
+    if (xwl_screen->rootless)
+        xwayland_override_xtest();
+#endif
 }
 
 void

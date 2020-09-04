@@ -99,6 +99,8 @@ apt-get install -y \
 	mingw-w64-tools \
 	nettle-dev \
 	pkg-config \
+	python3-attr \
+	python3-jinja2 \
 	python3-mako \
 	python3-numpy \
 	python3-six \
@@ -160,6 +162,14 @@ meson _build -D{demo,install_demo}=false
 ninja -C _build -j${FDO_CI_CONCURRENT:-4} install
 cd ..
 rm -rf libdecor
+
+# Install libei for Xwayland
+git clone https://gitlab.freedesktop.org/libinput/libei.git --depth 1 --branch=1.0.0
+cd libei
+meson setup _build -Dtests=disabled -Ddocumentation=[] -Dliboeffis=enabled
+ninja -C _build -j${FDO_CI_CONCURRENT:-4} install
+cd ..
+rm -rf libei
 
 git clone https://gitlab.freedesktop.org/mesa/piglit.git
 cd piglit

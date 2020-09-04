@@ -51,6 +51,9 @@
 #include "xwayland-pixmap.h"
 #include "xwayland-present.h"
 #include "xwayland-shm.h"
+#ifdef XWL_HAS_EI
+#include "xwayland-xtest.h"
+#endif
 
 #ifdef MITSHM
 #include "shmint.h"
@@ -747,6 +750,11 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
 
     dixSetPrivate(&pScreen->devPrivates, &xwl_screen_private_key, xwl_screen);
     xwl_screen->screen = pScreen;
+
+#ifdef XWL_HAS_EI
+    if (!xwayland_ei_init())
+        return FALSE;
+#endif
 
 #ifdef XWL_HAS_GLAMOR
     xwl_screen->glamor = 1;

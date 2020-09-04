@@ -374,6 +374,17 @@ else
     build_eglstream = false
 endif
 
+if build_xwayland
+    libei_dep = dependency('libei-1.0', version: '>= 1.0.0', required: get_option('xwayland_ei') in ['portal', 'socket'])
+    liboeffis_dep = dependency('liboeffis-1.0', version: '>= 1.0.0', required: get_option('xwayland_ei') == 'portal')
+
+    build_ei = libei_dep.found() and get_option('xwayland_ei') != 'false'
+    build_ei_portal = liboeffis_dep.found() and get_option('xwayland_ei') in ['portal', 'auto']
+else
+    build_ei = false
+    build_ei_portal = false
+endif
+
 # Lots of sha1 options, because Linux is about choice :)
 
 # The idea behind the ordering here is that we should first prefer system
