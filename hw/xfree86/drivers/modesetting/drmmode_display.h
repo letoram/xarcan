@@ -139,6 +139,8 @@ typedef struct {
 
     uint32_t vrr_prop_id;
     Bool use_ctm;
+
+    Bool pending_modeset;
 } drmmode_rec, *drmmode_ptr;
 
 typedef struct {

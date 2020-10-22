@@ -69,6 +69,13 @@ ms_flush_drm_events(ScreenPtr screen)
     return ms_flush_drm_events_timeout(screen, 0);
 }
 
+void
+ms_drain_drm_events(ScreenPtr screen)
+{
+    while (!ms_drm_queue_is_empty())
+        ms_flush_drm_events_timeout(screen, -1);
+}
+
 #ifdef GLAMOR_HAS_GBM
 
 /*

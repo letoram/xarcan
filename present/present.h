@@ -157,6 +157,9 @@ present_event_notify(uint64_t event_id, uint64_t ust, uint64_t msc);
 extern _X_EXPORT Bool
 present_screen_init(ScreenPtr screen, present_screen_info_ptr info);
 
+extern _X_EXPORT void
+present_check_flips(WindowPtr window);
+
 typedef void (*present_complete_notify_proc)(WindowPtr window,
                                              CARD8 kind,
                                              CARD8 mode,

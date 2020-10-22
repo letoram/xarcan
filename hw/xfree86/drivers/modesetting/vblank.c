@@ -643,6 +643,12 @@ ms_drm_handler(int fd, uint32_t frame, uint32_t sec, uint32_t usec,
 }
 
 Bool
+ms_drm_queue_is_empty(void)
+{
+    return xorg_list_is_empty(&ms_drm_queue);
+}
+
+Bool
 ms_vblank_screen_init(ScreenPtr screen)
 {
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);

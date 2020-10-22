@@ -1662,6 +1662,26 @@ drmmode_create_tearfree_shadow(xf86CrtcPtr crtc)
     return TRUE;
 }
 
+static void drmmmode_prepare_modeset(ScrnInfoPtr scrn)
+{
+    ScreenPtr pScreen = scrn->pScreen;
+    modesettingPtr ms = modesettingPTR(scrn);
+
+    if (ms->drmmode.pending_modeset)
+        return;
+
+    /*
+     * Force present to unflip everything before we might
+     * try lighting up new displays. This makes sure fancy
+     * modifiers can't cause the modeset to fail.
+     */
+    ms->drmmode.pending_modeset = TRUE;
+    present_check_flips(pScreen->root);
+    ms->drmmode.pending_modeset = FALSE;
+
+    ms_drain_drm_events(pScreen);
+}
+
 static Bool
 drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
                        Rotation rotation, int x, int y)
@@ -1676,6 +1696,9 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
     Bool ret = TRUE;
     Bool can_test;
     int i;
+
+    if (mode)
+        drmmmode_prepare_modeset(crtc->scrn);
 
     saved_mode = crtc->mode;
     saved_x = crtc->x;
@@ -3905,6 +3928,8 @@ drmmode_set_desired_modes(ScrnInfoPtr pScrn, drmmode_ptr drmmode, Bool set_hw,
     xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(pScrn);
     Bool success = TRUE;
     int c;
+
+    drmmmode_prepare_modeset(pScrn);
 
     for (c = 0; c < config->num_crtc; c++) {
         xf86CrtcPtr crtc = config->crtc[c];

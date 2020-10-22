@@ -327,6 +327,9 @@ ms_present_check_flip(RRCrtcPtr crtc,
     if (ms->drmmode.sprites_visible > 0)
         goto no_flip;
 
+    if (ms->drmmode.pending_modeset)
+        goto no_flip;
+
     if(!ms_present_check_unflip(crtc, window, pixmap, sync_flip, reason))
         goto no_flip;
 
