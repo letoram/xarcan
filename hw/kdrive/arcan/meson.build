@@ -11,18 +11,6 @@ arcan_dep = [
 		epoxy_dep,
     dependency('arcan-shmif'),
 		dependency('arcan-shmif-ext'),
-    dependency('xcb'),
-    dependency('xcb-shape'),
-    dependency('xcb-render'),
-    dependency('xcb-renderutil'),
-    dependency('xcb-aux'),
-    dependency('xcb-image'),
-    dependency('xcb-icccm'),
-    dependency('xcb-shm', version : '>=1.9.3'),
-    dependency('xcb-keysyms'),
-    dependency('xcb-randr'),
-    dependency('xcb-xkb'),
-    dependency('x11-xcb')
 ]
 
 arcan_server = executable(
