@@ -1,22 +1,23 @@
-option('xorg', type: 'combo', choices: ['true', 'false', 'auto'], value: 'auto',
+option('xorg', type: 'combo', choices: ['true', 'false', 'auto'], value: 'false',
        description: 'Enable Xorg X Server')
 option('xephyr', type: 'boolean', value: false,
        description: 'Enable Xephyr nested X server')
-option('xwayland', type: 'combo', choices: ['true', 'false', 'auto'], value: 'auto',
+option('xwayland', type: 'combo', choices: ['true', 'false', 'auto'], value: 'false',
        description: 'Enable XWayland X server')
 option('glamor', type: 'combo', choices: ['true', 'false', 'auto'], value: 'auto',
        description: 'Enable glamor (default yes for Xorg/Xwayland builds)')
 option('xwayland_eglstream', type: 'combo', choices: ['true', 'false', 'auto'],
-       value: 'auto', description: 'Enable EGLStream support for glamor on Xwayland')
-option('xnest', type: 'combo', choices: ['true', 'false', 'auto'], value: 'auto',
+       value: 'false', description: 'Enable EGLStream support for glamor on Xwayland')
+option('xnest', type: 'combo', choices: ['true', 'false', 'auto'], value: 'false',
        description: 'Enable Xnest nested X server')
 option('dmx', type: 'boolean', value: false,
        description: 'Enable DMX nested X server')
-option('xvfb', type: 'boolean', value: true,
+option('xarcan', type: 'boolean', value: true, description: 'Enable Xarcan X server')
+option('xvfb', type: 'boolean', value: false,
        description: 'Enable Xvfb X server')
-option('xwin', type: 'combo', choices: ['true', 'false', 'auto'], value: 'auto',
+option('xwin', type: 'combo', choices: ['true', 'false', 'auto'], value: 'false',
        description: 'Enable XWin X server')
-option('xquartz', type: 'combo', choices: ['true', 'false', 'auto'], value: 'auto',
+option('xquartz', type: 'combo', choices: ['true', 'false', 'auto'], value: 'false',
        description: 'Enable Xquartz X server')
 
 
@@ -67,13 +68,13 @@ option('suid_wrapper', type: 'boolean', value: 'false',
        description: 'SUID wrapper for legacy driver support')
 option('pciaccess', type: 'boolean', value: 'true',
        description: 'Xorg pciaccess support')
-option('udev', type: 'boolean', value: 'true')
-option('udev_kms', type: 'boolean', value: 'true')
+option('udev', type: 'boolean', value: 'false')
+option('udev_kms', type: 'boolean', value: 'false')
 option('hal', type: 'combo', choices: ['true', 'false', 'auto'], value: 'auto',
        description: 'Enable HAL integration')
 option('systemd_logind', type: 'combo', choices: ['true', 'false', 'auto'], value: 'auto',
        description: 'Enable systemd-logind integration')
-option('vgahw', type: 'combo', choices: ['true', 'false', 'auto'], value: 'auto',
+option('vgahw', type: 'combo', choices: ['true', 'false', 'auto'], value: 'false',
        description: 'Xorg VGA access module')
 option('dpms', type: 'boolean', value: true,
        description: 'Xorg DPMS extension')

@@ -1,4 +1,5 @@
-if get_option('xephyr')
+if (get_option('xephyr') or build_xarcan)
+		message('added kdrive')
     subdir('kdrive')
 endif
 

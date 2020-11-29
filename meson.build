@@ -266,6 +266,13 @@ else
     build_xquartz = get_option('xquartz') == 'true'
 endif
 
+build_xarcan = false
+if get_option('xarcan') == true
+    if (host_machine.system() != 'darwin' and host_machine.system() != 'windows')
+        build_xarcan = true
+    endif
+endif
+
 build_rootless = false
 if build_xquartz
     build_rootless = true
