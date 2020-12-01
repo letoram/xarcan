@@ -329,7 +329,7 @@ endif
 module_dir = join_paths(get_option('libdir'), get_option('module_dir'))
 
 if glamor_option == 'auto'
-    build_glamor = build_xorg or build_xwayland
+    build_glamor = build_xorg or build_xwayland or build_xarcan
 else
     build_glamor = glamor_option == 'true'
 endif
