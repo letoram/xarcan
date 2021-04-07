@@ -29,6 +29,8 @@
 extern Bool kdHasPointer;
 extern Bool kdHasKbd;
 
+static int wm_fd = -1;
+
 static inline void trace(const char* msg, ...)
 {
 #ifdef ARCAN_TRACE
@@ -54,6 +56,17 @@ static const ExtensionModule arcanExtensions[] = {
 #endif
 };
 
+static CARD32
+add_client_fd(OsTimerPtr timer, CARD32 time, void *arg)
+{
+    if (!AddClientOnOpenFD(wm_fd))
+        FatalError("Failed to add wm client\n");
+
+    TimerFree(timer);
+
+    return 0;
+}
+
 void
 InitOutput(ScreenInfo * pScreenInfo, int argc, char **argv)
 {
@@ -78,6 +91,10 @@ InitOutput(ScreenInfo * pScreenInfo, int argc, char **argv)
         gotext = true;
     }
     KdInitOutput(pScreenInfo, argc, argv);
+
+    if (wm_fd >= -1){
+			TimerSet(NULL, 0, 1, add_client_fd, NULL);
+		}
 }
 
 void
@@ -150,6 +167,7 @@ ddxUseMsg(void)
     ErrorF("-nodynamic             Disable connection-controlled resize\n");
     ErrorF("-aident [str]          Set window dynamic identity\n");
     ErrorF("-atitle [str]          Set window static identity\n");
+		ErrorF("-wm fd                 Create X client for WM on given FD\n");
 #ifdef GLAMOR
     ErrorF("-glamor                Enable glamor rendering\n");
 #endif
@@ -198,6 +216,12 @@ ddxProcessArgument(int argc, char **argv, int i)
     else if (strcmp(argv[i], "-accel_cursor") == 0){
         arcanConfigPriv.accel_cursor = true;
     }
+    else if (strcmp(argv[i], "-wm") == 0) {
+        CHECK_FOR_REQUIRED_ARGUMENTS(1);
+        wm_fd = atoi(argv[i + 1]);
+        return 2;
+    }
+
     return KdProcessArgument(argc, argv, i);
 }
 
