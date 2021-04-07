@@ -850,7 +850,13 @@ int arcanInit(void)
         wd->cursor_reject = true;
  */
     }
-
+		else {
+			arcan_shmif_enqueue(con, &(arcan_event){
+        .category = EVENT_EXTERNAL,
+        .ext.kind = ARCAN_EVENT(CURSORHINT),
+        .ext.message.data = "hidden"
+    	});
+		}
 
 /* we will do dirty- region updates rather than full swaps, and alpha
  * channel will be set to 00 so ignore that one */
