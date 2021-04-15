@@ -73,8 +73,8 @@ xwl_window_set_allow_commits_from_property(struct xwl_window *xwl_window,
         xwl_window_set_allow_commits(xwl_window, TRUE, "WM fault");
 
         if (!warned) {
-            LogMessage(X_WARNING, "Window manager is misusing property %s.\n",
-                       NameForAtom(prop->propertyName));
+            LogMessageVerb(X_WARNING, 0, "Window manager is misusing property %s.\n",
+                           NameForAtom(prop->propertyName));
             warned = TRUE;
         }
         return;
@@ -257,11 +257,11 @@ window_get_client_toplevel(WindowPtr window)
      * decoration/wrapper windows. In that case recurse by checking the client
      * of the first *and only* child of the decoration/wrapper window.
      */
-    if (window_is_wm_window(window)) {
-        if (window->firstChild && window->firstChild == window->lastChild)
-            return window_get_client_toplevel(window->firstChild);
-        else
+    while (window_is_wm_window(window)) {
+        if (!window->firstChild || window->firstChild != window->lastChild)
             return NULL; /* Should never happen, skip resolution emulation */
+
+        window = window->firstChild;
     }
 
     return window;
@@ -422,7 +422,7 @@ ensure_surface_for_window(WindowPtr window)
     struct wl_region *region;
     WindowPtr toplevel;
 
-    if (xwl_window_get(window))
+    if (xwl_window_from_window(window))
         return TRUE;
 
     xwl_screen = xwl_screen_get(screen);
@@ -800,8 +800,7 @@ xwl_window_post_damage(struct xwl_window *xwl_window)
 
 #ifdef XWL_HAS_GLAMOR
     if (xwl_screen->glamor)
-        buffer = xwl_glamor_pixmap_get_wl_buffer(pixmap,
-                                                 NULL);
+        buffer = xwl_glamor_pixmap_get_wl_buffer(pixmap);
     else
 #endif
         buffer = xwl_shm_pixmap_get_wl_buffer(pixmap);

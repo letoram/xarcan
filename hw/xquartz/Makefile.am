@@ -3,7 +3,6 @@ AM_CFLAGS = $(DIX_CFLAGS)
 AM_OBJCFLAGS = $(DIX_CFLAGS)
 AM_CPPFLAGS = \
 	-DXSERVER_VERSION=\"$(VERSION)\" \
-	-DINXQUARTZ \
 	-DUSE_NEW_CLUT \
 	-DXFree86Server \
 	-I$(top_srcdir)/miext/rootless \
@@ -21,6 +20,7 @@ DIST_SUBDIRS = bundle . GL xpr pbproxy mach-startup man
 
 libXquartz_la_SOURCES = \
 	$(top_srcdir)/mi/miinitext.c \
+	$(top_srcdir)/mi/miinitext.h \
 	X11Application.m \
 	X11Controller.m \
 	applewm.c \
@@ -29,11 +29,9 @@ libXquartz_la_SOURCES = \
 	darwinXinput.c \
 	keysym2ucs.c \
 	quartz.c \
-	quartzCocoa.m \
 	quartzKeyboard.c \
 	quartzStartup.c \
-	quartzRandR.c \
-	console_redirect.c
+	quartzRandR.c
 
 libXquartz_la_LIBADD = $(top_builddir)/pseudoramiX/libPseudoramiX.la
 
@@ -46,9 +44,7 @@ EXTRA_DIST = \
 	darwinEvents.h \
 	keysym2ucs.h \
 	quartz.h \
-	quartzCommon.h \
 	quartzKeyboard.h \
 	quartzRandR.h \
 	sanitizedCarbon.h \
-	sanitizedCocoa.h \
-	console_redirect.h
+	sanitizedCocoa.h

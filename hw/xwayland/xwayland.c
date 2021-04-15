@@ -89,7 +89,11 @@ ddxUseMsg(void)
     ErrorF("-initfd fd             add given fd as a listen socket for initialization clients\n");
     ErrorF("-listenfd fd           add given fd as a listen socket\n");
     ErrorF("-listen fd             deprecated, use \"-listenfd\" instead\n");
+#ifdef XWL_HAS_EGLSTREAM
     ErrorF("-eglstream             use eglstream backend for nvidia GPUs\n");
+#endif
+    ErrorF("-shm                   use shared memory for passing buffers\n");
+    ErrorF("-verbose [n]           verbose startup messages\n");
     ErrorF("-version               show the server version and exit\n");
 }
 
@@ -97,6 +101,7 @@ static int init_fd = -1;
 static int wm_fd = -1;
 static int listen_fds[5] = { -1, -1, -1, -1, -1 };
 static int listen_fd_count = 0;
+static int verbosity = 0;
 
 static void
 xwl_show_version(void)
@@ -133,8 +138,8 @@ ddxProcessArgument(int argc, char *argv[], int i)
         if (!isdigit(*argv[i + 1]))
             return 0;
 
-        LogMessage(X_WARNING, "Option \"-listen\" for file descriptors is deprecated\n"
-                              "Please use \"-listenfd\" instead.\n");
+        LogMessageVerb(X_WARNING, 0, "Option \"-listen\" for file descriptors is deprecated\n"
+                                     "Please use \"-listenfd\" instead.\n");
 
         xwl_add_listen_fd (argc, argv, i);
         return 2;
@@ -156,6 +161,21 @@ ddxProcessArgument(int argc, char *argv[], int i)
         return 2;
     }
     else if (strcmp(argv[i], "-shm") == 0) {
+        return 1;
+    }
+    else if (strcmp(argv[i], "-verbose") == 0) {
+        if (++i < argc && argv[i]) {
+            char *end;
+            long val;
+
+            val = strtol(argv[i], &end, 0);
+            if (*end == '\0') {
+                verbosity = val;
+                LogSetParameter(XLOG_VERBOSITY, verbosity);
+                return 2;
+            }
+        }
+        LogSetParameter(XLOG_VERBOSITY, ++verbosity);
         return 1;
     }
     else if (strcmp(argv[i], "-eglstream") == 0) {
@@ -247,10 +267,7 @@ InitOutput(ScreenInfo * screen_info, int argc, char **argv)
         LoadExtensionList(xwayland_extensions,
                           ARRAY_SIZE(xwayland_extensions), FALSE);
 
-    /* Cast away warning from missing printf annotation for
-     * wl_log_func_t.  Wayland 1.5 will have the annotation, so we can
-     * remove the cast and require that when it's released. */
-    wl_log_set_handler_client((void *) xwl_log_handler);
+    wl_log_set_handler_client(xwl_log_handler);
 
     if (AddScreen(xwl_screen_init, argc, argv) == -1) {
         FatalError("Couldn't add screen\n");

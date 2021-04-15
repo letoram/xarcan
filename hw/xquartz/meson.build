@@ -28,16 +28,14 @@ srcs_libxquartz = [
     'darwinXinput.c',
     'keysym2ucs.c',
     'quartz.c',
-    'quartzCocoa.m',
     'quartzKeyboard.c',
     'quartzStartup.c',
     'quartzRandR.c',
-    'console_redirect.c',
     '../../mi/miinitext.c',
+    '../../mi/miinitext.h',
 ]
 
 libxquartz_defs = [
-    '-DINXQUARTZ',
     '-DUSE_NEW_CLUT',
     '-DX11LIBDIR="@0@"'.format(join_paths(get_option('prefix'),
                                get_option('libdir'))),

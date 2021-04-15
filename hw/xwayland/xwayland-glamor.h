@@ -34,9 +34,8 @@
 
 typedef enum _xwl_egl_backend_flags {
     XWL_EGL_BACKEND_NO_FLAG = 0,
-    XWL_EGL_BACKEND_HAS_PRESENT_FLIP = (1 << 0),
-    XWL_EGL_BACKEND_NEEDS_BUFFER_FLUSH = (1 << 1),
-    XWL_EGL_BACKEND_NEEDS_N_BUFFERING = (1 << 2),
+    XWL_EGL_BACKEND_NEEDS_BUFFER_FLUSH = (1 << 0),
+    XWL_EGL_BACKEND_NEEDS_N_BUFFERING = (1 << 1),
 } xwl_egl_backend_flags;
 
 struct xwl_egl_backend {
@@ -76,8 +75,7 @@ struct xwl_egl_backend {
      * wl_buffer for a currently buffer-less pixmap, or simply return the
      * pixmap they've prepared beforehand.
      */
-    struct wl_buffer *(*get_wl_buffer_for_pixmap)(PixmapPtr pixmap,
-                                                  Bool *created);
+    struct wl_buffer *(*get_wl_buffer_for_pixmap)(PixmapPtr pixmap);
 
     /* Called by Xwayland to perform any pre-wl_surface damage routines
      * that are required by the backend. If your backend is poorly
@@ -93,6 +91,11 @@ struct xwl_egl_backend {
      * callback is optional.
      */
     Bool (*allow_commits)(struct xwl_window *xwl_window);
+
+    /* Called by Xwayland to check whether the given pixmap can be
+     * presented by xwl_present_flip. If not implemented, assumed TRUE.
+     */
+    Bool (*check_flip)(PixmapPtr pixmap);
 };
 
 #ifdef XWL_HAS_GLAMOR
@@ -107,8 +110,7 @@ Bool xwl_screen_set_drm_interface(struct xwl_screen *xwl_screen,
                                   uint32_t id, uint32_t version);
 Bool xwl_screen_set_dmabuf_interface(struct xwl_screen *xwl_screen,
                                      uint32_t id, uint32_t version);
-struct wl_buffer *xwl_glamor_pixmap_get_wl_buffer(PixmapPtr pixmap,
-                                                  Bool *created);
+struct wl_buffer *xwl_glamor_pixmap_get_wl_buffer(PixmapPtr pixmap);
 void xwl_glamor_init_wl_registry(struct xwl_screen *xwl_screen,
                                  struct wl_registry *registry,
                                  uint32_t id, const char *interface,
@@ -119,10 +121,16 @@ void xwl_glamor_post_damage(struct xwl_window *xwl_window,
                             PixmapPtr pixmap, RegionPtr region);
 Bool xwl_glamor_allow_commits(struct xwl_window *xwl_window);
 void xwl_glamor_egl_make_current(struct xwl_screen *xwl_screen);
-Bool xwl_glamor_has_present_flip(struct xwl_screen *xwl_screen);
 Bool xwl_glamor_needs_buffer_flush(struct xwl_screen *xwl_screen);
 Bool xwl_glamor_needs_n_buffering(struct xwl_screen *xwl_screen);
-
+Bool xwl_glamor_is_modifier_supported(struct xwl_screen *xwl_screen,
+                                      uint32_t format, uint64_t modifier);
+uint32_t wl_drm_format_for_depth(int depth);
+Bool xwl_glamor_get_formats(ScreenPtr screen,
+                            CARD32 *num_formats, CARD32 **formats);
+Bool xwl_glamor_get_modifiers(ScreenPtr screen, uint32_t format,
+                              uint32_t *num_modifiers, uint64_t **modifiers);
+Bool xwl_glamor_check_flip(PixmapPtr pixmap);
 
 #ifdef XV
 /* glamor Xv Adaptor */

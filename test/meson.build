@@ -100,6 +100,19 @@ if get_option('xvfb')
     endif
 endif
 
+if build_xwayland
+    xwayland_args = [
+        xwayland_server.full_path(),
+    ]
+
+    test('XTS',
+        find_program('scripts/xwayland-piglit.sh'),
+        env: piglit_env,
+        timeout: 1200,
+        suite: 'xwayland'
+    )
+endif
+
 subdir('bigreq')
 subdir('damage')
 subdir('sync')
@@ -109,6 +122,7 @@ if build_xorg
 # For now, requires xf86 ddx, could be adjusted to use another
     unit_sources = [
      '../mi/miinitext.c',
+     '../mi/miinitext.h',
      'fixes.c',
      'input.c',
      'list.c',
@@ -130,7 +144,10 @@ if build_xorg
         unit_defines += ['-DRES_TESTS']
     endif
 
+    unit_c_args = unit_defines
     if meson.get_compiler('c').has_link_argument('-Wl,-wrap')
+       # LTO breaks with -Wl,-wrap on certain configurations
+       unit_c_args += ['-fno-lto']
        unit_sources += [
         'xi1/protocol-xchangedevicecontrol.c',
         'xi2/protocol-common.c',
@@ -164,7 +181,7 @@ if build_xorg
 
     unit = executable('tests',
          unit_sources,
-         c_args: unit_defines,
+         c_args: unit_c_args,
          dependencies: [pixman_dep, randrproto_dep, inputproto_dep],
          include_directories: unit_includes,
          link_args: ldwraps,

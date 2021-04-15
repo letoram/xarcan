@@ -585,6 +585,7 @@ AC_ARG_WITH(xwayland-path, AS_HELP_STRING([--with-xwayland-path=PATH], [Director
 AC_ARG_ENABLE(standalone-xpbproxy, AS_HELP_STRING([--enable-standalone-xpbproxy], [Build a standalone xpbproxy (in addition to the one integrated into Xquartz as a separate thread) (default: no)]), [STANDALONE_XPBPROXY=$enableval], [STANDALONE_XPBPROXY=no])
 AC_ARG_ENABLE(xwin,    	      AS_HELP_STRING([--enable-xwin], [Build XWin server (default: auto)]), [XWIN=$enableval], [XWIN=auto])
 AC_ARG_ENABLE(glamor,         AS_HELP_STRING([--enable-glamor], [Build glamor dix module (default: auto)]), [GLAMOR=$enableval], [GLAMOR=auto])
+AC_ARG_ENABLE(xf86-input-inputtest, AS_HELP_STRING([--enable-xf86-input-inputtest], [Build Xorg test input driver (default: yes)]), [XORG_DRIVER_INPUT_INPUTTEST=$enableval], [XORG_DRIVER_INPUT_INPUTTEST=yes])
 dnl kdrive and its subsystems
 AC_ARG_ENABLE(kdrive,         AS_HELP_STRING([--enable-kdrive], [Build kdrive servers (default: no)]), [KDRIVE=$enableval], [KDRIVE=no])
 AC_ARG_ENABLE(xephyr,         AS_HELP_STRING([--enable-xephyr], [Build the kdrive Xephyr server (default: auto)]), [XEPHYR=$enableval], [XEPHYR=auto])
@@ -682,10 +683,6 @@ case $host_os in
 				XQUARTZ=no
 			fi
 		fi
-
-		AC_CHECK_FUNC(dispatch_async,
-		              AC_DEFINE([HAVE_LIBDISPATCH], 1, [Define to 1 if you have the libdispatch (GCD) available]),
-		              [])
 
 		if test "x$XQUARTZ" = xyes ; then
 			XQUARTZ=yes
@@ -1056,9 +1053,11 @@ if test "x$SCREENSAVER" = xyes; then
 	SDK_REQUIRED_MODULES="$SDK_REQUIRED_MODULES $SCRNSAVERPROTO"
 fi
 
+HASHTABLE=no
 AM_CONDITIONAL(RES, [test "x$RES" = xyes])
 if test "x$RES" = xyes; then
 	AC_DEFINE(RES, 1, [Support X resource extension])
+	HASHTABLE=yes
 	REQUIRED_MODULES="$REQUIRED_MODULES $RESOURCEPROTO"
 	SDK_REQUIRED_MODULES="$SDK_REQUIRED_MODULES $RESOURCEPROTO"
 fi
@@ -1242,12 +1241,15 @@ if test "x$GLX" = xyes; then
 	PKG_CHECK_MODULES([GL], $GLPROTO $LIBGL)
 	AC_SUBST(XLIB_CFLAGS)
 	AC_DEFINE(GLXEXT, 1, [Build GLX extension])
+	HASHTABLE=yes
 	GLX_LIBS='$(top_builddir)/glx/libglx.la $(top_builddir)/glx/libglxvnd.la'
 	GLX_SYS_LIBS="$GLX_SYS_LIBS $GL_LIBS"
 else
         GLX=no
 fi
 AM_CONDITIONAL(GLX, test "x$GLX" = xyes)
+
+AM_CONDITIONAL(HASHTABLE, test "x$HASHTABLE" = xyes)
 
 AC_SUBST([GLX_DEFINES])
 AC_SUBST([GLX_SYS_LIBS])
@@ -1942,7 +1944,7 @@ if test "x$XORG" = xyes; then
 	        XORG_SYS_LIBS="$XORG_SYS_LIBS $XORG_MODULES_LIBS"
 	fi
 
-	if test "x$DRM" = xyes; then
+	if test "x$DRM" = xyes -a "x$DRI2" = xyes; then
 		XORG_DRIVER_MODESETTING=yes
 	fi
 
@@ -2014,6 +2016,7 @@ AM_CONDITIONAL([SOLARIS_VT], [test "x$solaris_vt" = xyes])
 AM_CONDITIONAL([DGA], [test "x$DGA" = xyes])
 AM_CONDITIONAL([XORG_BUS_PLATFORM], [test "x$CONFIG_UDEV_KMS" = xyes])
 AM_CONDITIONAL([XORG_DRIVER_MODESETTING], [test "x$XORG_DRIVER_MODESETTING" = xyes])
+AM_CONDITIONAL([XORG_DRIVER_INPUT_INPUTTEST], [test "x$XORG_DRIVER_INPUT_INPUTTEST" = xyes])
 
 dnl glamor
 if test "x$GLAMOR" = xauto; then
@@ -2290,7 +2293,7 @@ AM_CONDITIONAL(XEPHYR, [test "x$KDRIVE" = xyes && test "x$XEPHYR" = xyes])
 
 dnl Xwayland DDX
 
-XWAYLANDMODULES="wayland-client >= 1.3.0 wayland-protocols >= 1.18"
+XWAYLANDMODULES="wayland-client >= 1.5.0 wayland-protocols >= 1.18"
 if test "x$XF86VIDMODE" = xyes; then
 	XWAYLANDMODULES="$XWAYLANDMODULES $VIDMODEPROTO"
 fi
@@ -2453,6 +2456,7 @@ hw/xfree86/dri/Makefile
 hw/xfree86/dri2/Makefile
 hw/xfree86/dri2/pci_ids/Makefile
 hw/xfree86/drivers/Makefile
+hw/xfree86/drivers/inputtest/Makefile
 hw/xfree86/drivers/modesetting/Makefile
 hw/xfree86/exa/Makefile
 hw/xfree86/exa/man/Makefile
@@ -2513,6 +2517,7 @@ hw/kdrive/ephyr/Makefile
 hw/kdrive/ephyr/man/Makefile
 hw/kdrive/src/Makefile
 hw/xwayland/Makefile
+hw/xwayland/man/Makefile
 hw/xwayland/xwayland.pc
 test/Makefile
 xserver.ent

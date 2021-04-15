@@ -267,9 +267,6 @@ AddInputDevice(ClientPtr client, DeviceProc deviceProc, Bool autoStart)
         return NULL;
     }
 
-    if (!dev)
-        return (DeviceIntPtr) NULL;
-
     dev->last.scroll = NULL;
     dev->last.touches = NULL;
     dev->id = devid;
@@ -284,7 +281,7 @@ AddInputDevice(ClientPtr client, DeviceProc deviceProc, Bool autoStart)
     dev->deviceGrab.grabTime = currentTime;
     dev->deviceGrab.ActivateGrab = ActivateKeyboardGrab;
     dev->deviceGrab.DeactivateGrab = DeactivateKeyboardGrab;
-    dev->deviceGrab.sync.event = calloc(1, sizeof(DeviceEvent));
+    dev->deviceGrab.sync.event = calloc(1, sizeof(InternalEvent));
 
     XkbSetExtension(dev, ProcessKeyboardEvent);
 
@@ -2260,6 +2257,9 @@ ProcChangePointerControl(ClientPtr client)
     REQUEST(xChangePointerControlReq);
     REQUEST_SIZE_MATCH(xChangePointerControlReq);
 
+    /* If the device has no PtrFeedbackPtr, the xserver has a bug */
+    BUG_RETURN_VAL (!mouse->ptrfeed, BadImplementation);
+
     ctrl = mouse->ptrfeed->ctrl;
     if ((stuff->doAccel != xTrue) && (stuff->doAccel != xFalse)) {
         client->errorValue = stuff->doAccel;
@@ -2812,5 +2812,28 @@ valuator_set_mode(DeviceIntPtr dev, int axis, int mode)
 
         for (i = 0; i < dev->valuator->numAxes; i++)
             dev->valuator->axes[i].mode = mode;
+    }
+}
+
+void
+DeliverDeviceClassesChangedEvent(int sourceid, Time time)
+{
+    DeviceIntPtr dev;
+    int num_events = 0;
+    InternalEvent dcce;
+
+    dixLookupDevice(&dev, sourceid, serverClient, DixWriteAccess);
+
+    if (!dev)
+        return;
+
+    /* UpdateFromMaster generates at most one event */
+    UpdateFromMaster(&dcce, dev, DEVCHANGE_POINTER_EVENT, &num_events);
+    BUG_WARN(num_events > 1);
+
+    if (num_events) {
+        dcce.any.time = time;
+        /* FIXME: This doesn't do anything */
+        dev->public.processInputProc(&dcce, dev);
     }
 }

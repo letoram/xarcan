@@ -3,8 +3,8 @@ project('xserver', 'c',
             'buildtype=debugoptimized',
             'c_std=gnu99',
         ],
-        version: '1.20.99.1',
-        meson_version: '>= 0.46.0',
+        version: '20.99.1',
+        meson_version: '>= 0.47.0',
 )
 add_project_arguments('-DHAVE_DIX_CONFIG_H', language: ['c', 'objc'])
 cc = meson.get_compiler('c')
@@ -61,7 +61,7 @@ add_global_arguments(common_wflags, language : ['c', 'objc'])
 libdrm_req = '>= 2.4.89'
 libselinux_req = '>= 2.0.86'
 xext_req = '>= 1.0.99.4'
-wayland_req = '>= 1.3.0'
+wayland_req = '>= 1.5.0'
 wayland_protocols_req = '>= 1.18'
 gbm_req = '>= 10.2'
 xf86dgaproto_req = '>= 2.0.99.1'
@@ -492,7 +492,7 @@ if not libdrm_dep.found() and libdrm_required
     error('DRI requested, but LIBDRM not found')
 endif
 
-build_modesetting = libdrm_dep.found()
+build_modesetting = libdrm_dep.found() and dri2proto_dep.found()
 
 build_vgahw = false
 if get_option('vgahw') == 'auto'
@@ -826,7 +826,7 @@ if build_xorg
                                 get_option('libdir'),
                                 'pkgconfig'),
     )
-endif
 
-install_data('xorg-server.m4',
-             install_dir: join_paths(get_option('datadir'), 'aclocal'))
+    install_data('xorg-server.m4',
+                 install_dir: join_paths(get_option('datadir'), 'aclocal'))
+endif

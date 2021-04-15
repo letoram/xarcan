@@ -1,3 +1,7 @@
+SUBDIRS = man
+
+DIST_SUBDIRS = man
+
 bindir = @xwayland_path@
 bin_PROGRAMS = Xwayland
 
@@ -37,7 +41,8 @@ Xwayland_SOURCES =				\
 	xwayland-window-buffers.c		\
 	xwayland-window-buffers.h		\
 	$(top_srcdir)/Xi/stubs.c		\
-	$(top_srcdir)/mi/miinitext.c
+	$(top_srcdir)/mi/miinitext.c		\
+	$(top_srcdir)/mi/miinitext.h
 
 if GLAMOR
 if GLX

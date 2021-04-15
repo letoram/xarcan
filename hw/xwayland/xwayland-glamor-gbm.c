@@ -56,7 +56,6 @@ struct xwl_gbm_private {
     char *device_name;
     struct gbm_device *gbm;
     struct wl_drm *drm;
-    struct zwp_linux_dmabuf_v1 *dmabuf;
     int drm_fd;
     int fd_render_node;
     Bool drm_authenticated;
@@ -95,25 +94,6 @@ gbm_format_for_depth(int depth)
         ErrorF("unexpected depth: %d\n", depth);
     case 32:
         return GBM_FORMAT_ARGB8888;
-    }
-}
-
-static uint32_t
-wl_drm_format_for_depth(int depth)
-{
-    switch (depth) {
-    case 15:
-        return WL_DRM_FORMAT_XRGB1555;
-    case 16:
-        return WL_DRM_FORMAT_RGB565;
-    case 24:
-        return WL_DRM_FORMAT_XRGB8888;
-    case 30:
-        return WL_DRM_FORMAT_ARGB2101010;
-    default:
-        ErrorF("unexpected depth: %d\n", depth);
-    case 32:
-        return WL_DRM_FORMAT_ARGB8888;
     }
 }
 
@@ -215,7 +195,7 @@ xwl_glamor_gbm_create_pixmap(ScreenPtr screen,
             uint32_t num_modifiers;
             uint64_t *modifiers = NULL;
 
-            glamor_get_modifiers(screen, format, &num_modifiers, &modifiers);
+            xwl_glamor_get_modifiers(screen, format, &num_modifiers, &modifiers);
             bo = gbm_bo_create_with_modifiers(xwl_gbm->gbm, width, height,
                                               format, modifiers, num_modifiers);
             free(modifiers);
@@ -270,8 +250,7 @@ static const struct wl_buffer_listener xwl_glamor_gbm_buffer_listener = {
 };
 
 static struct wl_buffer *
-xwl_glamor_gbm_get_wl_buffer_for_pixmap(PixmapPtr pixmap,
-                                        Bool *created)
+xwl_glamor_gbm_get_wl_buffer_for_pixmap(PixmapPtr pixmap)
 {
     struct xwl_screen *xwl_screen = xwl_screen_get(pixmap->drawable.pScreen);
     struct xwl_pixmap *xwl_pixmap = xwl_pixmap_get(pixmap);
@@ -279,8 +258,6 @@ xwl_glamor_gbm_get_wl_buffer_for_pixmap(PixmapPtr pixmap,
     unsigned short width = pixmap->drawable.width;
     unsigned short height = pixmap->drawable.height;
     uint32_t format;
-    struct xwl_format *xwl_format = NULL;
-    Bool modifier_supported = FALSE;
     int prime_fd;
     int num_planes;
     uint32_t strides[4];
@@ -292,15 +269,9 @@ xwl_glamor_gbm_get_wl_buffer_for_pixmap(PixmapPtr pixmap,
        return NULL;
 
     if (xwl_pixmap->buffer) {
-        /* Buffer already exists. Return it and inform caller if interested. */
-        if (created)
-            *created = FALSE;
+        /* Buffer already exists. */
         return xwl_pixmap->buffer;
     }
-
-    /* Buffer does not exist yet. Create now and inform caller if interested. */
-    if (created)
-        *created = TRUE;
 
     if (!xwl_pixmap->bo)
        return NULL;
@@ -325,26 +296,11 @@ xwl_glamor_gbm_get_wl_buffer_for_pixmap(PixmapPtr pixmap,
     offsets[0] = 0;
 #endif
 
-    for (i = 0; i < xwl_screen->num_formats; i++) {
-       if (xwl_screen->formats[i].format == format) {
-          xwl_format = &xwl_screen->formats[i];
-          break;
-       }
-    }
-
-    if (xwl_format) {
-        for (i = 0; i < xwl_format->num_modifiers; i++) {
-            if (xwl_format->modifiers[i] == modifier) {
-                modifier_supported = TRUE;
-                break;
-            }
-        }
-    }
-
-    if (xwl_gbm->dmabuf && modifier_supported) {
+    if (xwl_screen->dmabuf &&
+        xwl_glamor_is_modifier_supported(xwl_screen, format, modifier)) {
         struct zwp_linux_buffer_params_v1 *params;
 
-        params = zwp_linux_dmabuf_v1_create_params(xwl_gbm->dmabuf);
+        params = zwp_linux_dmabuf_v1_create_params(xwl_screen->dmabuf);
         for (i = 0; i < num_planes; i++) {
             zwp_linux_buffer_params_v1_add(params, prime_fd, i,
                                            offsets[i], strides[i],
@@ -600,83 +556,14 @@ glamor_egl_fd_from_pixmap(ScreenPtr screen, PixmapPtr pixmap,
     return -1;
 }
 
-_X_EXPORT Bool
-glamor_get_formats(ScreenPtr screen,
-                   CARD32 *num_formats, CARD32 **formats)
-{
-    struct xwl_screen *xwl_screen = xwl_screen_get(screen);
-    struct xwl_gbm_private *xwl_gbm = xwl_gbm_get(xwl_screen);
-    int i;
-
-    /* Explicitly zero the count as the caller may ignore the return value */
-    *num_formats = 0;
-
-    if (!xwl_gbm->dmabuf_capable || !xwl_gbm->dmabuf)
-        return FALSE;
-
-    if (xwl_screen->num_formats == 0)
-       return TRUE;
-
-    *formats = calloc(xwl_screen->num_formats, sizeof(CARD32));
-    if (*formats == NULL)
-        return FALSE;
-
-    for (i = 0; i < xwl_screen->num_formats; i++)
-       (*formats)[i] = xwl_screen->formats[i].format;
-    *num_formats = xwl_screen->num_formats;
-
-    return TRUE;
-}
-
-_X_EXPORT Bool
-glamor_get_modifiers(ScreenPtr screen, uint32_t format,
-                     uint32_t *num_modifiers, uint64_t **modifiers)
-{
-    struct xwl_screen *xwl_screen = xwl_screen_get(screen);
-    struct xwl_gbm_private *xwl_gbm = xwl_gbm_get(xwl_screen);
-    struct xwl_format *xwl_format = NULL;
-    int i;
-
-    /* Explicitly zero the count as the caller may ignore the return value */
-    *num_modifiers = 0;
-
-    if (!xwl_gbm->dmabuf_capable || !xwl_gbm->dmabuf)
-        return FALSE;
-
-    if (xwl_screen->num_formats == 0)
-       return TRUE;
-
-    for (i = 0; i < xwl_screen->num_formats; i++) {
-       if (xwl_screen->formats[i].format == format) {
-          xwl_format = &xwl_screen->formats[i];
-          break;
-       }
-    }
-
-    if (!xwl_format ||
-        (xwl_format->num_modifiers == 1 &&
-         xwl_format->modifiers[0] == DRM_FORMAT_MOD_INVALID))
-        return FALSE;
-
-    *modifiers = calloc(xwl_format->num_modifiers, sizeof(uint64_t));
-    if (*modifiers == NULL)
-        return FALSE;
-
-    for (i = 0; i < xwl_format->num_modifiers; i++)
-       (*modifiers)[i] = xwl_format->modifiers[i];
-    *num_modifiers = xwl_format->num_modifiers;
-
-    return TRUE;
-}
-
 static const dri3_screen_info_rec xwl_dri3_info = {
     .version = 2,
     .open = NULL,
     .pixmap_from_fds = glamor_pixmap_from_fds,
     .fds_from_pixmap = glamor_fds_from_pixmap,
     .open_client = xwl_dri3_open_client,
-    .get_formats = glamor_get_formats,
-    .get_modifiers = glamor_get_modifiers,
+    .get_formats = xwl_glamor_get_formats,
+    .get_modifiers = xwl_glamor_get_modifiers,
     .get_drawable_modifiers = glamor_get_drawable_modifiers,
 };
 
@@ -804,54 +691,6 @@ static const struct wl_drm_listener xwl_drm_listener = {
     xwl_drm_handle_capabilities
 };
 
-static void
-xwl_dmabuf_handle_format(void *data, struct zwp_linux_dmabuf_v1 *dmabuf,
-                         uint32_t format)
-{
-}
-
-static void
-xwl_dmabuf_handle_modifier(void *data, struct zwp_linux_dmabuf_v1 *dmabuf,
-                           uint32_t format, uint32_t modifier_hi,
-                           uint32_t modifier_lo)
-{
-   struct xwl_screen *xwl_screen = data;
-    struct xwl_format *xwl_format = NULL;
-    int i;
-
-    for (i = 0; i < xwl_screen->num_formats; i++) {
-        if (xwl_screen->formats[i].format == format) {
-            xwl_format = &xwl_screen->formats[i];
-            break;
-        }
-    }
-
-    if (xwl_format == NULL) {
-       xwl_screen->num_formats++;
-       xwl_screen->formats = realloc(xwl_screen->formats,
-                                     xwl_screen->num_formats * sizeof(*xwl_format));
-       if (!xwl_screen->formats)
-          return;
-       xwl_format = &xwl_screen->formats[xwl_screen->num_formats - 1];
-       xwl_format->format = format;
-       xwl_format->num_modifiers = 0;
-       xwl_format->modifiers = NULL;
-    }
-
-    xwl_format->num_modifiers++;
-    xwl_format->modifiers = realloc(xwl_format->modifiers,
-                                    xwl_format->num_modifiers * sizeof(uint64_t));
-    if (!xwl_format->modifiers)
-       return;
-    xwl_format->modifiers[xwl_format->num_modifiers - 1]  = (uint64_t) modifier_lo;
-    xwl_format->modifiers[xwl_format->num_modifiers - 1] |= (uint64_t) modifier_hi << 32;
-}
-
-static const struct zwp_linux_dmabuf_v1_listener xwl_dmabuf_listener = {
-    .format   = xwl_dmabuf_handle_format,
-    .modifier = xwl_dmabuf_handle_modifier
-};
-
 Bool
 xwl_screen_set_drm_interface(struct xwl_screen *xwl_screen,
                              uint32_t id, uint32_t version)
@@ -865,22 +704,6 @@ xwl_screen_set_drm_interface(struct xwl_screen *xwl_screen,
         wl_registry_bind(xwl_screen->registry, id, &wl_drm_interface, 2);
     wl_drm_add_listener(xwl_gbm->drm, &xwl_drm_listener, xwl_screen);
     xwl_screen->expecting_event++;
-
-    return TRUE;
-}
-
-Bool
-xwl_screen_set_dmabuf_interface(struct xwl_screen *xwl_screen,
-                                uint32_t id, uint32_t version)
-{
-    struct xwl_gbm_private *xwl_gbm = xwl_gbm_get(xwl_screen);
-
-    if (version < 3)
-        return FALSE;
-
-    xwl_gbm->dmabuf =
-        wl_registry_bind(xwl_screen->registry, id, &zwp_linux_dmabuf_v1_interface, 3);
-    zwp_linux_dmabuf_v1_add_listener(xwl_gbm->dmabuf, &xwl_dmabuf_listener, xwl_screen);
 
     return TRUE;
 }
@@ -924,11 +747,30 @@ xwl_glamor_gbm_has_wl_interfaces(struct xwl_screen *xwl_screen)
 }
 
 static Bool
-xwl_glamor_gbm_init_egl(struct xwl_screen *xwl_screen)
+xwl_glamor_try_to_make_context_current(struct xwl_screen *xwl_screen)
 {
-    struct xwl_gbm_private *xwl_gbm = xwl_gbm_get(xwl_screen);
-    EGLint major, minor;
-    Bool egl_initialized = FALSE;
+    if (xwl_screen->egl_context == EGL_NO_CONTEXT)
+        return FALSE;
+
+    return eglMakeCurrent(xwl_screen->egl_display, EGL_NO_SURFACE,
+                          EGL_NO_SURFACE, xwl_screen->egl_context);
+}
+
+static void
+xwl_glamor_maybe_destroy_context(struct xwl_screen *xwl_screen)
+{
+    if (xwl_screen->egl_context == EGL_NO_CONTEXT)
+        return;
+
+   eglMakeCurrent(xwl_screen->egl_display, EGL_NO_SURFACE,
+                  EGL_NO_SURFACE, EGL_NO_CONTEXT);
+   eglDestroyContext(xwl_screen->egl_display, xwl_screen->egl_context);
+   xwl_screen->egl_context = EGL_NO_CONTEXT;
+}
+
+static Bool
+xwl_glamor_try_big_gl_api(struct xwl_screen *xwl_screen)
+{
     static const EGLint config_attribs_core[] = {
         EGL_CONTEXT_OPENGL_PROFILE_MASK_KHR,
         EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT_KHR,
@@ -938,6 +780,67 @@ xwl_glamor_gbm_init_egl(struct xwl_screen *xwl_screen)
         GLAMOR_GL_CORE_VER_MINOR,
         EGL_NONE
     };
+    int gl_version;
+
+    eglBindAPI(EGL_OPENGL_API);
+
+    xwl_screen->egl_context =
+        eglCreateContext(xwl_screen->egl_display, NULL,
+                         EGL_NO_CONTEXT, config_attribs_core);
+
+    if (xwl_screen->egl_context == EGL_NO_CONTEXT)
+        xwl_screen->egl_context =
+            eglCreateContext(xwl_screen->egl_display, NULL,
+                             EGL_NO_CONTEXT, NULL);
+
+    if (!xwl_glamor_try_to_make_context_current(xwl_screen)) {
+        ErrorF("Failed to make EGL context current with GL\n");
+        xwl_glamor_maybe_destroy_context(xwl_screen);
+        return FALSE;
+    }
+
+    /* glamor needs at least GL 2.1, if the GL version is less than 2.1,
+     * drop the context we created, it's useless.
+     */
+    gl_version = epoxy_gl_version();
+    if (gl_version < 21) {
+        ErrorF("Supported GL version is not sufficient (required 21, found %i)\n",
+               gl_version);
+        xwl_glamor_maybe_destroy_context(xwl_screen);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+static Bool
+xwl_glamor_try_gles_api(struct xwl_screen *xwl_screen)
+{
+    const EGLint gles_attribs[] = {
+        EGL_CONTEXT_CLIENT_VERSION,
+        2,
+        EGL_NONE,
+    };
+
+    eglBindAPI(EGL_OPENGL_ES_API);
+
+    xwl_screen->egl_context = eglCreateContext(xwl_screen->egl_display, NULL,
+                                               EGL_NO_CONTEXT, gles_attribs);
+
+    if (!xwl_glamor_try_to_make_context_current(xwl_screen)) {
+        ErrorF("Failed to make EGL context current with GLES2\n");
+        xwl_glamor_maybe_destroy_context(xwl_screen);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+static Bool
+xwl_glamor_gbm_init_egl(struct xwl_screen *xwl_screen)
+{
+    struct xwl_gbm_private *xwl_gbm = xwl_gbm_get(xwl_screen);
+    EGLint major, minor;
     const GLubyte *renderer;
 
     if (!xwl_gbm->fd_render_node && !xwl_gbm->drm_authenticated) {
@@ -958,62 +861,15 @@ xwl_glamor_gbm_init_egl(struct xwl_screen *xwl_screen)
         goto error;
     }
 
-    egl_initialized = eglInitialize(xwl_screen->egl_display, &major, &minor);
-    if (!egl_initialized) {
+    if (!eglInitialize(xwl_screen->egl_display, &major, &minor)) {
         ErrorF("eglInitialize() failed\n");
         goto error;
     }
 
-    eglBindAPI(EGL_OPENGL_API);
-
-    xwl_screen->egl_context = eglCreateContext(
-        xwl_screen->egl_display, NULL, EGL_NO_CONTEXT, config_attribs_core);
-    if (xwl_screen->egl_context == EGL_NO_CONTEXT) {
-        xwl_screen->egl_context = eglCreateContext(
-            xwl_screen->egl_display, NULL, EGL_NO_CONTEXT, NULL);
-    }
-
-    if (xwl_screen->egl_context == EGL_NO_CONTEXT) {
-        ErrorF("Failed to create EGL context with GL\n");
+    if (!xwl_glamor_try_big_gl_api(xwl_screen) &&
+        !xwl_glamor_try_gles_api(xwl_screen)) {
+        ErrorF("Cannot use neither GL nor GLES2\n");
         goto error;
-    }
-
-    if (!eglMakeCurrent(xwl_screen->egl_display,
-                        EGL_NO_SURFACE, EGL_NO_SURFACE,
-                        xwl_screen->egl_context)) {
-        ErrorF("Failed to make EGL context current with GL\n");
-        goto error;
-    }
-
-    /* glamor needs either big-GL 2.1 or GLES2 */
-    if (epoxy_gl_version() < 21) {
-        const EGLint gles_attribs[] = {
-            EGL_CONTEXT_CLIENT_VERSION,
-            2,
-            EGL_NONE,
-        };
-
-        /* Recreate the context with GLES2 instead */
-        eglMakeCurrent(xwl_screen->egl_display,EGL_NO_SURFACE,
-                       EGL_NO_SURFACE, EGL_NO_CONTEXT);
-        eglDestroyContext(xwl_screen->egl_display, xwl_screen->egl_context);
-
-        eglBindAPI(EGL_OPENGL_ES_API);
-        xwl_screen->egl_context = eglCreateContext(xwl_screen->egl_display,
-                                                   NULL, EGL_NO_CONTEXT,
-                                                   gles_attribs);
-
-        if (xwl_screen->egl_context == EGL_NO_CONTEXT) {
-            ErrorF("Failed to create EGL context with GLES2\n");
-            goto error;
-        }
-
-        if (!eglMakeCurrent(xwl_screen->egl_display,
-                            EGL_NO_SURFACE, EGL_NO_SURFACE,
-                            xwl_screen->egl_context)) {
-            ErrorF("Failed to make EGL context current with GLES2\n");
-            goto error;
-        }
     }
 
     renderer = glGetString(GL_RENDERER);
@@ -1039,12 +895,8 @@ xwl_glamor_gbm_init_egl(struct xwl_screen *xwl_screen)
 
     return TRUE;
 error:
-    if (xwl_screen->egl_context != EGL_NO_CONTEXT) {
-        eglDestroyContext(xwl_screen->egl_display, xwl_screen->egl_context);
-        xwl_screen->egl_context = EGL_NO_CONTEXT;
-    }
-
     if (xwl_screen->egl_display != EGL_NO_DISPLAY) {
+        xwl_glamor_maybe_destroy_context(xwl_screen);
         eglTerminate(xwl_screen->egl_display);
         xwl_screen->egl_display = EGL_NO_DISPLAY;
     }
@@ -1115,8 +967,8 @@ xwl_glamor_init_gbm(struct xwl_screen *xwl_screen)
     xwl_screen->gbm_backend.init_egl = xwl_glamor_gbm_init_egl;
     xwl_screen->gbm_backend.init_screen = xwl_glamor_gbm_init_screen;
     xwl_screen->gbm_backend.get_wl_buffer_for_pixmap = xwl_glamor_gbm_get_wl_buffer_for_pixmap;
+    xwl_screen->gbm_backend.check_flip = NULL;
     xwl_screen->gbm_backend.is_available = TRUE;
-    xwl_screen->gbm_backend.backend_flags = XWL_EGL_BACKEND_HAS_PRESENT_FLIP |
-                                            XWL_EGL_BACKEND_NEEDS_BUFFER_FLUSH |
+    xwl_screen->gbm_backend.backend_flags = XWL_EGL_BACKEND_NEEDS_BUFFER_FLUSH |
                                             XWL_EGL_BACKEND_NEEDS_N_BUFFERING;
 }
