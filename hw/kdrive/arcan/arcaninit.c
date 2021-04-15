@@ -231,6 +231,15 @@ OsVendorInit(void)
     arcanInit();
 }
 
+#if INPUTTHREAD
+/** This function is called in Xserver/os/inputthread.c when starting
+    the input thread. */
+void
+ddxInputThreadInit(void)
+{
+}
+#endif
+
 KdCardFuncs arcanFuncs = {
     arcanCardInit,               /* cardinit */
     arcanScreenInit,             /* scrinit */

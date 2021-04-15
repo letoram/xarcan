@@ -22,7 +22,19 @@
  */
 
 /*
- * See README-Arcan.md for details on status and todo.
+ * TODO
+ *
+ * - [ ] Re-add DRI3 buffer hooks
+ * - [ ] Rootless window buffer redirection
+ * - [ ] Xace buffer interception
+ * - [ ] Accelerated cursor mapping
+ * - [ ] Track / map window creation/positioning/mapping/selection/ordering
+ *   - [ ] forward over
+ *   - [ ] map proxy windows back
+ * - [ ] Single-Buffer
+ * - [ ] PRESENT
+ * - [ ] Shmif-server thread, map to windows and event loop
+ * - [ ] Exec / connection inherit setup (needs tampering with xlib/xcb preload)
  */
 
 #ifdef HAVE_DIX_CONFIG_H
@@ -70,9 +82,6 @@ static void enqueueKeyboard(uint16_t scancode, int active)
     KdEnqueueKeyboardEvent(arcanInputPriv.ki, scancode, !active);
 }
 #endif
-
-static struct arcan_shmif_cont cursor;
-static DevPrivateKeyRec cursor_private_key;
 
 static uint8_t code_tbl[512];
 static struct arcan_shmif_initial* arcan_init;
@@ -153,7 +162,8 @@ Bool
 arcanScreenInitialize(KdScreenInfo * screen, arcanScrPriv * scrpriv)
 {
     scrpriv->acon->hints =
-       SHMIF_RHINT_SUBREGION | SHMIF_RHINT_IGNORE_ALPHA |SHMIF_RHINT_VSIGNAL_EV;
+/*       SHMIF_RHINT_SUBREGION | */
+			 SHMIF_RHINT_IGNORE_ALPHA |SHMIF_RHINT_VSIGNAL_EV;
     trace("arcanScreenInitialize");
 
     if (!screen->width || !screen->height) {
@@ -330,6 +340,22 @@ arcanDisplayHint(struct arcan_shmif_cont* con,
  */
 }
 
+static
+void
+arcanSignalShm(struct arcan_shmif_cont* con, bool dirty)
+{
+  arcanScrPriv *scrpriv = con->user;
+	if (!scrpriv->dirty && !dirty)
+		return;
+
+	arcan_shmif_signal(con, SHMIF_SIGVID | SHMIF_SIGBLK_NONE);
+ 	con->dirty.x1 = con->w;
+	con->dirty.y1 = con->h;
+	con->dirty.y2 = 0;
+	con->dirty.x2 = 0;
+	scrpriv->dirty = false;
+}
+
 void
 arcanFlushEvents(int fd, void* tag)
 {
@@ -347,17 +373,9 @@ arcanFlushEvents(int fd, void* tag)
             continue;
         else
             switch (ev.tgt.kind){
-            case TARGET_COMMAND_STEPFRAME:{
-                arcanScrPriv *scrpriv = con->user;
-                if (scrpriv->dirty){
-                    arcan_shmif_signal(con, SHMIF_SIGVID | SHMIF_SIGBLK_NONE);
-                    con->dirty.x1 = con->w;
-                    con->dirty.y1 = con->h;
-                    con->dirty.y2 = 0;
-                    con->dirty.x2 = 0;
-                    scrpriv->dirty = false;
-                }
-            }
+            case TARGET_COMMAND_STEPFRAME:
+						    arcanSignalShm(con, false);
+            break;
             case TARGET_COMMAND_RESET:
                 switch(ev.tgt.ioevs[0].iv){
 /* not much 'state' that we can extract or track from the Xorg internals,
@@ -372,6 +390,7 @@ arcanFlushEvents(int fd, void* tag)
                     case 3:
                        InputThreadUnregisterDev(con->epipe);
                        InputThreadRegisterDev(con->epipe, (void*) arcanFlushEvents, con);
+											 arcanSignalShm(con, true);
                     break;
                 }
             break;
@@ -398,6 +417,8 @@ arcanFlushEvents(int fd, void* tag)
         break;
         }
     }
+
+		arcanSignalShm(con, false);
 
 /* aggregate mouse input events unless it's clicks,
  * where we have to flush for the values to register correctly */
@@ -466,8 +487,8 @@ static void arcanInternalDamageRedisplay(ScreenPtr pScreen)
 
     region = DamageRegion(scrpriv->damage);
 
-    if (!RegionNotEmpty(region) || scrpriv->acon->addr->vready)
-        return;
+    if (!RegionNotEmpty(region))
+			return;
 
 /*
  * We don't use fine-grained dirty regions really, the data gathered gave
@@ -510,6 +531,7 @@ static void arcanInternalDamageRedisplay(ScreenPtr pScreen)
                                         scrpriv->tex, &fd, &stride, &fourcc);
         }
 
+/* This should be changed into the planes + modifiers + ... format */
         arcan_shmif_signalhandle(scrpriv->acon,
                                  SHMIF_SIGVID | SHMIF_SIGBLK_NONE,
                                  fd, stride, fourcc);
@@ -518,11 +540,13 @@ static void arcanInternalDamageRedisplay(ScreenPtr pScreen)
         }
         scrpriv->pending_fd = fd;
     }
+		else
 #endif
+		{
 /* use frame delivery event to indicate next time we should signal */
-    arcan_shmif_signal(scrpriv->acon, SHMIF_SIGVID | SHMIF_SIGBLK_NONE);
-    scrpriv->dirty = true;
-    DamageEmpty(scrpriv->damage);
+  		DamageEmpty(scrpriv->damage);
+	    scrpriv->dirty = true;
+		}
 }
 
 static void onDamageDestroy(DamagePtr damage, void *closure)
@@ -571,6 +595,21 @@ static void arcanUnsetInternalDamage(ScreenPtr pScreen)
     }
 }
 
+static int depth_to_gbm(int depth)
+{
+    if (depth == 16)
+        return GBM_FORMAT_RGB565;
+    else if (depth == 24)
+        return GBM_FORMAT_XRGB8888;
+    else if (depth == 30)
+        return GBM_FORMAT_ARGB2101010;
+    else if (depth == 32)
+        return GBM_FORMAT_ARGB8888;
+    else
+        ErrorF("unhandled gbm depth: %d\n", depth);
+    return 0;
+}
+
 static
 int ArcanSetPixmapVisitWindow(WindowPtr window, void *data)
 {
@@ -599,19 +638,6 @@ int drmFmt(int depth)
 }*/
 
 static
-int gbmFmt(int depth)
-{
-    switch (depth){
-    case 16: return GBM_FORMAT_RGB565;
-    case 24: return GBM_FORMAT_XRGB8888;
-    case 32: return GBM_FORMAT_ARGB8888;
-    default:
-        return -1;
-    break;
-    }
-}
-
-static
 PixmapPtr boToPixmap(ScreenPtr pScreen, struct gbm_bo* bo, int depth)
 {
     KdScreenPriv(pScreen);
@@ -635,9 +661,6 @@ PixmapPtr boToPixmap(ScreenPtr pScreen, struct gbm_bo* bo, int depth)
         return NULL;
     }
 
-/* Could probably do more sneaky things here to forward this buffer
- * to arcan as its own window/source to cut down on the dedicated
- * fullscreen stuff. */
     arcan_shmifext_make_current(scrpriv->acon);
     ext_pixmap = malloc(sizeof(struct pixmap_ext));
     if (!ext_pixmap){
@@ -647,6 +670,7 @@ PixmapPtr boToPixmap(ScreenPtr pScreen, struct gbm_bo* bo, int depth)
         return NULL;
     }
 
+    *ext_pixmap = (struct pixmap_ext){0};
     arcan_shmifext_egl_meta(scrpriv->acon, &adisp, NULL, &actx);
     ext_pixmap->bo = bo;
     ext_pixmap->image = eglCreateImageKHR((EGLDisplay) adisp,
@@ -654,18 +678,39 @@ PixmapPtr boToPixmap(ScreenPtr pScreen, struct gbm_bo* bo, int depth)
                                           EGL_NATIVE_PIXMAP_KHR,
                                           ext_pixmap->bo, NULL);
 
+        if (ext_pixmap->image == EGL_NO_IMAGE_KHR){
+            trace("ArcanDRI3PixmapFromFD()::eglImageFromBO failed");
+            free(ext_pixmap);
+            glamor_destroy_pixmap(pixmap);
+            return NULL;
+        }
+
     glGenTextures(1, &ext_pixmap->texture);
     glBindTexture(GL_TEXTURE_2D, ext_pixmap->texture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, ext_pixmap->image);
+        if (eglGetError() != EGL_SUCCESS){
+            trace("ArcanDRI3PixmapFromFD()::eglImageToTexture failed");
+            glamor_destroy_pixmap(pixmap);
+            eglDestroyImageKHR((EGLDisplay) adisp, ext_pixmap->image);
+            free(ext_pixmap);
+            return NULL;
+        }
+
     glBindTexture(GL_TEXTURE_2D, 0);
 
-    dixSetPrivate(&pixmap->devPrivates, &pixmap_private_key, ext_pixmap);
-    glamor_set_pixmap_texture(pixmap, ext_pixmap->texture);
-    glamor_set_pixmap_type(pixmap, GLAMOR_TEXTURE_DRM);
+    if (!glamor_set_pixmap_texture(pixmap, ext_pixmap->texture)){
+            trace("ArcanDRI3PixmapFromFD()::glamor rejected pixmap<->texture");
+            glamor_destroy_pixmap(pixmap);
+            eglDestroyImageKHR((EGLDisplay) adisp, ext_pixmap->image);
+            free(ext_pixmap);
+            return NULL;
+        }
 
+    dixSetPrivate(&pixmap->devPrivates, &pixmap_private_key, ext_pixmap);
+    glamor_set_pixmap_type(pixmap, GLAMOR_TEXTURE_DRM);
     return pixmap;
 }
 #endif
@@ -689,7 +734,7 @@ Bool arcanGlamorCreateScreenResources(ScreenPtr pScreen)
         return false;
     }
 
-    fmt = gbmFmt(pScreen->rootDepth);
+    fmt = depth_to_gbm(pScreen->rootDepth);
     if (-1 != fmt){
         struct gbm_bo *bo = gbm_bo_create((struct gbm_device*) dev,
                                           pScreen->width,
@@ -850,13 +895,13 @@ int arcanInit(void)
         wd->cursor_reject = true;
  */
     }
-		else {
-			arcan_shmif_enqueue(con, &(arcan_event){
+        else {
+            arcan_shmif_enqueue(con, &(arcan_event){
         .category = EVENT_EXTERNAL,
         .ext.kind = ARCAN_EVENT(CURSORHINT),
         .ext.message.data = "hidden"
-    	});
-		}
+        });
+        }
 
 /* we will do dirty- region updates rather than full swaps, and alpha
  * channel will be set to 00 so ignore that one */
@@ -1148,8 +1193,8 @@ glamor_egl_fds_from_pixmap(ScreenPtr screen, PixmapPtr pixmap, int *fds,
 /* return number of fds, write into fds, trides, offsets, modifiers */
 }
 
-
-int glamor_egl_dri3_fd_name_from_tex(ScreenPtr pScreen,
+/*
+ * int glamor_egl_dri3_fd_name_from_tex(ScreenPtr pScreen,
                                      PixmapPtr pixmap,
                                      unsigned int tex,
                                      Bool want_name, CARD16 *stride, CARD32 *size)
@@ -1173,6 +1218,7 @@ int glamor_egl_dri3_fd_name_from_tex(ScreenPtr pScreen,
     *size = 0;
     return -1;
 }
+ */
 
 void
 glamor_egl_screen_init(ScreenPtr pScreen, struct glamor_context *glamor_ctx)
@@ -1244,50 +1290,71 @@ static int dri3FdFromPixmap(ScreenPtr pScreen, PixmapPtr pixmap,
     return gbm_bo_get_fd(ext_pixmap->bo);
 }
 
-static PixmapPtr dri3PixmapFromFd(ScreenPtr pScreen, int fd,
-                            CARD16 w, CARD16 h, CARD16 stride,
-                            CARD8 depth, CARD8 bpp)
+static PixmapPtr dri3PixmapFromFds(ScreenPtr pScreen,
+                           CARD8 num_fds, const int *fds,
+                       CARD16 width, CARD16 height,
+                       const CARD32 *strides, const CARD32 *offsets,
+                       CARD8 depth, CARD8 bpp, uint64_t modifier)
 {
     KdScreenPriv(pScreen);
     KdScreenInfo *screen = pScreenPriv->screen;
     arcanScrPriv *scrpriv = screen->driver;
-    uintptr_t dev;
-    struct gbm_bo *bo;
-    int gbm_fmt = gbmFmt(depth);
-    struct gbm_import_fd_data data = {
-        .fd = fd, .width = w, .height = h, .stride = stride };
+    struct gbm_device *gbmdev;
+    struct gbm_bo *bo = NULL;
 
-    trace("ArcanDRI3PixmapFromFD(%d, %d, %d, %d, %d)",
-                                 (int)w, (int)h,
-                                 (int)stride, (int)depth,
-                                 (int)bpp );
-
-    if (!scrpriv->in_glamor){
+        if (!scrpriv->in_glamor){
         trace("ArcanDRI3PixmapFromFD()::Not in GLAMOR state");
         return NULL;
     }
 
-    if (!w || !h || bpp != BitsPerPixel(depth) ||
-        stride < w * (bpp / 8)){
-        trace("ArcanDRI3PixmapFromFD()::Bad arguments");
-        return NULL;
-    }
+/* reject invalid values outright */
+        if (!width || !height || !num_fds || depth < 16 ||
+            bpp != BitsPerPixel(depth) || strides[0] < (width * bpp / 8)){
+            trace("ArcanDRI3PixmapFromFD::invalid input arguments");
+            return NULL;
+        }
 
-    if (-1 == gbm_fmt){
-        ErrorF("ArcanDRI3PixmapFromFD()::unknown input format");
-        return NULL;
+        uintptr_t dev_handle;
+        if (-1 == arcan_shmifext_dev(scrpriv->acon, &dev_handle, false)){
+                trace("ArcanDRI3PixmapFromFD()::Couldn't get device handle");
+                return NULL;
     }
+        else
+            gbmdev = (struct gbm_device*) dev_handle;
 
-    if (-1 == arcan_shmifext_dev(scrpriv->acon, &dev, false)){
-        trace("ArcanDRI3PixmapFromFD()::Couldn't get device handle");
-    }
+    int gbm_fmt = depth_to_gbm(depth);
 
-    bo = gbm_bo_import((struct gbm_device*)dev, GBM_BO_IMPORT_FD,
-                       &data, GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
-    if (bo == NULL){
-        trace("ArcanDRI3PixmapFromFD()::Couldn't import BO");
-        return NULL;
-    }
+        if (modifier != DRM_FORMAT_MOD_INVALID){
+            struct gbm_import_fd_modifier_data data = {
+                .width = width,
+                .height = height,
+                .num_fds = num_fds,
+                .format = gbm_fmt,
+                .modifier = modifier
+            };
+            for (size_t i = 0; i < num_fds; i++){
+                data.fds[i] = fds[i];
+                data.strides[i] = strides[i];
+                data.offsets[i] = offsets[i];
+            }
+            bo = gbm_bo_import(gbmdev,
+                         GBM_BO_IMPORT_FD_MODIFIER, &data, GBM_BO_USE_RENDERING);
+        }
+        else if (num_fds == 1){
+            struct gbm_import_fd_data data = {
+                .fd = fds[0],
+                .width = width,
+                .height = height,
+                .stride = strides[0],
+                .format = gbm_fmt
+            };
+
+            bo = gbm_bo_import(gbmdev, GBM_BO_IMPORT_FD, &data, GBM_BO_USE_RENDERING);
+            if (!bo){
+                trace("ArcanDRI3PixmapFromFD()::BO_mod_invalid import fail");
+                return NULL;
+            }
+        }
 
     return boToPixmap(pScreen, bo, depth);
 }
@@ -1305,27 +1372,51 @@ static int dri3Open(ClientPtr client,
     if (arcanConfigPriv.no_dri3)
         return BadAlloc;
 
-    fd = arcan_shmifext_dev(scrpriv->acon, NULL, true);
+		fd = arcan_shmifext_dev(scrpriv->acon, NULL, true);
+
     trace("ArcanDri3Open(%d)", fd);
     if (-1 != fd){
         *pfd = fd;
         return Success;
     }
+
     return BadAlloc;
 }
 
+static Bool dri3GetFormats(ScreenPtr screen,
+		                       CARD32 *num_formats, CARD32 **formats)
+{
+    trace("dri3GetFormats");
+    *num_formats = 0;
+    return FALSE;
+}
+
+static Bool dri3GetDrawableModifiers(DrawablePtr screen,
+		                         uint32_t format,
+                             uint32_t *num_modifiers, uint64_t **modifiers)
+{
+	trace("dri3GetDrawableModifiers");
+	*num_modifiers = 0;
+	return FALSE;
+}
+
+static Bool dri3GetModifiers(ScreenPtr screen,
+		                         uint32_t format,
+                             uint32_t *num_modifiers, uint64_t **modifiers)
+{
+	trace("dri3GetModifiers");
+	*num_modifiers = 0;
+	return FALSE;
+}
+
 static dri3_screen_info_rec dri3_info = {
-    .version = 1,
+    .version = 2,
     .open_client = dri3Open,
-    .pixmap_from_fd = dri3PixmapFromFd,
+    .pixmap_from_fds = dri3PixmapFromFds,
     .fd_from_pixmap = dri3FdFromPixmap,
-/* more here these days (due to modifiers):
- * dri3_pixmap_from_fds,
- * dri3_fds_from_pixmap,
- * dri3_get_formats_proc,
- * dri3_get_modifiers_proc,
- * dri3_get_drawable_modifiers_proc
- */
+    .get_formats = dri3GetFormats,
+    .get_modifiers = dri3GetModifiers,
+    .get_drawable_modifiers = dri3GetDrawableModifiers
 };
 
 Bool arcanGlamorInit(ScreenPtr pScreen)
@@ -1337,7 +1428,6 @@ Bool arcanGlamorInit(ScreenPtr pScreen)
 /* It may be better to create a subsurface that we escalate to GL, and map
  * the placement of this surface relative to the display similar to old-style
  * overlays. */
-
     struct arcan_shmifext_setup defs = arcan_shmifext_defaults(scrpriv->acon);
     int errc;
     defs.depth = 0;
@@ -1362,12 +1452,12 @@ Bool arcanGlamorInit(ScreenPtr pScreen)
     }
 #ifdef XV
 /*   Seem to be some Kdrive wrapper to deal with less of this crap,
- *   though is it still relevant / needed?
+ *   though is it still relevant or even / needed?
  *   arcanGlamorXvInit(pScreen);
  */
 #endif
 
-    if (glamor_init(pScreen, GLAMOR_USE_EGL_SCREEN | GLAMOR_NO_DRI3)){
+    if (glamor_init(pScreen, GLAMOR_USE_EGL_SCREEN)){
         scrpriv->in_glamor = TRUE;
     }
     else {
@@ -1464,11 +1554,12 @@ static int arcanPresentGetUstMsc(RRCrtcPtr crtc, CARD64 *ust, CARD64 *msc)
     return 0;
 }
 
-static void arcanPresentAbortVblank(void *data)
+static void arcanPresentAbortVblank(
+		                                RRCrtcPtr crtc,
+																	  uint64_t evid,
+																		uint64_t msc)
 {
-    struct ms_present_vblank_event *event = data;
     trace("present:vblank abort");
-    free(event);
 }
 
 static int arcanPresentQueueVblank(RRCrtcPtr crtc, uint64_t evid, uint64_t msc)
@@ -1696,7 +1787,10 @@ miPointerSpriteFuncRec ArcanPointerSpriteFuncs = {
  */
 };
 
-Bool
+/*
+static DevPrivateKeyRec cursor_private_key;
+static Bool
+static struct arcan_shmif_cont cursor;
 arcanCursorInit(ScreenPtr screen)
 {
     if (!arcanConfigPriv.accel_cursor)
@@ -1707,10 +1801,11 @@ arcanCursorInit(ScreenPtr screen)
 
     miPointerInitialize(screen,
                         &ArcanPointerSpriteFuncs,
-                        &ArcanPointerSpriteFuncs, FALSE);
+                        &ArcanPointerScreenFuncs, FALSE);
 
     return TRUE;
 }
+ */
 
 static Status
 MouseInit(KdPointerInfo * pi)
