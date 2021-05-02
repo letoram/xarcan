@@ -30,6 +30,7 @@ if cc.get_id() == 'gcc' or cc.get_id() == 'clang'
         '-Wshadow',
         '-Wmissing-noreturn',
         '-Wmissing-format-attribute',
+				'-Wno-suggest-attribute=format', # jesus fucking christ
         '-Wredundant-decls',
         '-Werror=implicit',
         '-Werror=nonnull',

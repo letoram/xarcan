@@ -35,6 +35,7 @@
  * - [ ] PRESENT
  * - [ ] Shmif-server thread, map to windows and event loop
  * - [ ] Exec / connection inherit setup (needs tampering with xlib/xcb preload)
+ * - [ ] Adding multiple screens
  */
 
 #ifdef HAVE_DIX_CONFIG_H
@@ -87,6 +88,7 @@ static uint8_t code_tbl[512];
 static struct arcan_shmif_initial* arcan_init;
 static DevPrivateKeyRec pixmap_private_key;
 
+/* #define ARCAN_TRACE */
 static inline void trace(const char* msg, ...)
 {
 #ifdef ARCAN_TRACE
@@ -158,12 +160,87 @@ arcanCardInit(KdCardInfo * card)
     return TRUE;
 }
 
+static arcanScrPriv* getArcanScreen(WindowPtr wnd)
+{
+    ScreenPtr pScreen = wnd->drawable.pScreen;
+    KdScreenPriv(pScreen);
+    KdScreenInfo *screen = pScreenPriv->screen;
+    arcanScrPriv *scrpriv = screen->driver;
+    return scrpriv;
+ }
+
+static Bool arcanPositionWindow(WindowPtr wnd, int x, int y)
+{
+    arcanScrPriv *ascr = getArcanScreen(wnd);
+
+    arcan_shmif_enqueue(ascr->acon,
+    &(struct arcan_event){
+       .ext.kind = ARCAN_EVENT(VIEWPORT),
+       .ext.viewport.x = x,
+       .ext.viewport.y = y,
+       .ext.viewport.parent = wnd->drawable.id,
+    });
+
+    trace("position(%d)@%d, %d", (int) wnd->drawable.id, x, y);
+    return ascr->hooks.positionWindow(wnd, x, y);
+}
+
+static void arcanGetImage(DrawablePtr pDrawable, int sx, int sy, int w, int h,
+                          unsigned int format, unsigned long planeMask, char *pdstLine)
+{
+    ScreenPtr pScreen = pDrawable->pScreen;
+    KdScreenPriv(pScreen);
+    KdScreenInfo *screen = pScreenPriv->screen;
+    arcanScrPriv *ascr = screen->driver;
+
+    trace("arcanGetImage");
+    ascr->hooks.getImage(pDrawable, sx, sy, w, h, format, planeMask, pdstLine);
+}
+
+static Bool arcanRealizeWindow(WindowPtr wnd)
+{
+    arcanScrPriv *ascr = getArcanScreen(wnd);
+    trace("realizeWindow(%d)", (int) wnd->drawable.id);
+    if (ascr->hooks.realizeWindow)
+        return ascr->hooks.realizeWindow(wnd);
+    return true;
+}
+
+static Bool arcanUnrealizeWindow(WindowPtr wnd)
+{
+    arcanScrPriv *ascr = getArcanScreen(wnd);
+    trace("UnrealizeWindow(%d)", (int) wnd->drawable.id);
+    if (ascr->hooks.unrealizeWindow)
+        return ascr->hooks.unrealizeWindow(wnd);
+    return true;
+}
+
+static void arcanRestackWindow(WindowPtr wnd, WindowPtr sibling)
+{
+    arcanScrPriv *ascr = getArcanScreen(wnd);
+    trace("RestackWindow(%d, %d)",
+                         (int) wnd->drawable.id,
+                         sibling? (int) sibling->drawable.id : -1);
+    if (ascr->hooks.restackWindow)
+        ascr->hooks.restackWindow(wnd, sibling);
+}
+
+static Bool arcanDestroyWindow(WindowPtr wnd)
+{
+    arcanScrPriv *ascr = getArcanScreen(wnd);
+    trace("RestackWindow(%d)", (int) wnd->drawable.id);
+    if (ascr->hooks.destroyWindow)
+        return ascr->hooks.destroyWindow(wnd);
+    return true;
+}
+
 Bool
 arcanScreenInitialize(KdScreenInfo * screen, arcanScrPriv * scrpriv)
 {
-    scrpriv->acon->hints =
-/*       SHMIF_RHINT_SUBREGION | */
-			 SHMIF_RHINT_IGNORE_ALPHA |SHMIF_RHINT_VSIGNAL_EV;
+    scrpriv->acon->hints = SHMIF_RHINT_SUBREGION |
+        SHMIF_RHINT_IGNORE_ALPHA |SHMIF_RHINT_VSIGNAL_EV;
+    scrpriv->dirty = true;
+
     trace("arcanScreenInitialize");
 
     if (!screen->width || !screen->height) {
@@ -195,7 +272,7 @@ arcanScreenInitialize(KdScreenInfo * screen, arcanScrPriv * scrpriv)
     }
 
     scrpriv->randr = screen->randr;
-    if (1 || arcanGlamor)
+    if (arcanGlamor)
         setGlamorMask(screen);
     else
         setArcanMask(screen);
@@ -344,16 +421,77 @@ static
 void
 arcanSignalShm(struct arcan_shmif_cont* con, bool dirty)
 {
-  arcanScrPriv *scrpriv = con->user;
-	if (!scrpriv->dirty && !dirty)
-		return;
+    arcanScrPriv *scrpriv = con->user;
+    if (!scrpriv->dirty && !dirty)
+        return;
 
-	arcan_shmif_signal(con, SHMIF_SIGVID | SHMIF_SIGBLK_NONE);
- 	con->dirty.x1 = con->w;
-	con->dirty.y1 = con->h;
-	con->dirty.y2 = 0;
-	con->dirty.x2 = 0;
-	scrpriv->dirty = false;
+    arcan_shmif_signal(con, SHMIF_SIGVID | SHMIF_SIGBLK_NONE);
+    con->dirty.x1 = con->w;
+    con->dirty.y1 = con->h;
+    con->dirty.y2 = 0;
+    con->dirty.x2 = 0;
+    scrpriv->dirty = false;
+}
+
+static
+void
+arcanCreateProxyWindow(
+                       struct arcan_shmif_cont *con,
+                       int x, int y, int w, int h)
+{
+    arcanScrPriv *priv = con->user;
+    XID attributes[1] = {None};
+    XID min_id, max_id;
+    GetXIDRange(serverClient->index, FALSE, &min_id, &max_id);
+
+    int result;
+    WindowPtr newWnd = CreateWindow(
+                                    min_id,
+                                    priv->screen->root,
+                                    x, y, w, h,
+                                    0,
+                                    InputOutput,
+                                    0, /* mask */
+                                    /* cwBackPixmap? cwBackPixel? */
+                                    attributes,
+                                    0,
+                                    serverClient,
+                                    wVisual(priv->screen->root), &result
+                       );
+
+     if (!newWnd)
+         return;
+
+      AddResource(min_id, RT_WINDOW, (void *) newWnd);
+      MapWindow(newWnd, serverClient);
+}
+
+static
+void
+decodeMessage(struct arcan_shmif_cont* con, const char* msg)
+{
+    struct arg_arr* cmd = arg_unpack(msg);
+    if (!cmd){
+        trace("error in command: %s\n", msg);
+        return;
+    }
+
+    const char* kind = NULL;
+    if (!arg_lookup (cmd, "kind", 0, &kind) || !kind)
+        goto cleanup;
+
+    if (strcmp(kind, "new") == 0){
+        arcanCreateProxyWindow(con, 128, 128, 256, 256);
+    }
+
+/*
+ * - window destroyed (ID)
+ *  - window resized (w, h)
+ *  - window req-resize
+ */
+
+cleanup:
+    arg_cleanup(cmd);
 }
 
 void
@@ -374,7 +512,10 @@ arcanFlushEvents(int fd, void* tag)
         else
             switch (ev.tgt.kind){
             case TARGET_COMMAND_STEPFRAME:
-						    arcanSignalShm(con, false);
+                arcanSignalShm(con, false);
+            break;
+            case TARGET_COMMAND_MESSAGE:
+                decodeMessage(con, ev.tgt.message);
             break;
             case TARGET_COMMAND_RESET:
                 switch(ev.tgt.ioevs[0].iv){
@@ -388,9 +529,9 @@ arcanFlushEvents(int fd, void* tag)
                     break;
 /* swap-out monitored FD */
                     case 3:
-                       InputThreadUnregisterDev(con->epipe);
-                       InputThreadRegisterDev(con->epipe, (void*) arcanFlushEvents, con);
-											 arcanSignalShm(con, true);
+                        InputThreadUnregisterDev(con->epipe);
+                        InputThreadRegisterDev(con->epipe, (void*) arcanFlushEvents, con);
+                        arcanSignalShm(con, true);
                     break;
                 }
             break;
@@ -418,7 +559,7 @@ arcanFlushEvents(int fd, void* tag)
         }
     }
 
-		arcanSignalShm(con, false);
+    arcanSignalShm(con, false);
 
 /* aggregate mouse input events unless it's clicks,
  * where we have to flush for the values to register correctly */
@@ -488,7 +629,7 @@ static void arcanInternalDamageRedisplay(ScreenPtr pScreen)
     region = DamageRegion(scrpriv->damage);
 
     if (!RegionNotEmpty(region))
-			return;
+        return;
 
 /*
  * We don't use fine-grained dirty regions really, the data gathered gave
@@ -540,13 +681,13 @@ static void arcanInternalDamageRedisplay(ScreenPtr pScreen)
         }
         scrpriv->pending_fd = fd;
     }
-		else
+    else
 #endif
-		{
+    {
 /* use frame delivery event to indicate next time we should signal */
-  		DamageEmpty(scrpriv->damage);
-	    scrpriv->dirty = true;
-		}
+        DamageEmpty(scrpriv->damage);
+        scrpriv->dirty = true;
+    }
 }
 
 static void onDamageDestroy(DamagePtr damage, void *closure)
@@ -1372,7 +1513,7 @@ static int dri3Open(ClientPtr client,
     if (arcanConfigPriv.no_dri3)
         return BadAlloc;
 
-		fd = arcan_shmifext_dev(scrpriv->acon, NULL, true);
+    fd = arcan_shmifext_dev(scrpriv->acon, NULL, true);
 
     trace("ArcanDri3Open(%d)", fd);
     if (-1 != fd){
@@ -1384,7 +1525,7 @@ static int dri3Open(ClientPtr client,
 }
 
 static Bool dri3GetFormats(ScreenPtr screen,
-		                       CARD32 *num_formats, CARD32 **formats)
+                           CARD32 *num_formats, CARD32 **formats)
 {
     trace("dri3GetFormats");
     *num_formats = 0;
@@ -1392,21 +1533,21 @@ static Bool dri3GetFormats(ScreenPtr screen,
 }
 
 static Bool dri3GetDrawableModifiers(DrawablePtr screen,
-		                         uint32_t format,
-                             uint32_t *num_modifiers, uint64_t **modifiers)
+                                     uint32_t format,
+                                     uint32_t *num_modifiers, uint64_t **modifiers)
 {
-	trace("dri3GetDrawableModifiers");
-	*num_modifiers = 0;
-	return FALSE;
+    trace("dri3GetDrawableModifiers");
+    num_modifiers = 0;
+    return FALSE;
 }
 
 static Bool dri3GetModifiers(ScreenPtr screen,
-		                         uint32_t format,
+                             uint32_t format,
                              uint32_t *num_modifiers, uint64_t **modifiers)
 {
-	trace("dri3GetModifiers");
-	*num_modifiers = 0;
-	return FALSE;
+    trace("dri3GetModifiers");
+    *num_modifiers = 0;
+    return FALSE;
 }
 
 static dri3_screen_info_rec dri3_info = {
@@ -1555,9 +1696,9 @@ static int arcanPresentGetUstMsc(RRCrtcPtr crtc, CARD64 *ust, CARD64 *msc)
 }
 
 static void arcanPresentAbortVblank(
-		                                RRCrtcPtr crtc,
-																	  uint64_t evid,
-																		uint64_t msc)
+                                    RRCrtcPtr crtc,
+                                    uint64_t evid,
+                                    uint64_t msc)
 {
     trace("present:vblank abort");
 }
@@ -1644,6 +1785,23 @@ arcanFinishInitScreen(ScreenPtr pScreen)
     pScreen->BlockHandler = arcanScreenBlockHandler;
 
     present_screen_init(pScreen, &arcan_present_info);
+
+/* hook window actions so that we can map / forward */
+    scrpriv->hooks.positionWindow = screen->pScreen->PositionWindow;
+    scrpriv->hooks.changeWindow = screen->pScreen->ChangeWindowAttributes;
+    scrpriv->hooks.realizeWindow = screen->pScreen->RealizeWindow;
+    scrpriv->hooks.unrealizeWindow = screen->pScreen->UnrealizeWindow;
+    scrpriv->hooks.restackWindow = screen->pScreen->RestackWindow;
+    scrpriv->hooks.destroyWindow = screen->pScreen->DestroyWindow;
+    scrpriv->hooks.getImage = screen->pScreen->GetImage;
+
+    screen->pScreen->PositionWindow = arcanPositionWindow;
+    screen->pScreen->GetImage = arcanGetImage;
+    screen->pScreen->RealizeWindow = arcanRealizeWindow;
+    screen->pScreen->UnrealizeWindow = arcanUnrealizeWindow;
+    screen->pScreen->RestackWindow = arcanRestackWindow;
+    screen->pScreen->DestroyWindow = arcanDestroyWindow;
+
     return TRUE;
 }
 

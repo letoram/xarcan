@@ -53,13 +53,24 @@ typedef struct _arcanScrPriv {
 
 #ifdef RANDR
     RROutputPtr randrOutput;
-		RRCrtcPtr randrCrtc;
-		struct ramp_block block;
+    RRCrtcPtr randrCrtc;
+    struct ramp_block block;
 #endif
     Rotation randr;
     ScreenBlockHandlerProcPtr BlockHandler;
     CreateScreenResourcesProcPtr CreateScreenResources;
     CloseScreenProcPtr CloseHandler;
+
+    struct {
+        PositionWindowProcPtr positionWindow;
+        DestroyWindowProcPtr destroyWindow;
+        RestackWindowProcPtr restackWindow;
+        RealizeWindowProcPtr realizeWindow;
+        UnrealizeWindowProcPtr unrealizeWindow;
+        ChangeWindowAttributesProcPtr changeWindow;
+        GetImageProcPtr getImage;
+    } hooks;
+
     ScreenPtr screen;
     DamagePtr damage;
     Bool in_glamor;
