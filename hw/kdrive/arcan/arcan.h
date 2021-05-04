@@ -68,6 +68,7 @@ typedef struct _arcanScrPriv {
         RealizeWindowProcPtr realizeWindow;
         UnrealizeWindowProcPtr unrealizeWindow;
         ChangeWindowAttributesProcPtr changeWindow;
+        ConfigNotifyProcPtr configureWindow;
         GetImageProcPtr getImage;
     } hooks;
 
