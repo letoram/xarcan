@@ -221,6 +221,9 @@ ddxProcessArgument(int argc, char **argv, int i)
         wm_fd = atoi(argv[i + 1]);
         return 2;
     }
+		else if (strcmp(argv[i], "-wmexec") == 0) {
+			  CHECK_FOR_REQUIRED_ARGUMENTS(1);
+		}
 
     return KdProcessArgument(argc, argv, i);
 }

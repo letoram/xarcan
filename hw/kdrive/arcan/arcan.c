@@ -1,6 +1,6 @@
 /*
  * Copyright © 2004 Keith Packard
- * Copyright © 2016-2017 Bjorn Stahl
+ * Copyright © Bjorn Stahl
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -480,13 +480,86 @@ arcanDisplayHint(struct arcan_shmif_cont* con,
 
 static
 void
-arcanSignalShm(struct arcan_shmif_cont* con, bool dirty)
+arcanSignal(struct arcan_shmif_cont* con, bool dirty)
 {
     arcanScrPriv *scrpriv = con->user;
-    if (!scrpriv->dirty && !dirty)
+    scrpriv->dirty |= dirty;
+
+    if (!scrpriv->dirty)
         return;
 
-    arcan_shmif_signal(con, SHMIF_SIGVID | SHMIF_SIGBLK_NONE);
+/* To avoid a storm of event -> update, don't signal or attempt to update
+ * before the segment has finished synchronising the last one. */
+    if (arcan_shmif_signalstatus(con))
+        return;
+
+    RegionPtr region;
+    BoxPtr box;
+    bool in_glamor = false;
+
+    region = DamageRegion(scrpriv->damage);
+
+    if (!RegionNotEmpty(region))
+        return;
+
+/*
+ * We don't use fine-grained dirty regions really, the data gathered gave
+ * quite few benefits as cases with many dirty regions quickly exceeded the
+ * magic ratio where subtex- update vs full texture update tipped in favor
+ * of the latter.
+ */
+    box = RegionExtents(region);
+    if (box->x1 < scrpriv->acon->dirty.x1)
+        scrpriv->acon->dirty.x1 = box->x1;
+
+    if (box->x2 > scrpriv->acon->dirty.x2)
+        scrpriv->acon->dirty.x2 = box->x2;
+
+    if (box->y1 < scrpriv->acon->dirty.y1)
+        scrpriv->acon->dirty.y1 = box->y1;
+
+    if (box->y2 > scrpriv->acon->dirty.y2)
+        scrpriv->acon->dirty.y2 = box->y2;
+
+#ifdef GLAMOR
+    in_glamor = scrpriv->in_glamor;
+    if (in_glamor){
+        int fd = -1;
+        size_t stride = 0;
+        int fourcc = 0;
+
+/* does glamor buffer somewhere internally? this do not seem to be
+ * plagued by tearing or locking issues, even though it likely should.
+ * maybe it's just because the tested display and simulated rate match?
+ * in that case, the delivery- approach used for non-glamor should work */
+        if (scrpriv->bo){
+            fd = gbm_bo_get_fd(scrpriv->bo);
+            stride = gbm_bo_get_stride(scrpriv->bo);
+            fourcc = DRM_FORMAT_XRGB8888;
+        }
+        else if (scrpriv->tex != -1){
+            uintptr_t disp;
+            arcan_shmifext_egl_meta(scrpriv->acon, &disp, NULL, NULL);
+            arcan_shmifext_gltex_handle(scrpriv->acon, disp,
+                                        scrpriv->tex, &fd, &stride, &fourcc);
+        }
+
+/* This should be changed into the planes + modifiers + ... format */
+        arcan_shmif_signalhandle(scrpriv->acon,
+                                 SHMIF_SIGVID | SHMIF_SIGBLK_NONE,
+                                 fd, stride, fourcc);
+
+        if (-1 != scrpriv->pending_fd){
+            close(scrpriv->pending_fd);
+        }
+        scrpriv->pending_fd = fd;
+    }
+#endif
+
+    if (!in_glamor)
+        arcan_shmif_signal(con, SHMIF_SIGVID | SHMIF_SIGBLK_NONE);
+
+    DamageEmpty(scrpriv->damage);
     con->dirty.x1 = con->w;
     con->dirty.y1 = con->h;
     con->dirty.y2 = 0;
@@ -498,7 +571,7 @@ static
 void
 arcanCreateProxyWindow(
                        struct arcan_shmif_cont *con,
-                       int x, int y, int w, int h)
+                       int x, int y, int w, int h, unsigned long vid)
 {
     arcanScrPriv *priv = con->user;
     XID attributes[1] = {None};
@@ -530,9 +603,52 @@ arcanCreateProxyWindow(
       struct arcan_event ev = (struct arcan_event){
           .ext.kind = ARCAN_EVENT(MESSAGE)
       };
-      snprintf((char*)ev.ext.message.data, 78, "xid=%d", (int)newWnd->drawable.id);
+      snprintf((char*)ev.ext.message.data, 78,
+               "kind=pair:xid=%"PRIu32":vid=%"PRIu32,
+               (uint32_t)newWnd->drawable.id, (uint32_t) vid
+      );
       arcan_shmif_enqueue(priv->acon, &ev);
       MapWindow(newWnd, serverClient);
+/*
+ * this feels logically correct but for some reason the contents become poor,
+ * newWnd->redirectDraw = RedirectDrawNone;
+ */
+}
+
+static
+void
+getSizePos(struct arg_arr *cmd, uint32_t *x, uint32_t *y, uint32_t *w, uint32_t *h)
+{
+    *x = *y = *w = *h = 0;
+    const char* tmp;
+
+    if (arg_lookup(cmd, "x", 0, &tmp) && tmp){
+        *x = (uint32_t) strtoul(tmp, NULL, 10);
+    }
+
+    if (arg_lookup(cmd, "y", 0, &tmp) && tmp){
+        *y = (uint32_t) strtoul(tmp, NULL, 10);
+    }
+
+    if (arg_lookup(cmd, "w", 0, &tmp) && tmp){
+        *w = (uint32_t) strtoul(tmp, NULL, 10);
+    }
+
+    if (arg_lookup(cmd, "h", 0, &tmp) && tmp){
+        *h = (uint32_t) strtoul(tmp, NULL, 10);
+    }
+}
+
+static void
+arcanReconfigureWindow(uint32_t x, uint32_t y, uint32_t w, uint32_t h, XID id)
+{
+    WindowPtr res;
+    if (Success != dixLookupResourceByType((void**) &res,
+                                           id, RT_WINDOW,
+                                           serverClient, DixWriteAccess)){
+        return;
+    }
+
 }
 
 static
@@ -546,18 +662,28 @@ decodeMessage(struct arcan_shmif_cont* con, const char* msg)
     }
 
     const char* kind = NULL;
-    if (!arg_lookup (cmd, "kind", 0, &kind) || !kind)
+    if (!arg_lookup(cmd, "kind", 0, &kind) || !kind)
         goto cleanup;
 
-    if (strcmp(kind, "new") == 0){
-        arcanCreateProxyWindow(con, 128, 128, 256, 256);
-    }
+    bool newwnd = strcmp(kind, "new") == 0;
+    bool modwnd = strcmp(kind, "configure") == 0;
 
-/*
- * - window destroyed (ID)
- *  - window resized (w, h)
- *  - window req-resize
- */
+    if (newwnd || modwnd){
+        const char* strid = NULL;
+        if (!arg_lookup(cmd, "id", 0, &strid) || !strid)
+            goto cleanup;
+
+        uint32_t id = strtoul(strid, NULL, 10);
+        uint32_t x, y, w, h;
+        getSizePos(cmd, &x, &y, &w, &h);
+        if (!w || !h)
+            goto cleanup;
+
+        if (newwnd)
+            arcanCreateProxyWindow(con, x, y, w, h, id);
+        else
+            arcanReconfigureWindow(x, y, w, h, id);
+    }
 
 cleanup:
     arg_cleanup(cmd);
@@ -572,6 +698,7 @@ arcanFlushEvents(int fd, void* tag)
     if (!con || !con->user)
         return;
 
+    bool trySignal = false;
     while (arcan_shmif_poll(con, &ev) > 0){
         if (ev.category == EVENT_IO){
             TranslateInput(con, &(ev.io), &mx, &my);
@@ -581,7 +708,7 @@ arcanFlushEvents(int fd, void* tag)
         else
             switch (ev.tgt.kind){
             case TARGET_COMMAND_STEPFRAME:
-                arcanSignalShm(con, false);
+                trySignal = true;
             break;
             case TARGET_COMMAND_MESSAGE:
                 decodeMessage(con, ev.tgt.message);
@@ -600,7 +727,7 @@ arcanFlushEvents(int fd, void* tag)
                     case 3:
                         InputThreadUnregisterDev(con->epipe);
                         InputThreadRegisterDev(con->epipe, (void*) arcanFlushEvents, con);
-                        arcanSignalShm(con, true);
+                        trySignal = true;
                     break;
                 }
             break;
@@ -628,8 +755,6 @@ arcanFlushEvents(int fd, void* tag)
         }
     }
 
-    arcanSignalShm(con, false);
-
 /* aggregate mouse input events unless it's clicks,
  * where we have to flush for the values to register correctly */
     if (mx != 0 || my != 0){
@@ -638,6 +763,9 @@ arcanFlushEvents(int fd, void* tag)
             mx, my, 0
         );
     }
+
+    if (trySignal)
+        arcanSignal(con, false);
 }
 
 Bool
@@ -698,79 +826,16 @@ static void arcanInternalDamageRedisplay(ScreenPtr pScreen)
     KdScreenPriv(pScreen);
     KdScreenInfo *screen = pScreenPriv->screen;
     arcanScrPriv *scrpriv = screen->driver;
-    RegionPtr region;
-    BoxPtr box;
 
     if (!pScreen)
         return;
 
-    region = DamageRegion(scrpriv->damage);
-
-    if (!RegionNotEmpty(region))
-        return;
-
     TraverseTree(pScreen->root, arcanSynchWindow, scrpriv->acon);
 
-/*
- * We don't use fine-grained dirty regions really, the data gathered gave
- * quite few benefits as cases with many dirty regions quickly exceeded the
- * magic ratio where subtex- update vs full texture update tipped in favor
- * of the latter.
- */
-    box = RegionExtents(region);
-    if (box->x1 < scrpriv->acon->dirty.x1)
-        scrpriv->acon->dirty.x1 = box->x1;
-
-    if (box->x2 > scrpriv->acon->dirty.x2)
-        scrpriv->acon->dirty.x2 = box->x2;
-
-    if (box->y1 < scrpriv->acon->dirty.y1)
-        scrpriv->acon->dirty.y1 = box->y1;
-
-    if (box->y2 > scrpriv->acon->dirty.y2)
-        scrpriv->acon->dirty.y2 = box->y2;
-
-#ifdef GLAMOR
-    if (scrpriv->in_glamor){
-        int fd = -1;
-        size_t stride = 0;
-        int fourcc = 0;
-
-/* does glamor buffer somewhere internally? this do not seem to be
- * plagued by tearing or locking issues, even though it likely should.
- * maybe it's just because the tested display and simulated rate match?
- * in that case, the delivery- approach used for non-glamor should work */
-        if (scrpriv->bo){
-            fd = gbm_bo_get_fd(scrpriv->bo);
-            stride = gbm_bo_get_stride(scrpriv->bo);
-            fourcc = DRM_FORMAT_XRGB8888;
-        }
-        else if (scrpriv->tex != -1){
-            uintptr_t disp;
-            arcan_shmifext_egl_meta(scrpriv->acon, &disp, NULL, NULL);
-            arcan_shmifext_gltex_handle(scrpriv->acon, disp,
-                                        scrpriv->tex, &fd, &stride, &fourcc);
-        }
-
-/* This should be changed into the planes + modifiers + ... format */
-        arcan_shmif_signalhandle(scrpriv->acon,
-                                 SHMIF_SIGVID | SHMIF_SIGBLK_NONE,
-                                 fd, stride, fourcc);
-        if (-1 != scrpriv->pending_fd){
-            close(scrpriv->pending_fd);
-        }
-        scrpriv->pending_fd = fd;
-    }
-    else
-#endif
-    {
-/* use frame delivery event to indicate next time we should signal unless
- * we aren't already in a synchable state */
-        DamageEmpty(scrpriv->damage);
-        scrpriv->dirty = true;
-        if (!arcan_shmif_signalstatus(scrpriv->acon))
-            arcanSignalShm(scrpriv->acon, false);
-    }
+/* The segment might already be in a locked state, if so the next STEPFRAME
+ * event will wake us up and synch, otherwise send it right away. */
+    scrpriv->dirty = true;
+    arcanSignal(scrpriv->acon, false);
 }
 
 static void onDamageDestroy(DamagePtr damage, void *closure)
