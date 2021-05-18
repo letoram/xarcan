@@ -1,7 +1,8 @@
 srcs = [
-    'arcan.c',
-    'arcaninit.c',
-    'arcancvt.c',
+    'core.c',
+    'init.c',
+    'cvt.c',
+    'proxywnd.c'
 ]
 
 arcan_dep = [
@@ -11,6 +12,7 @@ arcan_dep = [
 		epoxy_dep,
     dependency('arcan-shmif'),
 		dependency('arcan-shmif-ext'),
+    dependency('xcb')
 ]
 
 arcan_server = executable(

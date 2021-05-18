@@ -173,7 +173,7 @@ extern _X_EXPORT void MakeClientGrabPervious(ClientPtr /*client */ );
 
 extern _X_EXPORT void ListenOnOpenFD(int /* fd */ , int /* noxauth */ );
 
-extern _X_EXPORT Bool AddClientOnOpenFD(int /* fd */ );
+extern _X_EXPORT ClientPtr AddClientOnOpenFD(int /* fd */ );
 
 #ifdef MONOTONIC_CLOCK
 extern void ForceClockId(clockid_t /* forced_clockid */);

@@ -270,6 +270,8 @@ miComputeClips(WindowPtr pParent,
         break;
     }
     pParent->visibility = newVis;
+    pParent->unsynched |= oldVis != newVis;
+
     if (oldVis != newVis &&
         ((pParent->
           eventMask | wOtherEventMasks(pParent)) & VisibilityChangeMask))

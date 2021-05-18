@@ -92,7 +92,7 @@ InitOutput(ScreenInfo * pScreenInfo, int argc, char **argv)
     }
     KdInitOutput(pScreenInfo, argc, argv);
 
-    if (wm_fd >= -1){
+    if (wm_fd > -1){
 			TimerSet(NULL, 0, 1, add_client_fd, NULL);
 		}
 }
@@ -221,10 +221,6 @@ ddxProcessArgument(int argc, char **argv, int i)
         wm_fd = atoi(argv[i + 1]);
         return 2;
     }
-		else if (strcmp(argv[i], "-wmexec") == 0) {
-			  CHECK_FOR_REQUIRED_ARGUMENTS(1);
-		}
-
     return KdProcessArgument(argc, argv, i);
 }
 

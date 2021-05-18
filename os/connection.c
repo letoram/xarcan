@@ -1032,7 +1032,7 @@ ListenOnOpenFD(int fd, int noxauth)
 }
 
 /* based on TRANS(SocketUNIXAccept) (XtransConnInfo ciptr, int *status) */
-Bool
+ClientPtr
 AddClientOnOpenFD(int fd)
 {
     XtransConnInfo ciptr;
@@ -1042,19 +1042,20 @@ AddClientOnOpenFD(int fd)
     snprintf(port, sizeof(port), ":%d", atoi(display));
     ciptr = _XSERVTransReopenCOTSServer(5, fd, port);
     if (ciptr == NULL)
-        return FALSE;
+        return NULL;
 
     _XSERVTransSetOption(ciptr, TRANS_NONBLOCKING, 1);
     ciptr->flags |= TRANS_NOXAUTH;
 
     connect_time = GetTimeInMillis();
 
-    if (!AllocNewConnection(ciptr, fd, connect_time)) {
+    ClientPtr cptr = AllocNewConnection(ciptr, fd, connect_time);
+    if (!cptr){
         ErrorConnMax(ciptr);
-        return FALSE;
+        return NULL;
     }
 
-    return TRUE;
+    return cptr;
 }
 
 Bool
