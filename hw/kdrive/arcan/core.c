@@ -644,7 +644,7 @@ synchTreeDepth(arcanScrPriv* scrpriv,
         }
         if (!wnd)
             break;
-            wnd = wnd->prevSib;
+        wnd = wnd->prevSib;
     }
 }
 
@@ -867,8 +867,8 @@ dumpTree(arcanScrPriv *ascr, int fd, const char* message)
  * intended composition order */
     if (strcasecmp(message, "svg") == 0){
         fprintf(fout,
-                      "<svg width=\"%zu\" height=\"%zu\" "
-                      xmlns=\"http://www.w3.org/2000/svg\"><g>\n",
+                      "<svg width=\"%zu\" height=\"%zu\""
+                      "xmlns=\"http://www.w3.org/2000/svg\"><g>\n",
                       ascr->acon->w, ascr->acon->h
               );
         synchTreeBFS(ascr, wndMetaToSVGFile, true, fout);
