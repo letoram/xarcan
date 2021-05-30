@@ -45,6 +45,8 @@
  * - [ ] XVideo, does anyone actually care?
  *
  * - [ ] Keymap Synch (XkbDeviceApplyKeymap, ...)
+ *
+ * - [ ] Synch recent changes to XI (gestures)
  */
 
 #ifdef HAVE_DIX_CONFIG_H
@@ -207,6 +209,14 @@ static void sendWndData(WindowPtr wnd, int depth, int max_depth, void* tag)
     if (wnd->parent)
         prev = wnd->parent;
 
+/* squish windows into two 'layers' = obscured and unobscured (top),
+ * intermediate order doesn't really matter unless the backing stores
+ * in the tree are redirected */
+		int base_order = 0;
+		if (wnd->visibility == VisibilityPartiallyObscured){
+			base_order = -127;
+		}
+
 /* might be better to defer this and just mark the window for update, add
  * to a list and do in the blockHandler previous to signalling so that we
  * don't saturate the event-queue with a pile-up */
@@ -222,7 +232,7 @@ static void sendWndData(WindowPtr wnd, int depth, int max_depth, void* tag)
        .ext.viewport.h = wnd->drawable.height,
        .ext.viewport.parent = prev ? prev->drawable.id : 0,
        .ext.viewport.ext_id = wnd->drawable.id,
-       .ext.viewport.order = depth - 128,
+       .ext.viewport.order = base_order + depth,
        .ext.viewport.invisible = !isWindowVisible(wnd),
 /* this doesn't see 'toplevel' for a reparenting wm - the tactic there would
  * be to check parent of parent being root, and parent not having any siblings */
