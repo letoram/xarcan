@@ -64,6 +64,7 @@ typedef struct _arcanScrPriv {
         ConfigNotifyProcPtr configureWindow;
         ResizeWindowProcPtr resizeWindow;
         CreateWindowProcPtr createWindow;
+				MarkOverlappedWindowsProcPtr markOverlappedWindows;
         GetImageProcPtr getImage;
     } hooks;
 

@@ -87,6 +87,7 @@ int arcanGlamor;
 #include "../../dmx/input/atKeynames.h"
 #include "bsd_KbdMap.c"
 
+
 static void enqueueKeyboard(uint16_t scancode, int active)
 {
     KdEnqueueKeyboardEvent(arcanInputPriv.ki, wsUsbMap[scancode], !active);
@@ -100,7 +101,8 @@ static void enqueueKeyboard(uint16_t scancode, int active)
 
 static uint8_t code_tbl[512];
 static struct arcan_shmif_initial* arcan_init;
-static DevPrivateKeyRec pixmap_private_key;
+static DevPrivateKeyRec pixmapPriv;
+static DevPrivateKeyRec windowPriv;
 
 #define ARCAN_TRACE
 static inline void trace(const char* msg, ...)
@@ -192,7 +194,12 @@ static void arcanGetImage(DrawablePtr pDrawable, int sx, int sy, int w, int h,
     arcanScrPriv *ascr = screen->driver;
 
     trace("arcanGetImage");
-    ascr->hooks.getImage(pDrawable, sx, sy, w, h, format, planeMask, pdstLine);
+    if (ascr->hooks.getImage){
+        ascr->screen->GetImage = ascr->hooks.getImage;
+        ascr->hooks.getImage(pDrawable,
+				                     sx, sy, w, h, format, planeMask, pdstLine);
+        ascr->screen->GetImage = arcanGetImage;
+    }
 }
 
 static bool isWindowVisible(WindowPtr wnd)
@@ -205,23 +212,21 @@ static bool isWindowVisible(WindowPtr wnd)
 static void sendWndData(WindowPtr wnd, int depth, int max_depth, void* tag)
 {
     struct arcan_shmif_cont* acon = tag;
-    WindowPtr prev = NULL;
-    if (wnd->parent)
-        prev = wnd->parent;
 
 /* squish windows into two 'layers' = obscured and unobscured (top),
- * intermediate order doesn't really matter unless the backing stores
- * in the tree are redirected */
-		int base_order = 0;
+ * intermediate order doesn't really matter unless the backing stores in the
+ * tree are redirected and that can be reconstructed from the parent+sibling
+ * hints */
+		int base_order = 1;
 		if (wnd->visibility == VisibilityPartiallyObscured){
-			base_order = -127;
+			base_order = 0;
 		}
 
 /* might be better to defer this and just mark the window for update, add
  * to a list and do in the blockHandler previous to signalling so that we
  * don't saturate the event-queue with a pile-up */
-    arcan_shmif_enqueue(acon,
-    &(struct arcan_event){
+    struct arcan_event out = (struct arcan_event)
+		{
        .category = EVENT_EXTERNAL,
        .ext.kind = ARCAN_EVENT(VIEWPORT),
 /* the drawable x,y are absolute - question is if it makes sense to convey
@@ -230,33 +235,26 @@ static void sendWndData(WindowPtr wnd, int depth, int max_depth, void* tag)
        .ext.viewport.y = wnd->drawable.y,
        .ext.viewport.w = wnd->drawable.width,
        .ext.viewport.h = wnd->drawable.height,
-       .ext.viewport.parent = prev ? prev->drawable.id : 0,
+       .ext.viewport.parent = wnd->parent ? wnd->parent->drawable.id : 0,
        .ext.viewport.ext_id = wnd->drawable.id,
-       .ext.viewport.order = base_order + depth,
+       .ext.viewport.order = base_order,
        .ext.viewport.invisible = !isWindowVisible(wnd),
 /* this doesn't see 'toplevel' for a reparenting wm - the tactic there would
  * be to check parent of parent being root, and parent not having any siblings */
        .ext.viewport.embedded = wnd->drawable.pScreen->root == wnd,
        .ext.viewport.focus = EnterLeaveWindowHasFocus(wnd)
-    });
+    };
 
-    wnd->unsynched = 0;
-}
+/* actually only send if the contents differ from what we sent last time */
+		struct arcan_event* aev = dixLookupPrivate(&wnd->devPrivates, &windowPriv);
+		if (aev){
+			if (memcmp(&out, aev, sizeof(struct arcan_event)) != 0){
+				memcpy(aev, &out, sizeof(struct arcan_event));
+				arcan_shmif_enqueue(acon, aev);
+			}
+		}
 
-static int visitMark(WindowPtr window, void *data)
-{
-    window->unsynched = 1;
-    return WT_WALKCHILDREN;
-}
-
-static void markUnsynched(WindowPtr wnd)
-{
-    if (!wnd)
-        return;
-    arcanScrPriv *ascr = getArcanScreen(wnd);
-    ascr->unsynched = 1;
-    wnd->unsynched = 1;
-    TraverseTree(wnd, visitMark, NULL);
+	wnd->unsynched = 0;
 }
 
 static Bool arcanPositionWindow(WindowPtr wnd, int x, int y)
@@ -269,8 +267,27 @@ static Bool arcanPositionWindow(WindowPtr wnd, int x, int y)
         ascr->screen->PositionWindow = arcanPositionWindow;
     }
 
-    markUnsynched(wnd);
+		wnd->unsynched = 1;
     return rv;
+}
+
+static Bool arcanMarkOverlapped(WindowPtr pwnd, WindowPtr firstchild, WindowPtr *layer)
+{
+    arcanScrPriv *ascr = getArcanScreen(pwnd);
+       trace("markOverlapped(%d, %d)\n",
+      pwnd ? pwnd->drawable.id : -1,
+			firstchild ? firstchild->drawable.id : -1);
+
+     Bool rv = true;
+     if (ascr->hooks.markOverlappedWindows){
+		     ascr->screen->MarkOverlappedWindows = ascr->hooks.markOverlappedWindows;
+				 rv = ascr->screen->MarkOverlappedWindows(pwnd, firstchild, layer);
+				 ascr->screen->MarkOverlappedWindows = arcanMarkOverlapped;
+		 }
+
+/*		 if (firstchild)
+		     sendWndData(firstchild, 1, 1, ascr->acon); */
+ 	 return rv;
 }
 
 static Bool arcanRealizeWindow(WindowPtr wnd)
@@ -285,7 +302,11 @@ static Bool arcanRealizeWindow(WindowPtr wnd)
         ascr->screen->RealizeWindow = arcanRealizeWindow;
     }
 
-    markUnsynched(wnd);
+    struct arcan_event* aev = malloc(sizeof(struct arcan_event));
+		*aev = (struct arcan_event){0};
+
+    dixSetPrivate(&wnd->devPrivates, &windowPriv, aev);
+		sendWndData(wnd, 1, 1, ascr->acon);
     return rv;
 }
 
@@ -301,25 +322,40 @@ static Bool arcanUnrealizeWindow(WindowPtr wnd)
         ascr->screen->UnrealizeWindow = arcanUnrealizeWindow;
     }
 
-    markUnsynched(wnd);
+	  sendWndData(wnd, 1, 1, ascr->acon);
+    struct arcan_event* aev =
+		    dixLookupPrivate(&wnd->devPrivates, &windowPriv);
+		free(aev);
+		dixSetPrivate(&wnd->devPrivates, &windowPriv, NULL);
     return rv;
 }
 
-static void arcanRestackWindow(WindowPtr wnd, WindowPtr sibling)
+static void arcanRestackWindow(WindowPtr wnd, WindowPtr oldNextSibling)
 {
     arcanScrPriv *ascr = getArcanScreen(wnd);
-    trace("RestackWindow(%d, %d)",
-                         (int) wnd->drawable.id,
-                         sibling? (int) sibling->drawable.id : -1);
+    trace("RestackWindow(%d)", (int) wnd->drawable.id);
 
     if (ascr->hooks.restackWindow){
         ascr->screen->RestackWindow = ascr->hooks.restackWindow;
-        ascr->hooks.restackWindow(wnd, sibling);
+        ascr->hooks.restackWindow(wnd, oldNextSibling);
         ascr->screen->RestackWindow = arcanRestackWindow;
     }
 
-    markUnsynched(wnd);
-    markUnsynched(sibling);
+/* There is no real 'restack/sibling' approach in Arcan, only a strict
+ * parent/child. This makes ordering somewhat complicated and the struct needs
+ * to be re-built on the other side. To avoid thrashing with events we send the
+ * hierarchy separately from expose/configure */
+		struct arcan_event ev = (struct arcan_event){
+			.ext.kind = ARCAN_EVENT(MESSAGE),
+		};
+		snprintf(
+			       (char*)ev.ext.message.data, 78,
+	           "kind=restack:xid=%d:parent=%d:next=%d",
+						 (int) wnd->drawable.id,
+						 wnd->parent ? (int) wnd->parent->drawable.id : -1,
+						 wnd->nextSib ? (int) wnd->nextSib->drawable.id : -1
+					  );
+		arcan_shmif_enqueue(ascr->acon, &ev);
 }
 
 static Bool arcanCreateWindow(WindowPtr wnd)
@@ -335,7 +371,15 @@ static Bool arcanCreateWindow(WindowPtr wnd)
         ascr->screen->CreateWindow = arcanCreateWindow;
     }
 
-    markUnsynched(wnd);
+		struct arcan_event ev = (struct arcan_event){
+			.ext.kind = ARCAN_EVENT(MESSAGE),
+		};
+		snprintf(
+			       (char*)ev.ext.message.data, 78,
+	           "kind=create:xid=%d",
+						 (int) wnd->drawable.id
+		);
+		arcan_shmif_enqueue(ascr->acon, &ev);
     return res;
 }
 
@@ -347,11 +391,11 @@ static Bool arcanDestroyWindow(WindowPtr wnd)
     ascr->windowCount--;
 
 /* this has no clean mapping, hack around it with a message */
-    struct arcan_event ev = (struct arcan_event)
-    {
+    struct arcan_event ev = (struct arcan_event){
         .ext.kind = ARCAN_EVENT(MESSAGE)
     };
-    snprintf((char*)ev.ext.message.data, 78, "kind=destroy:xid=%d", (int)wnd->drawable.id);
+    snprintf((char*)ev.ext.message.data, 78,
+				     "kind=destroy:xid=%d", (int)wnd->drawable.id);
     arcan_shmif_enqueue(ascr->acon, &ev);
 
     if (ascr->hooks.destroyWindow){
@@ -360,7 +404,6 @@ static Bool arcanDestroyWindow(WindowPtr wnd)
         ascr->screen->DestroyWindow = arcanDestroyWindow;
     }
 
-    ascr->unsynched = 1;
     return res;
 }
 
@@ -376,7 +419,7 @@ static int arcanConfigureWindow(WindowPtr wnd, int x, int y, int w, int h, int b
         ascr->screen->ConfigNotify = arcanConfigureWindow;
     }
 
-    markUnsynched(wnd);
+    wnd->unsynched = 1;
     return res;
 }
 
@@ -395,7 +438,7 @@ arcanResizeWindow(WindowPtr wnd, int x, int y, unsigned w, unsigned h, WindowPtr
  *       is the window manager, or we have manually marked the window as having its own
  *       segment
  */
-    markUnsynched(wnd);
+    wnd->unsynched = 1;
 }
 
 Bool
@@ -583,55 +626,6 @@ arcanDisplayHint(struct arcan_shmif_cont* con,
 
 static
 void
-synchTreeBFS(arcanScrPriv* scrpriv,
-          void (*callback)(WindowPtr node, int depth, int max_depth, void* tag),
-          bool force,
-          void* tag)
-{
-/* A 'damned if we do, damned if we don't' - we need to traverse breadth first in
- * order to not get clipping issues when only one subtree at a certain depth-level
- * is invalidated and not the the other.
- *
- *       1        root
- *       2         wm
- *       3     w1       w2
- *       4  dec cont  dec cont
- *
- * if selection status change between w1 and w2 cont might not be changed while
- * dec might (content updates does not invalidate the hierarchy to synch). This
- * would cause the other end to re-order 4.1, 4.2 but not 4.3 and 4.4, causing
- * them to clip. Since arcan doesn't have access to the entire tree (and doesn't
- * want it) */
-
-    int depth = 0;
-    WindowPtr queue[scrpriv->windowCount];
-    size_t head = 0;
-    size_t tail = 1;
-    queue[head] = scrpriv->screen->root;
-
-/* don't synch when there is only the root */
-    if (scrpriv->windowCount == 1)
-        return;
-
-    while (head != tail){
-/* visit head */
-        if (queue[head]->unsynched || force)
-            callback(queue[head], depth, scrpriv->windowCount, tag);
-        depth++;
-
-/* add its children to the queue */
-        WindowPtr child = queue[head]->firstChild;
-        head = (head + 1) % scrpriv->windowCount;
-        while (child){
-            queue[tail] = child;
-            tail = (tail + 1) % scrpriv->windowCount;
-            child = child->nextSib;
-        }
-    }
-}
-
-static
-void
 synchTreeDepth(arcanScrPriv* scrpriv,
       void (*callback)(WindowPtr node, int depth, int max_depth, void* tag),
           bool force,
@@ -665,7 +659,7 @@ arcanSignal(struct arcan_shmif_cont* con, bool dirty)
     arcanScrPriv *scrpriv = con->user;
     scrpriv->dirty |= dirty;
 
-    if (!scrpriv->dirty && !scrpriv->unsynched)
+    if (!scrpriv->dirty)
         return;
 
     scrpriv->unsynched = 0;
@@ -881,7 +875,7 @@ dumpTree(arcanScrPriv *ascr, int fd, const char* message)
                       "xmlns=\"http://www.w3.org/2000/svg\"><g>\n",
                       ascr->acon->w, ascr->acon->h
               );
-        synchTreeBFS(ascr, wndMetaToSVGFile, true, fout);
+        synchTreeDepth(ascr, wndMetaToSVGFile, true, fout);
         fprintf(fout, "</g></svg>\n");
         return;
     }
@@ -1015,6 +1009,7 @@ arcanFlushEvents(int fd, void* tag)
                         InputThreadUnregisterDev(con->epipe);
                         InputThreadRegisterDev(con->epipe, (void*) arcanFlushEvents, con);
                         trySignal = true;
+												((arcanScrPriv*)con->user)->dirty = 1;
                     break;
                 }
             break;
@@ -1082,9 +1077,13 @@ arcanScreenInit(KdScreenInfo * screen)
     if (!scrpriv)
         return FALSE;
 
-    if (!dixRegisterPrivateKey(&pixmap_private_key, PRIVATE_PIXMAP, 0)){
+    if (!dixRegisterPrivateKey(&pixmapPriv, PRIVATE_PIXMAP, 0)){
         return FALSE;
     }
+
+		if (!dixRegisterPrivateKey(&windowPriv, PRIVATE_WINDOW, 0)){
+		    return FALSE;
+		}
 
 /* primary connection is a allocated once and then retained for the length of
  * the process */
@@ -1293,7 +1292,7 @@ PixmapPtr boToPixmap(ScreenPtr pScreen, struct gbm_bo* bo, int depth)
             return NULL;
         }
 
-    dixSetPrivate(&pixmap->devPrivates, &pixmap_private_key, ext_pixmap);
+    dixSetPrivate(&pixmap->devPrivates, &pixmapPriv, ext_pixmap);
     glamor_set_pixmap_type(pixmap, GLAMOR_TEXTURE_DRM);
     return pixmap;
 }
@@ -1875,7 +1874,7 @@ static int dri3FdFromPixmap(ScreenPtr pScreen, PixmapPtr pixmap,
 {
     struct pixmap_ext *ext_pixmap = dixLookupPrivate(
                                              &pixmap->devPrivates,
-                                             &pixmap_private_key);
+                                             &pixmapPriv);
     trace("ArcanDRI3FdFromPixmap");
     if (!ext_pixmap || !ext_pixmap->bo){
         return -1;
@@ -2253,6 +2252,7 @@ arcanFinishInitScreen(ScreenPtr pScreen)
     scrpriv->hooks.configureWindow = screen->pScreen->ConfigNotify;
     scrpriv->hooks.resizeWindow = screen->pScreen->ResizeWindow;
     scrpriv->hooks.createWindow = screen->pScreen->CreateWindow;
+		scrpriv->hooks.markOverlappedWindows = screen->pScreen->MarkOverlappedWindows;
 
     screen->pScreen->PositionWindow = arcanPositionWindow;
     screen->pScreen->GetImage = arcanGetImage;
@@ -2263,6 +2263,7 @@ arcanFinishInitScreen(ScreenPtr pScreen)
     screen->pScreen->ConfigNotify = arcanConfigureWindow;
     screen->pScreen->ResizeWindow = arcanResizeWindow;
     screen->pScreen->CreateWindow = arcanCreateWindow;
+		screen->pScreen->MarkOverlappedWindows = arcanMarkOverlapped;
 
     return TRUE;
 }
