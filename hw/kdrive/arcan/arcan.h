@@ -174,6 +174,8 @@ void arcanGlamorFini(ScreenPtr screen);
 
 void* arcanProxyWindowDispatch(struct proxyWindowData* inWnd);
 
+void* arcanClipboardDispatch(struct proxyWindowData*, bool paste);
+
 /*
  * With RandR enabled, we treat the DISPLAYHINT events from parent
  * as a monitor- reconfigure.

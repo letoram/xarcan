@@ -2,17 +2,21 @@ srcs = [
     'core.c',
     'init.c',
     'cvt.c',
-    'proxywnd.c'
+    'proxywnd.c',
+    'clipboard.c'
 ]
 
 arcan_dep = [
     common_dep,
-		gbm_dep,
-		libdrm_dep,
-		epoxy_dep,
+    gbm_dep,
+    libdrm_dep,
+    epoxy_dep,
     dependency('arcan-shmif'),
-		dependency('arcan-shmif-ext'),
-    dependency('xcb')
+    dependency('arcan-shmif-ext'),
+    dependency('xcb'),
+    dependency('xcb-icccm'),
+    dependency('xcb-xfixes'),
+    dependency('xcb-util')
 ]
 
 arcan_server = executable(
@@ -26,7 +30,7 @@ arcan_server = executable(
     link_with: [
         libxserver_main,
         kdrive,
-				glamor,
+        glamor,
         libxserver_fb,
         libxserver,
         libxserver_config,

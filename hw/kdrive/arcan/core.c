@@ -5,11 +5,6 @@
  *       the entry points seem trivial, it's only the cursor bitblt itself that
  *       might need some work, and then forwarding the input event.
  *
- * - [ ] Clipboard thread (see xwin for ideas)
- *       might be easiest just using aclip and handover exec into it, and let it
- *       inherit a connection socket to xorg itself. that opens up for a chained
- *       'exec' message to the X server itself.
- *
  * - [p] Re-add DRI3 buffer hooks
  *       most of it is there (though planes and modifiers coms isn't)
  *       but for some reason it's still black
@@ -68,6 +63,9 @@
 #include "dri3.h"
 #include <drm_fourcc.h>
 #endif
+
+#define CURSOR_REQUEST_ID 0xfef0
+#define CLIPBOARD_REQUEST_ID 0xfafa
 
 /*
  * from Xwin
@@ -197,7 +195,7 @@ static void arcanGetImage(DrawablePtr pDrawable, int sx, int sy, int w, int h,
     if (ascr->hooks.getImage){
         ascr->screen->GetImage = ascr->hooks.getImage;
         ascr->hooks.getImage(pDrawable,
-				                     sx, sy, w, h, format, planeMask, pdstLine);
+                             sx, sy, w, h, format, planeMask, pdstLine);
         ascr->screen->GetImage = arcanGetImage;
     }
 }
@@ -217,16 +215,16 @@ static void sendWndData(WindowPtr wnd, int depth, int max_depth, void* tag)
  * intermediate order doesn't really matter unless the backing stores in the
  * tree are redirected and that can be reconstructed from the parent+sibling
  * hints */
-		int base_order = 1;
-		if (wnd->visibility == VisibilityPartiallyObscured){
-			base_order = 0;
-		}
+    int base_order = 1;
+    if (wnd->visibility == VisibilityPartiallyObscured){
+        base_order = 0;
+    }
 
 /* might be better to defer this and just mark the window for update, add
  * to a list and do in the blockHandler previous to signalling so that we
  * don't saturate the event-queue with a pile-up */
     struct arcan_event out = (struct arcan_event)
-		{
+    {
        .category = EVENT_EXTERNAL,
        .ext.kind = ARCAN_EVENT(VIEWPORT),
 /* the drawable x,y are absolute - question is if it makes sense to convey
@@ -246,15 +244,15 @@ static void sendWndData(WindowPtr wnd, int depth, int max_depth, void* tag)
     };
 
 /* actually only send if the contents differ from what we sent last time */
-		struct arcan_event* aev = dixLookupPrivate(&wnd->devPrivates, &windowPriv);
-		if (aev){
-			if (memcmp(&out, aev, sizeof(struct arcan_event)) != 0){
-				memcpy(aev, &out, sizeof(struct arcan_event));
-				arcan_shmif_enqueue(acon, aev);
-			}
-		}
+    struct arcan_event* aev = dixLookupPrivate(&wnd->devPrivates, &windowPriv);
+    if (aev){
+        if (memcmp(&out, aev, sizeof(struct arcan_event)) != 0){
+            memcpy(aev, &out, sizeof(struct arcan_event));
+            arcan_shmif_enqueue(acon, aev);
+        }
+    }
 
-	wnd->unsynched = 0;
+    wnd->unsynched = 0;
 }
 
 static Bool arcanPositionWindow(WindowPtr wnd, int x, int y)
@@ -267,7 +265,7 @@ static Bool arcanPositionWindow(WindowPtr wnd, int x, int y)
         ascr->screen->PositionWindow = arcanPositionWindow;
     }
 
-		wnd->unsynched = 1;
+    wnd->unsynched = 1;
     return rv;
 }
 
@@ -275,19 +273,18 @@ static Bool arcanMarkOverlapped(WindowPtr pwnd, WindowPtr firstchild, WindowPtr 
 {
     arcanScrPriv *ascr = getArcanScreen(pwnd);
        trace("markOverlapped(%d, %d)\n",
-      pwnd ? pwnd->drawable.id : -1,
-			firstchild ? firstchild->drawable.id : -1);
+             pwnd ? pwnd->drawable.id : -1,
+             firstchild ? firstchild->drawable.id : -1);
 
      Bool rv = true;
      if (ascr->hooks.markOverlappedWindows){
-		     ascr->screen->MarkOverlappedWindows = ascr->hooks.markOverlappedWindows;
-				 rv = ascr->screen->MarkOverlappedWindows(pwnd, firstchild, layer);
-				 ascr->screen->MarkOverlappedWindows = arcanMarkOverlapped;
-		 }
+        ascr->screen->MarkOverlappedWindows = ascr->hooks.markOverlappedWindows;
+        rv = ascr->screen->MarkOverlappedWindows(pwnd, firstchild, layer);
+        ascr->screen->MarkOverlappedWindows = arcanMarkOverlapped;
+      }
 
-/*		 if (firstchild)
-		     sendWndData(firstchild, 1, 1, ascr->acon); */
- 	 return rv;
+/* if (firstchild) sendWndData(firstchild, 1, 1, ascr->acon); */
+    return rv;
 }
 
 static Bool arcanRealizeWindow(WindowPtr wnd)
@@ -303,10 +300,10 @@ static Bool arcanRealizeWindow(WindowPtr wnd)
     }
 
     struct arcan_event* aev = malloc(sizeof(struct arcan_event));
-		*aev = (struct arcan_event){0};
+    *aev = (struct arcan_event){0};
 
     dixSetPrivate(&wnd->devPrivates, &windowPriv, aev);
-		sendWndData(wnd, 1, 1, ascr->acon);
+    sendWndData(wnd, 1, 1, ascr->acon);
     return rv;
 }
 
@@ -322,11 +319,11 @@ static Bool arcanUnrealizeWindow(WindowPtr wnd)
         ascr->screen->UnrealizeWindow = arcanUnrealizeWindow;
     }
 
-	  sendWndData(wnd, 1, 1, ascr->acon);
+    sendWndData(wnd, 1, 1, ascr->acon);
     struct arcan_event* aev =
-		    dixLookupPrivate(&wnd->devPrivates, &windowPriv);
-		free(aev);
-		dixSetPrivate(&wnd->devPrivates, &windowPriv, NULL);
+        dixLookupPrivate(&wnd->devPrivates, &windowPriv);
+    free(aev);
+    dixSetPrivate(&wnd->devPrivates, &windowPriv, NULL);
     return rv;
 }
 
@@ -345,17 +342,17 @@ static void arcanRestackWindow(WindowPtr wnd, WindowPtr oldNextSibling)
  * parent/child. This makes ordering somewhat complicated and the struct needs
  * to be re-built on the other side. To avoid thrashing with events we send the
  * hierarchy separately from expose/configure */
-		struct arcan_event ev = (struct arcan_event){
-			.ext.kind = ARCAN_EVENT(MESSAGE),
-		};
-		snprintf(
-			       (char*)ev.ext.message.data, 78,
-	           "kind=restack:xid=%d:parent=%d:next=%d",
-						 (int) wnd->drawable.id,
-						 wnd->parent ? (int) wnd->parent->drawable.id : -1,
-						 wnd->nextSib ? (int) wnd->nextSib->drawable.id : -1
-					  );
-		arcan_shmif_enqueue(ascr->acon, &ev);
+    struct arcan_event ev = (struct arcan_event){
+        .ext.kind = ARCAN_EVENT(MESSAGE),
+    };
+    snprintf(
+             (char*)ev.ext.message.data, 78,
+             "kind=restack:xid=%d:parent=%d:next=%d",
+             (int) wnd->drawable.id,
+             wnd->parent ? (int) wnd->parent->drawable.id : -1,
+             wnd->nextSib ? (int) wnd->nextSib->drawable.id : -1
+            );
+    arcan_shmif_enqueue(ascr->acon, &ev);
 }
 
 static Bool arcanCreateWindow(WindowPtr wnd)
@@ -371,15 +368,15 @@ static Bool arcanCreateWindow(WindowPtr wnd)
         ascr->screen->CreateWindow = arcanCreateWindow;
     }
 
-		struct arcan_event ev = (struct arcan_event){
-			.ext.kind = ARCAN_EVENT(MESSAGE),
-		};
-		snprintf(
-			       (char*)ev.ext.message.data, 78,
-	           "kind=create:xid=%d",
-						 (int) wnd->drawable.id
-		);
-		arcan_shmif_enqueue(ascr->acon, &ev);
+    struct arcan_event ev = (struct arcan_event){
+        .ext.kind = ARCAN_EVENT(MESSAGE),
+    };
+    snprintf(
+             (char*)ev.ext.message.data, 78,
+             "kind=create:xid=%d",
+             (int) wnd->drawable.id
+    );
+    arcan_shmif_enqueue(ascr->acon, &ev);
     return res;
 }
 
@@ -395,7 +392,7 @@ static Bool arcanDestroyWindow(WindowPtr wnd)
         .ext.kind = ARCAN_EVENT(MESSAGE)
     };
     snprintf((char*)ev.ext.message.data, 78,
-				     "kind=destroy:xid=%d", (int)wnd->drawable.id);
+             "kind=destroy:xid=%d", (int)wnd->drawable.id);
     arcan_shmif_enqueue(ascr->acon, &ev);
 
     if (ascr->hooks.destroyWindow){
@@ -705,10 +702,6 @@ arcanSignal(struct arcan_shmif_cont* con, bool dirty)
         size_t stride = 0;
         int fourcc = 0;
 
-/* does glamor buffer somewhere internally? this do not seem to be
- * plagued by tearing or locking issues, even though it likely should.
- * maybe it's just because the tested display and simulated rate match?
- * in that case, the delivery- approach used for non-glamor should work */
         if (scrpriv->bo){
             fd = gbm_bo_get_fd(scrpriv->bo);
             stride = gbm_bo_get_stride(scrpriv->bo);
@@ -721,7 +714,8 @@ arcanSignal(struct arcan_shmif_cont* con, bool dirty)
                                         scrpriv->tex, &fd, &stride, &fourcc);
         }
 
-/* This should be changed into the planes + modifiers + ... format */
+/* This should be changed into the planes + modifiers + ... format,
+ * just waiting for the synch primitives to go with it. */
         arcan_shmif_signalhandle(scrpriv->acon,
                                  SHMIF_SIGVID | SHMIF_SIGBLK_NONE,
                                  fd, stride, fourcc);
@@ -733,6 +727,10 @@ arcanSignal(struct arcan_shmif_cont* con, bool dirty)
     }
 #endif
 
+/* The other bit is that we might want to be able to toggle to front-buffer
+ * only scanout, the mechanism for that is through DEVICE_NODE providing a
+ * different vbuffer, we swap the signalling buffer and then rely on the
+ * VSIGNAL to carry. */
     if (!in_glamor)
         arcan_shmif_signal(con, SHMIF_SIGVID | SHMIF_SIGBLK_NONE);
 
@@ -777,7 +775,22 @@ static
 void
 cmdClipboardWindow(struct arcan_shmif_cont *con)
 {
+    int pair[2];
+    socketpair(AF_UNIX, SOCK_STREAM, AF_UNIX, pair);
 
+    struct proxyWindowData *proxy = malloc(sizeof(struct proxyWindowData));
+    *proxy = (struct proxyWindowData){
+        .socket = pair[1],
+        .cont = con
+    };
+
+    pthread_attr_t pthattr;
+    pthread_attr_init(&pthattr);
+    pthread_attr_setdetachstate(&pthattr, PTHREAD_CREATE_DETACHED);
+
+    AddClientOnOpenFD(pair[0]);
+    pthread_t pth;
+    pthread_create(&pth, &pthattr, (void*)(void*)arcanClipboardDispatch, proxy);
 }
 
 static
@@ -958,9 +971,6 @@ decodeMessage(struct arcan_shmif_cont* con, const char* msg)
         else
             cmdReconfigureWindow(x, y, w, h, id, got_xy);
     }
-    else if (strcmp(kind, "clipboard") == 0 && id >= 0){
-        cmdClipboardWindow(con);
-    }
     else if (strcmp(kind, "destroy") == 0 && id >= 0){
         FreeResource(id, RT_NONE);
     }
@@ -1009,7 +1019,7 @@ arcanFlushEvents(int fd, void* tag)
                         InputThreadUnregisterDev(con->epipe);
                         InputThreadRegisterDev(con->epipe, (void*) arcanFlushEvents, con);
                         trySignal = true;
-												((arcanScrPriv*)con->user)->dirty = 1;
+                        ((arcanScrPriv*)con->user)->dirty = 1;
                     break;
                 }
             break;
@@ -1026,12 +1036,16 @@ arcanFlushEvents(int fd, void* tag)
                          ev.tgt.message
                         );
             break;
+
             case TARGET_COMMAND_NEWSEGMENT:
-/* Only thing we care about here is if a new output segment is pushed, that
- * would indicate that we have received a buffer to 'provide' if a client
- * attempts to read or capture anything from the root display. Clipboard is
- * used with the aclip tool, so no need here - and mouse cursor registration is
- * performed much earlier */
+							if (ev.tgt.ioevs[2].iv == SEGID_CLIPBOARD){
+								struct arcan_shmif_cont *acon = malloc(sizeof(struct arcan_shmif_cont));
+								*acon = arcan_shmif_acquire(con, NULL, SEGID_CLIPBOARD, 0);
+							  cmdClipboardWindow(acon);
+							}
+							else if (ev.tgt.ioevs[2].iv == SEGID_CURSOR){
+/* set the new cursor recipient, need to bitblt into this later */
+							}
             break;
             case TARGET_COMMAND_EXIT:
                 CloseWellKnownConnections();
@@ -1081,9 +1095,9 @@ arcanScreenInit(KdScreenInfo * screen)
         return FALSE;
     }
 
-		if (!dixRegisterPrivateKey(&windowPriv, PRIVATE_WINDOW, 0)){
-		    return FALSE;
-		}
+    if (!dixRegisterPrivateKey(&windowPriv, PRIVATE_WINDOW, 0)){
+        return FALSE;
+    }
 
 /* primary connection is a allocated once and then retained for the length of
  * the process */
@@ -1461,48 +1475,39 @@ int arcanInit(void)
 #endif
     });
 
-/* try and request a mouse segment for accelerated mouse (unless disabled)
- * or at least indicate that we do software cursor rendering */
-    if (arcanConfigPriv.accel_cursor){
-        arcan_shmif_enqueue(con, &(struct arcan_event){
-            .ext.kind = ARCAN_EVENT(SEGREQ),
-            .ext.segreq.width = 32,
-            .ext.segreq.height = 32,
-            .ext.segreq.kind = SEGID_CURSOR,
-            .ext.segreq.id = 0xbad1dea
-        });
+/* request a cursor and a clipboard, if they arrive we initialize that code
+ * as well, otherwise we have our own implementation of save-under + cursor
+ * bitblit */
+    arcan_shmif_enqueue(con, &(struct arcan_event){
+        .ext.kind = ARCAN_EVENT(SEGREQ),
+        .ext.segreq.width = 32,
+        .ext.segreq.height = 32,
+        .ext.segreq.kind = SEGID_CURSOR,
+        .ext.segreq.id = CURSOR_REQUEST_ID
+    });
 
-/*
- * wd->cursor = arcan_shmif_acquire(&wd->mcont, NULL, SEGID_CURSOR, 0);
-        printf("parent REJECTED cursor\n");
-        wd->cursor_reject = true;
- */
-    }
-    else {
-        arcan_shmif_enqueue(con, &(arcan_event)
-                           {
-                                .category = EVENT_EXTERNAL,
-                                .ext.kind = ARCAN_EVENT(CURSORHINT),
-                                .ext.message.data = "hidden"
-                           });
-        }
+    arcan_shmif_enqueue(con, &(struct arcan_event){
+        .ext.kind = ARCAN_EVENT(SEGREQ),
+        .ext.segreq.width = 32,
+        .ext.segreq.height = 32,
+        .ext.segreq.kind = SEGID_CLIPBOARD,
+        .ext.segreq.id = CLIPBOARD_REQUEST_ID
+    });
 
-/* announce a 'dot' and 'svg' exported file extensions for getting a snapshot
+
+   /* announce a 'dot' and 'svg' exported file extensions for getting a snapshot
  * of the window tree in order to make debugging much less painful */
-    arcan_shmif_enqueue(con, &(struct arcan_event)
-                       {
-                           .ext.kind = ARCAN_EVENT(BCHUNKSTATE),
-                           .category = EVENT_EXTERNAL,
-                           .ext.bchunk = {
-                                              .input      = false,
-                                              .hint       = 0,
-                                              .extensions = "dot;svg"
-                           }
-                       }
-    );
+    arcan_shmif_enqueue(con, &(struct arcan_event){
+        .ext.kind = ARCAN_EVENT(BCHUNKSTATE),
+        .category = EVENT_EXTERNAL,
+        .ext.bchunk = {
+                       .input = false,
+                       .hint  = 0,
+                       .extensions = "dot;svg"
+                      }
+    });
 
     arcan_shmif_setprimary(SHMIF_INPUT, con);
-
     return 1;
 }
 
@@ -2252,7 +2257,7 @@ arcanFinishInitScreen(ScreenPtr pScreen)
     scrpriv->hooks.configureWindow = screen->pScreen->ConfigNotify;
     scrpriv->hooks.resizeWindow = screen->pScreen->ResizeWindow;
     scrpriv->hooks.createWindow = screen->pScreen->CreateWindow;
-		scrpriv->hooks.markOverlappedWindows = screen->pScreen->MarkOverlappedWindows;
+    scrpriv->hooks.markOverlappedWindows = screen->pScreen->MarkOverlappedWindows;
 
     screen->pScreen->PositionWindow = arcanPositionWindow;
     screen->pScreen->GetImage = arcanGetImage;
@@ -2263,7 +2268,7 @@ arcanFinishInitScreen(ScreenPtr pScreen)
     screen->pScreen->ConfigNotify = arcanConfigureWindow;
     screen->pScreen->ResizeWindow = arcanResizeWindow;
     screen->pScreen->CreateWindow = arcanCreateWindow;
-		screen->pScreen->MarkOverlappedWindows = arcanMarkOverlapped;
+    screen->pScreen->MarkOverlappedWindows = arcanMarkOverlapped;
 
     return TRUE;
 }

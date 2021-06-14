@@ -172,7 +172,6 @@ ddxUseMsg(void)
     ErrorF("-glamor                Enable glamor rendering\n");
 #endif
     ErrorF("-nodri3                Disable DRI3- support\n");
-    ErrorF("-accel_cursor          Enable accelerated cursor\n");
 }
 
 int
@@ -212,9 +211,6 @@ ddxProcessArgument(int argc, char **argv, int i)
     else if (strcmp(argv[i], "-nodynamic") == 0){
         arcanConfigPriv.no_dynamic_resize = true;
         return 1;
-    }
-    else if (strcmp(argv[i], "-accel_cursor") == 0){
-        arcanConfigPriv.accel_cursor = true;
     }
     else if (strcmp(argv[i], "-wm") == 0) {
         CHECK_FOR_REQUIRED_ARGUMENTS(1);
