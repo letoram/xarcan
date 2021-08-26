@@ -112,6 +112,8 @@ __stdcall unsigned long GetTickCount(void);
 
 #include "miinitext.h"
 
+#include "present.h"
+
 Bool noTestExtensions;
 
 #ifdef COMPOSITE
@@ -329,7 +331,7 @@ LockServer(void)
              */
             break;
         }
-        else {
+        else if (errno == EEXIST) {
             /*
              * Read the pid from the existing file
              */
@@ -373,6 +375,12 @@ LockServer(void)
                      port, "\tIf this server is no longer running, remove",
                      LockFile, "\tand start again.");
             }
+        }
+        else {
+            unlink(tmp);
+            FatalError
+                ("Linking lock file (%s) in place failed: %s\n",
+                 LockFile, strerror(errno));
         }
     }
     unlink(tmp);
@@ -528,6 +536,7 @@ UseMsg(void)
     ErrorF
         ("-deferglyphs [none|all|16] defer loading of [no|all|16-bit] glyphs\n");
     ErrorF("-f #                   bell base (0-100)\n");
+    ErrorF("-fakescreenfps #       fake screen default fps (1-600)\n");
     ErrorF("-fp string             default font path\n");
     ErrorF("-help                  prints message with these options\n");
     ErrorF("+iglx                  Allow creating indirect GLX contexts\n");
@@ -561,7 +570,7 @@ UseMsg(void)
     ErrorF("-s #                   screen-saver timeout (minutes)\n");
     ErrorF("-seat string           seat to run on\n");
     ErrorF("-t #                   default pointer threshold (pixels/t)\n");
-    ErrorF("-terminate             terminate at server reset\n");
+    ErrorF("-terminate [delay]     terminate at server reset (optional delay in sec)\n");
     ErrorF("-tst                   disable testing extensions\n");
     ErrorF("ttyxx                  server started from init on /dev/ttyxx\n");
     ErrorF("v                      video blanking for screen-saver\n");
@@ -775,6 +784,15 @@ ProcessCommandLine(int argc, char *argv[])
             else
                 UseMsg();
         }
+        else if (strcmp(argv[i], "-fakescreenfps") == 0) {
+            if (++i < argc) {
+                FakeScreenFps = (uint32_t) atoi(argv[i]);
+                if (FakeScreenFps < 1 || FakeScreenFps > 600)
+                    FatalError("fakescreenfps must be an integer in [1;600] range\n");
+            }
+            else
+                UseMsg();
+        }
         else if (strcmp(argv[i], "-fp") == 0) {
             if (++i < argc) {
                 defaultFontPath = argv[i];
@@ -917,6 +935,10 @@ ProcessCommandLine(int argc, char *argv[])
         }
         else if (strcmp(argv[i], "-terminate") == 0) {
             dispatchExceptionAtReset = DE_TERMINATE;
+            terminateDelay = -1;
+            if ((i + 1 < argc) && (isdigit(*argv[i + 1])))
+               terminateDelay = atoi(argv[++i]);
+            terminateDelay = max(0, terminateDelay);
         }
         else if (strcmp(argv[i], "-tst") == 0) {
             noTestExtensions = TRUE;

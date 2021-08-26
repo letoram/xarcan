@@ -26,12 +26,12 @@ dnl
 dnl Process this file with autoconf to create configure.
 
 AC_PREREQ(2.60)
-AC_INIT([xorg-server], 1.20.99.1, [https://gitlab.freedesktop.org/xorg/xserver/issues], xorg-server)
-RELEASE_DATE="2018-05-14"
+AC_INIT([xorg-server], 21.0.99.1, [https://gitlab.freedesktop.org/xorg/xserver/issues], xorg-server)
+RELEASE_DATE="2021-07-05"
 RELEASE_NAME="Carrot and Ginger Soup"
 AC_CONFIG_SRCDIR([Makefile.am])
 AC_CONFIG_MACRO_DIR([m4])
-AM_INIT_AUTOMAKE([foreign dist-bzip2])
+AM_INIT_AUTOMAKE([foreign dist-xz])
 AC_USE_SYSTEM_EXTENSIONS
 
 # Require xorg-macros minimum of 1.14 for XORG_COMPILER_BRAND in XORG_DEFAULT_OPTIONS
@@ -363,12 +363,10 @@ esac
 dnl augment XORG_RELEASE_VERSION for our snapshot number and to expose the
 dnl major number
 PVMAJOR=`echo $PACKAGE_VERSION | cut -d . -f 1`
-PVS=`echo $PACKAGE_VERSION | cut -d . -f 4 | cut -d - -f 1`
-if test "x$PVS" = "x"; then
-	PVS="0"
-fi
 
-VENDOR_RELEASE="((($PVMAJOR) * 10000000) + (($PVM) * 100000) + (($PVP) * 1000) + $PVS)"
+dnl Convert to the old-style 1.x.y version scheme used up to 1.20.x for
+dnl backwards compatibility
+VENDOR_RELEASE="((10000000) + (($PVMAJOR) * 100000) + (($PVM) * 1000) + $PVP)"
 VENDOR_MAN_VERSION="Version ${PACKAGE_VERSION}"
 
 VENDOR_NAME="The X.Org Foundation"
@@ -733,10 +731,10 @@ XPROTO="xproto >= 7.0.31"
 RANDRPROTO="randrproto >= 1.6.0"
 RENDERPROTO="renderproto >= 0.11"
 XEXTPROTO="xextproto >= 7.2.99.901"
-INPUTPROTO="inputproto >= 2.3"
+INPUTPROTO="inputproto >= 2.3.99.1"
 KBPROTO="kbproto >= 1.0.3"
 FONTSPROTO="fontsproto >= 2.1.3"
-FIXESPROTO="fixesproto >= 5.0"
+FIXESPROTO="fixesproto >= 6.0"
 DAMAGEPROTO="damageproto >= 1.1"
 XCMISCPROTO="xcmiscproto >= 1.2.0"
 BIGREQSPROTO="bigreqsproto >= 1.1.0"
@@ -760,6 +758,7 @@ LIBUDEV="libudev >= 143"
 LIBSELINUX="libselinux >= 2.0.86"
 LIBDBUS="dbus-1 >= 1.0"
 LIBPIXMAN="pixman-1 >= 0.27.2"
+LIBXCVT="libxcvt"
 
 dnl Pixman is always required, but we separate it out so we can link
 dnl specific modules against it
@@ -767,7 +766,7 @@ PKG_CHECK_MODULES(PIXMAN, $LIBPIXMAN)
 REQUIRED_LIBS="$REQUIRED_LIBS $LIBPIXMAN $LIBXFONT xau"
 
 dnl Core modules for most extensions, et al.
-SDK_REQUIRED_MODULES="$XPROTO $RANDRPROTO $RENDERPROTO $XEXTPROTO $INPUTPROTO $KBPROTO $FONTSPROTO $LIBPIXMAN"
+SDK_REQUIRED_MODULES="$XPROTO $RANDRPROTO $RENDERPROTO $XEXTPROTO $INPUTPROTO $KBPROTO $FONTSPROTO $LIBPIXMAN $LIBXCVT"
 # Make SDK_REQUIRED_MODULES available for inclusion in xorg-server.pc
 AC_SUBST(SDK_REQUIRED_MODULES)
 
@@ -1760,11 +1759,14 @@ fi
 AC_MSG_RESULT([$XORG])
 
 if test "x$XORG" = xyes; then
+	PKG_CHECK_MODULES([LIBXCVT], $LIBXCVT)
+
 	XORG_DDXINCS='-I$(top_srcdir)/hw/xfree86 -I$(top_srcdir)/hw/xfree86/include -I$(top_srcdir)/hw/xfree86/common'
 	XORG_OSINCS='-I$(top_srcdir)/hw/xfree86/os-support -I$(top_srcdir)/hw/xfree86/os-support/bus -I$(top_srcdir)/os'
 	XORG_INCS="$XORG_DDXINCS $XORG_OSINCS"
-	XORG_CFLAGS="$XORGSERVER_CFLAGS -DHAVE_XORG_CONFIG_H"
+	XORG_CFLAGS="$XORGSERVER_CFLAGS $LIBXCVT_CFLAGS -DHAVE_XORG_CONFIG_H"
 	XORG_LIBS="$COMPOSITE_LIB $FIXES_LIB $XEXT_LIB $DBE_LIB $RECORD_LIB $RANDR_LIB $RENDER_LIB $DAMAGE_LIB $DRI3_LIB $PRESENT_LIB $MIEXT_SYNC_LIB $MIEXT_DAMAGE_LIB $XI_LIB $XKB_LIB"
+	XORG_SYS_LIBS="$XORG_SYS_LIBS $LIBXCVT_LIBS"
 
 	dnl ==================================================================
 	dnl symbol visibility
@@ -2207,7 +2209,7 @@ if test "x$DMX" = xyes; then
 	fi
 	DMX_INCLUDES="$XEXT_INC $RENDER_INC $RECORD_INC"
 	XDMX_CFLAGS="$DMXMODULES_CFLAGS"
-	XDMX_LIBS="$FB_LIB $MI_LIB $XEXT_LIB $RENDER_LIB $RECORD_LIB $XI_LIB $XKB_LIB $XKB_STUB_LIB $DRI3_LIB $PRESENT_LIB $MIEXT_SYNC_LIB $MIEXT_SHADOW_LIB $MIEXT_DAMAGE_LIB $COMPOSITE_LIB $DAMAGE_LIB $MAIN_LIB $DIX_LIB $RANDR_LIB $CONFIG_LIB $OS_LIB $FIXES_LIB"
+	XDMX_LIBS="$FB_LIB $MI_LIB $XEXT_LIB $RENDER_LIB $RECORD_LIB $XI_LIB $XKB_LIB $XKB_STUB_LIB $DRI3_LIB $PRESENT_LIB $MIEXT_SYNC_LIB $MIEXT_SHADOW_LIB $MIEXT_DAMAGE_LIB $COMPOSITE_LIB $DAMAGE_LIB $MAIN_LIB $DIX_LIB $RANDR_LIB $RENDER_LIB $CONFIG_LIB $OS_LIB $FIXES_LIB"
 	XDMX_SYS_LIBS="$DMXMODULES_LIBS"
 	AC_SUBST([XDMX_CFLAGS])
 	AC_SUBST([XDMX_LIBS])
@@ -2349,8 +2351,10 @@ if test "x$XWAYLAND" = xyes; then
 		AC_SUBST(have_eglstream, "false")
 	fi
 
+	PKG_CHECK_MODULES([LIBXCVT], $LIBXCVT)
+
 	XWAYLAND_LIBS="$FB_LIB $FIXES_LIB $MI_LIB $XEXT_LIB $DBE_LIB $RECORD_LIB $GLX_LIBS $RANDR_LIB $RENDER_LIB $DAMAGE_LIB $DRI3_LIB $PRESENT_LIB $MIEXT_SYNC_LIB $MIEXT_DAMAGE_LIB $MIEXT_SHADOW_LIB $XI_LIB $XKB_LIB $XKB_STUB_LIB $COMPOSITE_LIB $MAIN_LIB $DIX_LIB $OS_LIB"
-	XWAYLAND_SYS_LIBS="$XWAYLANDMODULES_LIBS $GLX_SYS_LIBS"
+	XWAYLAND_SYS_LIBS="$XWAYLANDMODULES_LIBS $GLX_SYS_LIBS $LIBXCVT_LIBS"
 	AC_SUBST([XWAYLAND_LIBS])
 	AC_SUBST([XWAYLAND_SYS_LIBS])
 
@@ -2484,7 +2488,6 @@ hw/xfree86/x86emu/Makefile
 hw/xfree86/xkb/Makefile
 hw/xfree86/utils/Makefile
 hw/xfree86/utils/man/Makefile
-hw/xfree86/utils/cvt/Makefile
 hw/xfree86/utils/gtf/Makefile
 hw/dmx/config/Makefile
 hw/dmx/config/man/Makefile

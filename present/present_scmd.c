@@ -35,19 +35,13 @@
  *
  */
 
-static uint64_t         present_event_id;
+static uint64_t present_scmd_event_id;
+
 static struct xorg_list present_exec_queue;
 static struct xorg_list present_flip_queue;
 
 static void
 present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc);
-
-static void
-present_scmd_create_event_id(present_window_priv_ptr window_priv,
-                             present_vblank_ptr vblank)
-{
-    vblank->event_id = ++present_event_id;
-}
 
 static inline PixmapPtr
 present_flip_pending_pixmap(ScreenPtr screen)
@@ -78,6 +72,9 @@ present_check_flip(RRCrtcPtr            crtc,
     WindowPtr                   root = screen->root;
     present_screen_priv_ptr     screen_priv = present_screen_priv(screen);
 
+    if (crtc) {
+       screen_priv = present_screen_priv(crtc->pScreen);
+    }
     if (reason)
         *reason = PRESENT_FLIP_REASON_UNKNOWN;
 
@@ -177,11 +174,14 @@ static int
 present_get_ust_msc(ScreenPtr screen, RRCrtcPtr crtc, uint64_t *ust, uint64_t *msc)
 {
     present_screen_priv_ptr     screen_priv = present_screen_priv(screen);
+    present_screen_priv_ptr     crtc_screen_priv = screen_priv;
+    if (crtc)
+        crtc_screen_priv = present_screen_priv(crtc->pScreen);
 
     if (crtc == NULL)
         return present_fake_get_ust_msc(screen, ust, msc);
     else
-        return (*screen_priv->info->get_ust_msc)(crtc, ust, msc);
+        return (*crtc_screen_priv->info->get_ust_msc)(crtc, ust, msc);
 }
 
 static void
@@ -212,7 +212,7 @@ present_queue_vblank(ScreenPtr screen,
         ret = present_fake_queue_vblank(screen, event_id, msc);
     else
     {
-        present_screen_priv_ptr     screen_priv = present_screen_priv(screen);
+        present_screen_priv_ptr     screen_priv = present_screen_priv(crtc->pScreen);
         ret = (*screen_priv->info->queue_vblank) (crtc, event_id, msc);
     }
     return ret;
@@ -320,7 +320,7 @@ present_unflip(ScreenPtr screen)
 
     present_restore_screen_pixmap(screen);
 
-    screen_priv->unflip_event_id = ++present_event_id;
+    screen_priv->unflip_event_id = ++present_scmd_event_id;
     DebugPresent(("u %" PRIu64 "\n", screen_priv->unflip_event_id));
     (*screen_priv->info->unflip) (screen, screen_priv->unflip_event_id);
 }
@@ -496,6 +496,26 @@ present_scmd_can_window_flip(WindowPtr window)
 }
 
 /*
+ * Clean up any pending or current flips for this window
+ */
+static void
+present_scmd_clear_window_flip(WindowPtr window)
+{
+    ScreenPtr                   screen = window->drawable.pScreen;
+    present_screen_priv_ptr     screen_priv = present_screen_priv(screen);
+    present_vblank_ptr          flip_pending = screen_priv->flip_pending;
+
+    if (flip_pending && flip_pending->window == window) {
+        present_set_abort_flip(screen);
+        flip_pending->window = NULL;
+    }
+    if (screen_priv->flip_window == window) {
+        present_restore_screen_pixmap(screen);
+        screen_priv->flip_window = NULL;
+    }
+}
+
+/*
  * Once the required MSC has been reached, execute the pending request.
  *
  * For requests to actually present something, either blt contents to
@@ -511,6 +531,9 @@ present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
     WindowPtr                   window = vblank->window;
     ScreenPtr                   screen = window->drawable.pScreen;
     present_screen_priv_ptr     screen_priv = present_screen_priv(screen);
+    if (vblank && vblank->crtc) {
+        screen_priv=present_screen_priv(vblank->crtc->pScreen);
+    }
 
     if (present_execute_wait(vblank, crtc_msc))
         return;
@@ -625,8 +648,9 @@ present_scmd_update_window_crtc(WindowPtr window, RRCrtcPtr crtc, uint64_t new_m
         return;
     }
 
-    /* Crtc may have been turned off, just use whatever previous MSC we'd seen from this CRTC. */
-    if (present_get_ust_msc(window->drawable.pScreen, window_priv->crtc, &old_ust, &old_msc) != Success)
+    /* Crtc may have been turned off or be destroyed, just use whatever previous MSC we'd seen from this CRTC. */
+    if (!RRCrtcExists(window->drawable.pScreen, window_priv->crtc) ||
+        present_get_ust_msc(window->drawable.pScreen, window_priv->crtc, &old_ust, &old_msc) != Success)
         old_msc = window_priv->msc;
 
     window_priv->msc_offset += new_msc - old_msc;
@@ -726,7 +750,7 @@ present_scmd_pixmap(WindowPtr window,
                                    wait_fence,
                                    idle_fence,
                                    options,
-                                   screen_priv->info ? &screen_priv->info->capabilities : NULL,
+                                   screen_priv->info ? screen_priv->info->capabilities : 0,
                                    notifies,
                                    num_notifies,
                                    target_msc,
@@ -734,6 +758,8 @@ present_scmd_pixmap(WindowPtr window,
 
     if (!vblank)
         return BadAlloc;
+
+    vblank->event_id = ++present_scmd_event_id;
 
     if (vblank->flip && vblank->sync_flip)
         vblank->exec_msc--;
@@ -806,9 +832,9 @@ present_scmd_init_mode_hooks(present_screen_priv_ptr screen_priv)
     screen_priv->check_flip         =   &present_check_flip;
     screen_priv->check_flip_window  =   &present_check_flip_window;
     screen_priv->can_window_flip    =   &present_scmd_can_window_flip;
+    screen_priv->clear_window_flip  =   &present_scmd_clear_window_flip;
 
     screen_priv->present_pixmap     =   &present_scmd_pixmap;
-    screen_priv->create_event_id    =   &present_scmd_create_event_id;
 
     screen_priv->queue_vblank       =   &present_queue_vblank;
     screen_priv->flush              =   &present_flush;

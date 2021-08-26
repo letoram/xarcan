@@ -414,6 +414,7 @@ glamor_debug_output_callback(GLenum source,
 
     LogMessageVerb(X_ERROR, 0, "glamor%d: GL error: %*s\n",
                screen->myNum, length, message);
+    xorg_backtrace();
 }
 
 /**
@@ -745,7 +746,7 @@ glamor_init(ScreenPtr screen, unsigned int flags)
          * have instanced arrays, but this is not always the case.
          * etnaviv offers GLSL 140 with OpenGL 2.1.
          */
-        if (glamor_priv->glsl_version >= 130 &&
+        if (glamor_glsl_has_ints(glamor_priv) &&
             !epoxy_has_gl_extension("GL_ARB_instanced_arrays"))
                 glamor_priv->glsl_version = 120;
     } else {
@@ -770,6 +771,10 @@ glamor_init(ScreenPtr screen, unsigned int flags)
         ErrorF("GL_{ARB,OES}_vertex_array_object required\n");
         goto fail;
     }
+
+    if (!glamor_priv->is_gles && glamor_priv->glsl_version == 120 &&
+        epoxy_has_gl_extension("GL_ARB_instanced_arrays"))
+        glamor_priv->use_gpu_shader4 = epoxy_has_gl_extension("GL_EXT_gpu_shader4");
 
     glamor_priv->has_rw_pbo = FALSE;
     if (!glamor_priv->is_gles)
@@ -798,7 +803,7 @@ glamor_init(ScreenPtr screen, unsigned int flags)
         epoxy_gl_version() >= 30 ||
         epoxy_has_gl_extension("GL_NV_pack_subimage");
     glamor_priv->has_dual_blend =
-        glamor_priv->glsl_version >= 130 &&
+        glamor_glsl_has_ints(glamor_priv) &&
         epoxy_has_gl_extension("GL_ARB_blend_func_extended");
     glamor_priv->has_clear_texture =
         epoxy_gl_version() >= 44 ||
@@ -816,7 +821,8 @@ glamor_init(ScreenPtr screen, unsigned int flags)
      * cached IB.
      */
     if (strstr((char *)glGetString(GL_VENDOR), "Broadcom") &&
-        strstr((char *)glGetString(GL_RENDERER), "VC4"))
+        (strstr((char *)glGetString(GL_RENDERER), "VC4") ||
+         strstr((char *)glGetString(GL_RENDERER), "V3D")))
         glamor_priv->use_quads = FALSE;
 
     glGetIntegerv(GL_MAX_RENDERBUFFER_SIZE, &glamor_priv->max_fbo_size);
