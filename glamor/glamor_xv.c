@@ -161,6 +161,23 @@ static const glamor_facet glamor_facet_xv_uyvy = {
         ),
 };
 
+static const glamor_facet glamor_facet_xv_rgb_raw = {
+    .name = "xv_rgb",
+
+    .source_name = "v_texcoord0",
+    .vs_vars = ("in vec2 position;\n"
+                "in vec2 v_texcoord0;\n"
+                "out vec2 tcs;\n"),
+    .vs_exec = (GLAMOR_POS(gl_Position, position)
+                "        tcs = v_texcoord0;\n"),
+
+    .fs_vars = ("uniform sampler2D sampler;\n"
+                "in vec2 tcs;\n"),
+    .fs_exec = (
+                "        frag_color = texture2D(sampler, tcs);\n"
+                ),
+};
+
 #define MAKE_ATOM(a) MakeAtom(a, sizeof(a) - 1, TRUE)
 
 XvAttributeRec glamor_xv_attributes[] = {
@@ -181,6 +198,7 @@ XvImageRec glamor_xv_images[] = {
     XVIMAGE_I420,
     XVIMAGE_NV12,
     XVIMAGE_UYVY,
+    XVIMAGE_RGB32,
 };
 int glamor_xv_num_images = ARRAY_SIZE(glamor_xv_images);
 
@@ -200,6 +218,9 @@ glamor_init_xv_shader(ScreenPtr screen, glamor_port_private *port_priv, int id)
         break;
     case FOURCC_UYVY:
         glamor_facet_xv_planar = &glamor_facet_xv_uyvy;
+        break;
+    case FOURCC_RGBA32:
+        glamor_facet_xv_planar = &glamor_facet_xv_rgb_raw;
         break;
     default:
         break;
@@ -228,6 +249,7 @@ glamor_init_xv_shader(ScreenPtr screen, glamor_port_private *port_priv, int id)
         glUniform1i(sampler_loc, 1);
         break;
     case FOURCC_UYVY:
+    case FOURCC_RGBA32:
         sampler_loc = glGetUniformLocation(port_priv->xv_prog.prog, "sampler");
         glUniform1i(sampler_loc, 0);
         break;
@@ -345,6 +367,14 @@ glamor_xv_query_image_attributes(int id,
             pitches[1] = tmp;
         tmp *= (*h >> 1);
         size += tmp;
+        break;
+    case FOURCC_RGBA32:
+        size = *w * 4;
+        if(pitches)
+            pitches[0] = size;
+        if(offsets)
+            offsets[0] = 0;
+        size *= *h;
         break;
     case FOURCC_UYVY:
         /* UYVU is single-plane really, all tranformation is processed inside a shader */
@@ -482,6 +512,14 @@ glamor_xv_render(glamor_port_private *port_priv, int id)
         glBindTexture(GL_TEXTURE_2D, src_pixmap_priv[0]->fbo->tex);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        break;
+    case FOURCC_RGBA32:
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, src_pixmap_priv[0]->fbo->tex);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         break;
@@ -647,6 +685,13 @@ glamor_xv_put_image(glamor_port_private *port_priv,
             if (!port_priv->src_pix[1])
                 return BadAlloc;
             break;
+        case FOURCC_RGBA32:
+            port_priv->src_pix[0] =
+            glamor_create_pixmap(pScreen, width, height, 32,
+                                     GLAMOR_CREATE_FBO_NO_FBO);
+            port_priv->src_pix[1] = NULL;
+            port_priv->src_pix[2] = NULL;
+            break;
         case FOURCC_UYVY:
             port_priv->src_pix[0] =
                 glamor_create_pixmap(pScreen, width, height, 32,
@@ -731,6 +776,16 @@ glamor_xv_put_image(glamor_port_private *port_priv,
         break;
     case FOURCC_UYVY:
         srcPitch = width * 2;
+        full_box.x1 = 0;
+        full_box.y1 = 0;
+        full_box.x2 = width;
+        full_box.y2 = height;
+        glamor_upload_boxes(&port_priv->src_pix[0]->drawable, &full_box, 1,
+                            0, 0, 0, 0,
+                            buf, srcPitch);
+        break;
+    case FOURCC_RGBA32:
+        srcPitch = width * 4;
         full_box.x1 = 0;
         full_box.y1 = 0;
         full_box.x2 = width;

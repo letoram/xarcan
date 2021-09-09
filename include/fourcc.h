@@ -176,4 +176,23 @@
         XvTopToBottom \
    }
 
+#define FOURCC_RGBA32 0x34325241
+#define XVIMAGE_RGB32 \
+   { \
+        FOURCC_RGBA32, \
+        XvRGB, \
+		LSBFirst, \
+		{'R','A','2','4', \
+		 0x00, 0x00, 0x00,0x10,0x80,0x00,0x00,0xAA,0x00,0x38,0x9B,0x71}, \
+		32, \
+		XvPacked, \
+		1, \
+		32, 0xff0000, 0xff00, 0xff, \
+		0, 0, 0, \
+		0, 0, 0, \
+		0, 0, 0, \
+		{0,0,0,0, \
+		 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, \
+		0 \
+   }
 #endif                          /* _XF86_FOURCC_H_ */
