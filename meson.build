@@ -1,6 +1,6 @@
 project('xserver', 'c',
         default_options: [
-            'buildtype=debugoptimized',
+            'buildtype=debug',
             'c_std=gnu99',
         ],
         version: '21.0.99.1',
