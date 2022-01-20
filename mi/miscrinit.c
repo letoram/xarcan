@@ -184,7 +184,7 @@ miCreateScreenResources(ScreenPtr pScreen)
     return TRUE;
 }
 
-Bool
+static Bool
 miScreenDevPrivateInit(ScreenPtr pScreen, int width, void *pbits)
 {
     miScreenInitParmsPtr pScrInitParms;

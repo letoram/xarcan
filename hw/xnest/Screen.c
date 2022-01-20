@@ -242,8 +242,9 @@ xnestOpenScreen(ScreenPtr pScreen, int argc, char *argv[])
 
     /* myNum */
     /* id */
-    miScreenInit(pScreen, NULL, xnestWidth, xnestHeight, 1, 1, xnestWidth, rootDepth, numDepths, depths, defaultVisual, /* root visual */
-                 numVisuals, visuals);
+    if (!miScreenInit(pScreen, NULL, xnestWidth, xnestHeight, 1, 1, xnestWidth, rootDepth, numDepths, depths, defaultVisual, /* root visual */
+                      numVisuals, visuals))
+        return FALSE;
 
     pScreen->defColormap = (Colormap) FakeClientID(0);
     pScreen->minInstalledCmaps = MINCMAPS;
@@ -331,9 +332,6 @@ xnestOpenScreen(ScreenPtr pScreen, int argc, char *argv[])
 
     /* overwrite miCloseScreen with our own */
     pScreen->CloseScreen = xnestCloseScreen;
-
-    if (!miScreenDevPrivateInit(pScreen, xnestWidth, NULL))
-        return FALSE;
 
     /* overwrite miSetShape with our own */
     pScreen->SetShape = xnestSetShape;
