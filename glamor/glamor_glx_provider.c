@@ -142,8 +142,7 @@ egl_create_glx_drawable(ClientPtr client, __GLXscreen *screen,
 static struct egl_config *
 translate_eglconfig(struct egl_screen *screen, EGLConfig hc,
                     struct egl_config *chain, Bool direct_color,
-                    Bool double_buffer, Bool duplicate_for_composite,
-                    Bool srgb_only)
+                    Bool duplicate_for_composite, Bool srgb_only)
 {
     EGLint value;
     struct egl_config *c = calloc(1, sizeof *c);
@@ -191,10 +190,8 @@ translate_eglconfig(struct egl_screen *screen, EGLConfig hc,
     else
         c->base.visualType = GLX_TRUE_COLOR;
 
-    if (double_buffer)
-        c->base.doubleBufferMode = GL_TRUE;
-    else
-        c->base.doubleBufferMode = GL_FALSE;
+    /* We choose not to implement front-buffer-only configs */
+    c->base.doubleBufferMode = GL_TRUE;
 
     /* direct-mapped state */
 #define GET(attr, slot) \
@@ -320,7 +317,7 @@ translate_eglconfig(struct egl_screen *screen, EGLConfig hc,
 static __GLXconfig *
 egl_mirror_configs(ScreenPtr pScreen, struct egl_screen *screen)
 {
-    int i, j, k, nconfigs;
+    int i, j, nconfigs;
     struct egl_config *c = NULL;
     EGLConfig *host_configs = NULL;
     bool can_srgb = epoxy_has_gl_extension("GL_ARB_framebuffer_sRGB") ||
@@ -337,21 +334,18 @@ egl_mirror_configs(ScreenPtr pScreen, struct egl_screen *screen)
      * ->next chain easier.
      */
     for (i = nconfigs - 1; i >= 0; i--)
-        for (j = 0; j < 3; j++) /* direct_color */
-            for (k = 0; k < 2; k++) /* double_buffer */ {
-                if (can_srgb)
-                    c = translate_eglconfig(screen, host_configs[i], c,
-                                            /* direct_color */ j == 1,
-                                            /* double_buffer */ k > 0,
-                                            /* duplicate_for_composite */ j == 0,
-                                            /* srgb_only */ true);
-
+        for (j = 0; j < 3; j++) { /* direct_color */
+            if (can_srgb)
                 c = translate_eglconfig(screen, host_configs[i], c,
                                         /* direct_color */ j == 1,
-                                        /* double_buffer */ k > 0,
                                         /* duplicate_for_composite */ j == 0,
-                                        /* srgb_only */ false);
-            }
+                                        /* srgb_only */ true);
+
+            c = translate_eglconfig(screen, host_configs[i], c,
+                                    /* direct_color */ j == 1,
+                                    /* duplicate_for_composite */ j == 0,
+                                    /* srgb_only */ false);
+        }
 
     screen->configs = host_configs;
     return c ? &c->base : NULL;
