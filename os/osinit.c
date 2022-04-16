@@ -174,7 +174,7 @@ OsInit(void)
         struct sigaction act, oact;
         int i;
 
-        int siglist[] = { SIGSEGV, SIGQUIT, SIGILL, SIGFPE, SIGBUS,
+        int siglist[] = { SIGQUIT, SIGILL, SIGFPE, SIGBUS,
             SIGABRT,
             SIGSYS,
             SIGXCPU,
