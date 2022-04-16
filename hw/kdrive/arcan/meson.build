@@ -3,7 +3,8 @@ srcs = [
     'init.c',
     'cvt.c',
     'proxywnd.c',
-    'clipboard.c'
+    'clipboard.c',
+    'cursor.c'
 ]
 
 arcan_dep = [

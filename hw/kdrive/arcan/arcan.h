@@ -18,6 +18,7 @@ struct proxyWindowData {
     size_t w, h;
     ssize_t x, y;
     uint32_t arcan_vid;
+    bool paste;
     struct arcan_shmif_cont* cont;
 };
 
@@ -38,11 +39,11 @@ struct pixmap_ext {
 
 struct gbm_bo;
 typedef struct _arcanScrPriv {
-    struct arcan_shmif_cont * acon;
+    struct arcan_shmif_cont *acon, *cursor;
     struct arcan_shmif_initial init;
     int windowCount;
     Bool dirty;
-		Bool unsynched;
+    Bool unsynched;
 
 #ifdef RANDR
     RROutputPtr randrOutput;
@@ -64,11 +65,11 @@ typedef struct _arcanScrPriv {
         ConfigNotifyProcPtr configureWindow;
         ResizeWindowProcPtr resizeWindow;
         CreateWindowProcPtr createWindow;
-				MarkOverlappedWindowsProcPtr markOverlappedWindows;
+        MarkOverlappedWindowsProcPtr markOverlappedWindows;
         GetImageProcPtr getImage;
     } hooks;
 
-		HashTable proxyMap;
+    HashTable proxyMap;
 
     ScreenPtr screen;
     DamagePtr damage;
@@ -79,6 +80,8 @@ typedef struct _arcanScrPriv {
     CARD16 stride;
     CARD32 size;
     int format;
+    int cx, cy;
+    Bool cursorUpdated;
 } arcanScrPriv;
 
 typedef struct _arcanInput {
@@ -195,6 +198,8 @@ Bool
  arcanRandRInit(ScreenPtr pScreen);
 
 #endif
+
+void arcanSynchCursor(arcanScrPriv *scr, Bool softUpdate);
 
 void
  arcanCloseScreen(ScreenPtr pScreen);

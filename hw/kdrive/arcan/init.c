@@ -23,7 +23,9 @@
 #include <dix-config.h>
 #endif
 
+#include "mipointer.h"
 #include "arcan.h"
+#include "arcan_cursor.h"
 #include "glx_extinit.h"
 
 extern Bool kdHasPointer;
@@ -244,7 +246,7 @@ KdCardFuncs arcanFuncs = {
     arcanScreenFini,             /* scrfini */
     arcanCardFini,               /* cardfini */
 
-    0,                          /* initCursor */
+    arcanCursorInit,             /* initCursor */
 
     0,                          /* initAccel */
     0,                          /* enableAccel */

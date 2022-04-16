@@ -1,5 +1,18 @@
-/* this should be moved to some single- header structure so that
- * we can just re-use the thing for aclip */
+/* This actually spins up a separate xorg connection internally as a thread and
+ * then using xcb to do all the clipboard translation in a similar vein as a
+ * clipboard 'manager' would do. This was to test/reuse the same code as part
+ * of other tooling (arcan-wayland -x11) and so on, and an effect of a sour
+ * experience trying to build a fake client inside Xorg (FakeClientID, ...).
+ *
+ * Splitting off the interface and going with XaceHookSelectionAccess might
+ * be another possibility and patch ourselves in there using:
+ * XaceRegisterCallback(XACE_SELECTION_ACCESS, ..., NULL)
+ *
+ * There might be good reason as to why Xwin and so on did not go that route
+ * but couldn't find anything obvious in the logs. The sink end of drag and
+ * drop is only needed for the Arcan window itself ('kindof'), though it would
+ * be nice to intercept it in some cases (window redirection).
+ */
 #ifdef HAVE_DIX_CONFIG_H
 #include <dix-config.h>
 #endif
@@ -203,7 +216,6 @@ static void selectionRequest(
             event->target != atoms.targets)
         return;
 
-
 /* If we hold the selection, and someone requests our 'targets', then provide
  * the list of what we know we can handle. This will always be UTF8 + any other
  * custom ones that has been provided as messages on the clipboard */
@@ -225,7 +237,7 @@ static void selectionRequest(
 
 /* if we are here it means that a window should have a copy of our string or
  * other selected target type */
-    const char* placeholder = "hi there this is a test";
+    const char placeholder[] = "hi there this is a test";
     size_t placeholder_sz = sizeof(placeholder);
     uint32_t len = xcb_get_maximum_request_length(xcon);
     if (placeholder_sz > len){
@@ -304,7 +316,7 @@ static void forwardTargets(struct proxyWindowData *inWnd,
 }
 
 static void propertyNotify(
-		struct proxyWindowData *inWnd, xcb_property_notify_event_t * event)
+       struct proxyWindowData *inWnd, xcb_property_notify_event_t * event)
 {
 
 }
@@ -354,19 +366,20 @@ void *arcanClipboardDispatch(struct proxyWindowData* inWnd, bool paste)
 
     setupAtoms();
 
-  xcb_void_cookie_t cookie =
+    xcb_void_cookie_t cookie =
         xcb_set_selection_owner_checked(xcon, xwnd, atoms.clipboard, XCB_CURRENT_TIME);
 
     xcb_prefetch_extension_data(xcon, &xcb_xfixes_id);
     const xcb_query_extension_reply_t *xfixes_id = xcb_get_extension_data(xcon, &xcb_xfixes_id);
 
     xcb_generic_error_t *error;
-  if ((error = xcb_request_check(xcon, cookie))){
+    if ((error = xcb_request_check(xcon, cookie))){
         goto out;
     }
 
-    watchForNew(inWnd);
-  xcb_generic_event_t *event;
+    if (!paste)
+        watchForNew(inWnd);
+    xcb_generic_event_t *event;
 
 /* need to poll on both the shmif context and the xcb descriptor, as even for
  * 'paste' the xcb response need to be snappy in order to forward the selection
@@ -407,34 +420,36 @@ void *arcanClipboardDispatch(struct proxyWindowData* inWnd, bool paste)
      * forward. We should have that over bchunk in order to have larger transfer sets. */
             switch (aev.tgt.kind){
                 case TARGET_COMMAND_MESSAGE:
-                    updateSelection(&aev);
+                    if (paste)
+                        updateSelection(&aev);
                 break;
+
                 case TARGET_COMMAND_BCHUNK_IN:
                 break;
 
                 case TARGET_COMMAND_BCHUNK_OUT:{
-								    xcb_atom_t selection = XCB_ATOM_PRIMARY;
-										xcb_atom_t target = atoms.utf8;
+                    xcb_atom_t selection = XCB_ATOM_PRIMARY;
+                    xcb_atom_t target = atoms.utf8;
 
-								    if (selectionSink) /* only permit one ongoing transfer, this is racey */
+                    if (selectionSink) /* only permit one ongoing transfer, this is racey */
                         fclose(selectionSink);
+
                     selectionSink = fdopen(arcan_shmif_dupfd(aev.tgt.ioevs[0].iv, -1, true), "w");
+                    size_t offset = 0;
+                    if (strncmp(aev.tgt.message, "primary", 7) == 0){
+                        offset = 7;
+                    }
+                    else if (strncmp(aev.tgt.message, "clipboard", 9) == 0){
+                        offset = 9;
+                    }
 
-										size_t offset = 0;
-										if (strncmp(aev.tgt.message, "primary", 7) == 0){
-											offset = 7;
-										}
-										else if (strncmp(aev.tgt.message, "clipboard", 9) == 0){
-											offset = 9;
-										}
+/* pick the desired selection type, or if we are requesting a probe, start with that */
+                    if (strcmp(&aev.tgt.message[offset], ":probe") == 0){
+                        target = atoms.targets;
+                    }
 
-										/* pick the desired selection type, or if we are requesting a probe, start with that */
-										if (strcmp(&aev.tgt.message[offset], ":probe") == 0){
-											target = atoms.targets;
-										}
-
-										xcb_convert_selection(xcon, xwnd, target, selection, atoms.data, XCB_CURRENT_TIME);
-								}
+                    xcb_convert_selection(xcon, xwnd, target, selection, atoms.data, XCB_CURRENT_TIME);
+                }
                 break;
                 case TARGET_COMMAND_EXIT:
                     goto out;
@@ -468,7 +483,7 @@ void *arcanClipboardDispatch(struct proxyWindowData* inWnd, bool paste)
  * that is problematic when there are multiples .. */
              break;
              case XCB_PROPERTY_NOTIFY:
-						     propertyNotify(inWnd, (xcb_property_notify_event_t *) event);
+                 propertyNotify(inWnd, (xcb_property_notify_event_t *) event);
              break;
              default:
              break;
@@ -485,16 +500,16 @@ void *arcanClipboardDispatch(struct proxyWindowData* inWnd, bool paste)
 
 
 out:
-        arcan_shmif_drop(inWnd->cont);
+    arcan_shmif_drop(inWnd->cont);
 
-        if (xwnd){
-            xcb_destroy_window(xcon, xwnd);
-            xwnd = 0;
-        }
+    if (xwnd){
+        xcb_destroy_window(xcon, xwnd);
+        xwnd = 0;
+    }
 
-        if (xcon)
+    if (xcon)
         xcb_disconnect(xcon);
 
-        free(inWnd);
-        return NULL;
+    free(inWnd);
+    return NULL;
 }

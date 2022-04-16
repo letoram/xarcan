@@ -1,13 +1,18 @@
 /*
  * TODO
  *
- * - [ ] Accelerated cursor mapping
- *       the entry points seem trivial, it's only the cursor bitblt itself that
- *       might need some work, and then forwarding the input event.
+ * - [p] Clipboard integration
+ *       - [ ] copy
+ *       - [ ] paste (to which buffer and should it merely synch)?
+ *       - [ ] dnd
+ *
+ * - [p] Accelerated cursor mapping
+ *       the entry points seem trivial, it's only the cursor bitblt itself
+ *       that might need some work, and then forwarding the input event.
  *
  * - [p] Re-add DRI3 buffer hooks
  *       most of it is there (though planes and modifiers coms isn't)
- *       but for some reason it's still black
+ *       but for some reason it's still black or mesa jumps back to software
  *
  * - [ ] Rootless window buffer redirection
  *       possibly better solved by redirecting the pixmap on a per-window basis,
@@ -40,8 +45,15 @@
  * - [ ] XVideo, does anyone actually care?
  *
  * - [ ] Keymap Synch (XkbDeviceApplyKeymap, ...)
+ *       send that as a decodeMessage control (one for LVMO and other for remap)
  *
  * - [ ] Synch recent changes to XI (gestures)
+ *
+ * - [ ] Crash Recovery nits - transition between glamor and regular as well
+ *       as re-sending metadata and unpairing redirected windows.
+ *
+ * - [ ] Performance nits - visibility hints to equal display off when there
+ *       are no redirected surfaces etc. KdEnableScreen / KdDisableScreen
  */
 
 #ifdef HAVE_DIX_CONFIG_H
@@ -202,23 +214,29 @@ static void arcanGetImage(DrawablePtr pDrawable, int sx, int sy, int w, int h,
 
 static bool isWindowVisible(WindowPtr wnd)
 {
-    return wnd->viewable && wnd->mapped &&
-        (wnd->visibility != VisibilityNotViewable &&
-         wnd->visibility != VisibilityFullyObscured);
+    return wnd->mapped && wnd->realized &&
+               wnd->visibility != VisibilityNotViewable &&
+                     wnd->visibility != VisibilityFullyObscured;
 }
 
 static void sendWndData(WindowPtr wnd, int depth, int max_depth, void* tag)
 {
     struct arcan_shmif_cont* acon = tag;
 
-/* squish windows into two 'layers' = obscured and unobscured (top),
- * intermediate order doesn't really matter unless the backing stores in the
- * tree are redirected and that can be reconstructed from the parent+sibling
- * hints */
-    int base_order = 1;
+/* if the window is obscured, we want to know how many windows that act
+ * as occluders, since that resolves to the drawing order (back to front) */
+    int base_order = 0;
+
     if (wnd->visibility == VisibilityPartiallyObscured){
-        base_order = 0;
-    }
+                WindowPtr prev = wnd->prevSib;
+                while (prev && prev != wnd){
+                    base_order++;
+                    if (prev->visibility == VisibilityUnobscured){
+                        break;
+                    }
+                    prev = prev->prevSib;
+            }
+        }
 
 /* might be better to defer this and just mark the window for update, add
  * to a list and do in the blockHandler previous to signalling so that we
@@ -235,11 +253,11 @@ static void sendWndData(WindowPtr wnd, int depth, int max_depth, void* tag)
        .ext.viewport.h = wnd->drawable.height,
        .ext.viewport.parent = wnd->parent ? wnd->parent->drawable.id : 0,
        .ext.viewport.ext_id = wnd->drawable.id,
-       .ext.viewport.order = base_order,
+       .ext.viewport.order = 127 - base_order,
        .ext.viewport.invisible = !isWindowVisible(wnd),
 /* this doesn't see 'toplevel' for a reparenting wm - the tactic there would
  * be to check parent of parent being root, and parent not having any siblings */
-       .ext.viewport.embedded = wnd->drawable.pScreen->root == wnd,
+       .ext.viewport.embedded = wnd->drawable.pScreen->root != wnd,
        .ext.viewport.focus = EnterLeaveWindowHasFocus(wnd)
     };
 
@@ -253,6 +271,21 @@ static void sendWndData(WindowPtr wnd, int depth, int max_depth, void* tag)
     }
 
     wnd->unsynched = 0;
+}
+
+static void resetWndData(WindowPtr wnd, int depth, int max_depth, void* tag)
+{
+    struct arcan_shmif_cont* acon = tag;
+    struct arcan_event ev = (struct arcan_event){
+        .ext.kind = ARCAN_EVENT(MESSAGE),
+    };
+    snprintf(
+             (char*)ev.ext.message.data, 78,
+             "kind=create:xid=%d",
+             (int) wnd->drawable.id
+    );
+  arcan_shmif_enqueue(acon, &ev);
+    sendWndData(wnd, depth, max_depth, tag);
 }
 
 static Bool arcanPositionWindow(WindowPtr wnd, int x, int y)
@@ -272,7 +305,7 @@ static Bool arcanPositionWindow(WindowPtr wnd, int x, int y)
 static Bool arcanMarkOverlapped(WindowPtr pwnd, WindowPtr firstchild, WindowPtr *layer)
 {
     arcanScrPriv *ascr = getArcanScreen(pwnd);
-       trace("markOverlapped(%d, %d)\n",
+       trace("markOverlapped(%d, %d)",
              pwnd ? pwnd->drawable.id : -1,
              firstchild ? firstchild->drawable.id : -1);
 
@@ -350,7 +383,7 @@ static void arcanRestackWindow(WindowPtr wnd, WindowPtr oldNextSibling)
              "kind=restack:xid=%d:parent=%d:next=%d",
              (int) wnd->drawable.id,
              wnd->parent ? (int) wnd->parent->drawable.id : -1,
-             wnd->nextSib ? (int) wnd->nextSib->drawable.id : -1
+             wnd->prevSib ? (int) wnd->prevSib->drawable.id : -1
             );
     arcan_shmif_enqueue(ascr->acon, &ev);
 }
@@ -441,8 +474,10 @@ arcanResizeWindow(WindowPtr wnd, int x, int y, unsigned w, unsigned h, WindowPtr
 Bool
 arcanScreenInitialize(KdScreenInfo * screen, arcanScrPriv * scrpriv)
 {
-    scrpriv->acon->hints = SHMIF_RHINT_SUBREGION |
-        SHMIF_RHINT_IGNORE_ALPHA |SHMIF_RHINT_VSIGNAL_EV;
+    scrpriv->acon->hints =
+        SHMIF_RHINT_SUBREGION |
+        SHMIF_RHINT_IGNORE_ALPHA |
+        SHMIF_RHINT_VSIGNAL_EV;
     scrpriv->dirty = true;
 
     trace("arcanScreenInitialize");
@@ -615,10 +650,6 @@ arcanDisplayHint(struct arcan_shmif_cont* con,
         return;
 #endif
     }
-/* NOTE:
- * on focus lost or window hidden, should we just stop synching and
- * waiting for it to return?
- */
 }
 
 static
@@ -675,6 +706,9 @@ arcanSignal(struct arcan_shmif_cont* con, bool dirty)
 
     if (!RegionNotEmpty(region))
         return;
+
+/* Inform about cursor state if we don't have an accelerated cursor */
+    arcanSynchCursor(scrpriv, false);
 
 /*
  * We don't use fine-grained dirty regions really, the data gathered gave
@@ -773,7 +807,7 @@ cmdCreateProxyWindow(
 
 static
 void
-cmdClipboardWindow(struct arcan_shmif_cont *con)
+cmdClipboardWindow(struct arcan_shmif_cont *con, bool paste)
 {
     int pair[2];
     socketpair(AF_UNIX, SOCK_STREAM, AF_UNIX, pair);
@@ -781,7 +815,8 @@ cmdClipboardWindow(struct arcan_shmif_cont *con)
     struct proxyWindowData *proxy = malloc(sizeof(struct proxyWindowData));
     *proxy = (struct proxyWindowData){
         .socket = pair[1],
-        .cont = con
+        .cont = con,
+                .paste = paste
     };
 
     pthread_attr_t pthattr;
@@ -919,7 +954,7 @@ cmdReconfigureWindow(int32_t x, int32_t y, uint32_t w, uint32_t h, bool xy, XID 
 /* Fake a message to ourselves, seems like there never was a real internal
  * way of moving/configuring a window - should perhaps add that instead of
  * these kinds of hacks. */
-     if (xy){
+    if (xy){
         XID vlist[4] = {x, y, w, h};
         ConfigureWindow(res, CWX | CWY | CWWidth | CWHeight, vlist, client);
     }
@@ -935,7 +970,7 @@ decodeMessage(struct arcan_shmif_cont* con, const char* msg)
 {
     struct arg_arr* cmd = arg_unpack(msg);
     if (!cmd){
-        trace("error in command: %s\n", msg);
+        trace("error in command: %s", msg);
         return;
     }
 
@@ -979,6 +1014,29 @@ cleanup:
     arg_cleanup(cmd);
 }
 
+static void
+handleNewSegment(struct arcan_shmif_cont *C, arcanScrPriv *S, int kind)
+{
+    if (kind == SEGID_CLIPBOARD || kind == SEGID_CLIPBOARD_PASTE){
+        struct arcan_shmif_cont *clip = malloc(sizeof(struct arcan_shmif_cont));
+        *clip = arcan_shmif_acquire(C, NULL, kind, 0);
+        cmdClipboardWindow(clip, kind == SEGID_CLIPBOARD_PASTE);
+    }
+    else if (kind == SEGID_CURSOR){
+        if (S->cursor){
+            arcan_shmif_drop(S->cursor);
+            S->cursor = NULL;
+        }
+        S->cursor = malloc(sizeof(struct arcan_shmif_cont));
+        if (S->cursor){
+            *(S->cursor) = arcan_shmif_acquire(C, NULL, SEGID_CURSOR, 0);
+        }
+    }
+/* Other types of note is an X11 one where the other .iv carries either the XID
+ * of the corresponding parent window that we should redirect OR it becomes a
+ * new screen for multi-screen output */
+}
+
 void
 arcanFlushEvents(int fd, void* tag)
 {
@@ -1011,7 +1069,6 @@ arcanFlushEvents(int fd, void* tag)
                     case 0:
                     case 1:
                     break;
-/* for recovery / hard-migrate, we don't really need to do anything yet */
                     case 2:
                     break;
 /* swap-out monitored FD */
@@ -1022,6 +1079,10 @@ arcanFlushEvents(int fd, void* tag)
                         ((arcanScrPriv*)con->user)->dirty = 1;
                     break;
                 }
+/* all the window metadata need to be resent as create, and the ones that
+ * are paired to a vid needs to have the corresponding pair being sent */
+                              synchTreeDepth(con->user, resetWndData, true, con);
+                trySignal = true;
             break;
             case TARGET_COMMAND_DISPLAYHINT:
                 arcanDisplayHint(con,
@@ -1038,14 +1099,7 @@ arcanFlushEvents(int fd, void* tag)
             break;
 
             case TARGET_COMMAND_NEWSEGMENT:
-							if (ev.tgt.ioevs[2].iv == SEGID_CLIPBOARD){
-								struct arcan_shmif_cont *acon = malloc(sizeof(struct arcan_shmif_cont));
-								*acon = arcan_shmif_acquire(con, NULL, SEGID_CLIPBOARD, 0);
-							  cmdClipboardWindow(acon);
-							}
-							else if (ev.tgt.ioevs[2].iv == SEGID_CURSOR){
-/* set the new cursor recipient, need to bitblt into this later */
-							}
+                handleNewSegment(con, con->user, ev.tgt.ioevs[2].iv);
             break;
             case TARGET_COMMAND_EXIT:
                 CloseWellKnownConnections();
@@ -1368,20 +1422,6 @@ Bool arcanGlamorCreateScreenResources(ScreenPtr pScreen)
    return FALSE;
 }
 
-void *
-arcanWindowLinear(ScreenPtr pScreen,
-                 CARD32 row,
-                 CARD32 offset, int mode, CARD32 *size, void *closure)
-{
-    KdScreenPriv(pScreen);
-    arcanPriv *priv = pScreenPriv->card->driver;
-
-    if (!pScreenPriv->enabled)
-        return 0;
-    *size = priv->bytes_per_line;
-    return priv->base + row * priv->bytes_per_line;
-}
-
 Bool
 arcanMapFramebuffer(KdScreenInfo * screen)
 {
@@ -1495,7 +1535,7 @@ int arcanInit(void)
     });
 
 
-   /* announce a 'dot' and 'svg' exported file extensions for getting a snapshot
+/* announce a 'dot' and 'svg' exported file extensions for getting a snapshot
  * of the window tree in order to make debugging much less painful */
     arcan_shmif_enqueue(con, &(struct arcan_event){
         .ext.kind = ARCAN_EVENT(BCHUNKSTATE),
@@ -1892,7 +1932,7 @@ static int dri3FdFromPixmap(ScreenPtr pScreen, PixmapPtr pixmap,
 }
 
 static PixmapPtr dri3PixmapFromFds(ScreenPtr pScreen,
-                           CARD8 num_fds, const int *fds,
+                       CARD8 num_fds, const int *fds,
                        CARD16 width, CARD16 height,
                        const CARD32 *strides, const CARD32 *offsets,
                        CARD8 depth, CARD8 bpp, uint64_t modifier)
@@ -2311,9 +2351,14 @@ ArcanKeyboardFini(KdKeyboardInfo * ki)
 static void
 ArcanKeyboardLeds(KdKeyboardInfo * ki, int leds)
 {
-/* we need a provision to signal this, can probably use the input-
- * event used by remoting */
     trace("arcanKeyboardLeds(%d)", leds);
+    struct arcan_event ev = (struct arcan_event){
+        .ext.kind = ARCAN_EVENT(MESSAGE),
+    };
+    struct arcan_shmif_cont* con = arcan_shmif_primary(SHMIF_INPUT);
+    snprintf(
+        (char*)ev.ext.message.data, 78, "kind=kbdstate:led=%d", leds);
+    arcan_shmif_enqueue(con, &ev);
 }
 
 static void
@@ -2395,74 +2440,3 @@ arcanGetColors(ScreenPtr pScreen, int n, xColorItem * pdefs)
     }
     trace("arcanGetColors");
 }
-
-miPointerScreenFuncRec ArcanPointerScreenFuncs = {
-/* CursorOffScreen
- * CrossScreen
- * WarpCursor */
-};
-
-miPointerSpriteFuncRec ArcanPointerSpriteFuncs = {
-/*
- * Realize
- * Unrealize
- * SetCursor
- * MoveCursor
- * Initialize
- * Cleanup
- */
-};
-
-/*
-static DevPrivateKeyRec cursor_private_key;
-static Bool
-static struct arcan_shmif_cont cursor;
-arcanCursorInit(ScreenPtr screen)
-{
-    if (!arcanConfigPriv.accel_cursor)
-        return FALSE;
-
-    if (!dixRegisterPrivateKey(&cursor_private_key, PRIVATE_CURSOR_BITS, 0))
-        return FALSE;
-
-    miPointerInitialize(screen,
-                        &ArcanPointerSpriteFuncs,
-                        &ArcanPointerScreenFuncs, FALSE);
-
-    return TRUE;
-}
- */
-
-static Status
-MouseInit(KdPointerInfo * pi)
-{
-    arcanInputPriv.pi = pi;
-    return Success;
-}
-
-static Status
-MouseEnable(KdPointerInfo * pi)
-{
-    return Success;
-}
-
-static void
-MouseDisable(KdPointerInfo * pi)
-{
-    return;
-}
-
-static void
-MouseFini(KdPointerInfo * pi)
-{
-    return;
-}
-
-KdPointerDriver arcanPointerDriver = {
-    "arcan",
-    MouseInit,
-    MouseEnable,
-    MouseDisable,
-    MouseFini,
-    NULL
-};

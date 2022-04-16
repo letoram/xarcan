@@ -6,6 +6,12 @@
 #include <inttypes.h>
 #include <xcb/xcb.h>
 
+/* as with clipboard.c - just modifying internal Xorg structures without going
+ * through the protocol itself should be the better path, but when tried there
+ * was always some edge condition / structure that did not get filled out
+ * correctly, found very few examples of Xorg creating 'fake' windows within
+ * itself other than some special ones (e.g. root) */
+
 void *arcanProxyWindowDispatch(struct proxyWindowData* inWnd)
 {
     xcb_connection_t *con = xcb_connect_to_fd(inWnd->socket, NULL);
