@@ -66,6 +66,7 @@ xwl_present_window_get_priv(WindowPtr window)
         if (!xwl_present_window)
             return NULL;
 
+        xwl_present_window->window = window;
         xwl_present_window->msc = 1;
         xwl_present_window->ust = GetTimeInMicros();
 
@@ -93,6 +94,7 @@ xwl_present_free_timer(struct xwl_present_window *xwl_present_window)
 {
     TimerFree(xwl_present_window->frame_timer);
     xwl_present_window->frame_timer = NULL;
+    xwl_present_window->timer_armed = 0;
 }
 
 static CARD32
@@ -126,16 +128,34 @@ xwl_present_has_pending_events(struct xwl_present_window *xwl_present_window)
            !xorg_list_is_empty(&xwl_present_window->wait_list);
 }
 
-static void
+void
 xwl_present_reset_timer(struct xwl_present_window *xwl_present_window)
 {
     if (xwl_present_has_pending_events(xwl_present_window)) {
+        struct xwl_window *xwl_window = xwl_window_from_window(xwl_present_window->window);
+        CARD32 now = GetTimeInMillis();
         CARD32 timeout;
 
-        if (!xorg_list_is_empty(&xwl_present_window->frame_callback_list))
+        if (xwl_window && xwl_window->frame_callback &&
+            !xorg_list_is_empty(&xwl_present_window->frame_callback_list))
             timeout = TIMER_LEN_FLIP;
         else
             timeout = TIMER_LEN_COPY;
+
+        /* Make sure the timer callback runs if at least a second has passed
+         * since we first armed the timer. This can happen e.g. if the Wayland
+         * compositor doesn't send a pending frame event, e.g. because the
+         * Wayland surface isn't visible anywhere.
+         */
+        if (xwl_present_window->timer_armed) {
+            if ((int)(now - xwl_present_window->timer_armed) > 1000) {
+                xwl_present_timer_callback(xwl_present_window->frame_timer, now,
+                                           xwl_present_window);
+                return;
+            }
+        } else {
+            xwl_present_window->timer_armed = now;
+        }
 
         xwl_present_window->frame_timer = TimerSet(xwl_present_window->frame_timer,
                                                    0, timeout,
@@ -386,6 +406,8 @@ xwl_present_msc_bump(struct xwl_present_window *xwl_present_window)
 
     xwl_present_window->ust = GetTimeInMicros();
 
+    xwl_present_window->timer_armed = 0;
+
     if (flip_pending && flip_pending->sync_flip)
         xwl_present_flip_notify_vblank(flip_pending, xwl_present_window->ust, msc);
 
@@ -486,8 +508,8 @@ xwl_present_queue_vblank(ScreenPtr screen,
     xorg_list_del(&event->vblank.event_queue);
     xorg_list_append(&event->vblank.event_queue, &xwl_present_window->wait_list);
 
-    /* If there's a pending frame callback, use that */
-    if (xwl_window && xwl_window->frame_callback &&
+    /* Hook up to frame callback */
+    if (xwl_window &&
         xorg_list_is_empty(&xwl_present_window->frame_callback_list)) {
         xorg_list_add(&xwl_present_window->frame_callback_list,
                       &xwl_window->frame_callback_list);
@@ -681,16 +703,13 @@ xwl_present_flip(WindowPtr present_window,
     /* We can flip directly to the main surface (full screen window without clips) */
     wl_surface_attach(xwl_window->surface, buffer, 0, 0);
 
-    if (!xwl_window->frame_callback)
-        xwl_window_create_frame_callback(xwl_window);
-
     if (xorg_list_is_empty(&xwl_present_window->frame_callback_list)) {
         xorg_list_add(&xwl_present_window->frame_callback_list,
                       &xwl_window->frame_callback_list);
     }
 
-    /* Realign timer */
-    xwl_present_reset_timer(xwl_present_window);
+    if (!xwl_window->frame_callback)
+        xwl_window_create_frame_callback(xwl_window);
 
     xwl_surface_damage(xwl_window->xwl_screen, xwl_window->surface,
                        damage_box->x1 - present_window->drawable.x,
@@ -784,6 +803,10 @@ xwl_present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
 
                 /* Put pending flip at the flip queue head */
                 xorg_list_add(&vblank->event_queue, &xwl_present_window->flip_queue);
+
+                /* Realign timer */
+                xwl_present_reset_timer(xwl_present_window);
+
                 return;
             }
 
@@ -800,14 +823,14 @@ xwl_present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
         present_execute_copy(vblank, crtc_msc);
         assert(!vblank->queued);
 
+        /* Clear the pixmap field, so this will fall through to present_execute_post next time */
+        dixDestroyPixmap(vblank->pixmap, vblank->pixmap->drawable.id);
+        vblank->pixmap = NULL;
+
         if (xwl_present_queue_vblank(screen, window, vblank->crtc,
                                      vblank->event_id, crtc_msc + 1)
-            == Success) {
-            /* Clear the pixmap field, so this will fall through to present_execute_post next time */
-            dixDestroyPixmap(vblank->pixmap, vblank->pixmap->drawable.id);
-            vblank->pixmap = NULL;
+            == Success)
             return;
-        }
     }
 
     present_execute_post(vblank, ust, crtc_msc);
@@ -922,6 +945,9 @@ xwl_present_unrealize_window(struct xwl_present_window *xwl_present_window)
      * the frame timer interval.
      */
     xorg_list_del(&xwl_present_window->frame_callback_list);
+
+    /* Make sure the timer callback doesn't get called */
+    xwl_present_window->timer_armed = 0;
     xwl_present_reset_timer(xwl_present_window);
 }
 

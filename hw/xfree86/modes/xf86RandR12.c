@@ -806,12 +806,6 @@ xf86RandR12CreateScreenResources(ScreenPtr pScreen)
                 mmWidth = output->conf_monitor->mon_width;
                 mmHeight = output->conf_monitor->mon_height;
             }
-            else if (output &&
-                (output->mm_width > 0 &&
-                 output->mm_height > 0)) {
-                mmWidth = output->mm_width;
-                mmHeight = output->mm_height;
-            }
             else {
                 /*
                  * Otherwise, just set the screen to DEFAULT_DPI
@@ -1255,8 +1249,8 @@ xf86RandR12CrtcComputeGamma(xf86CrtcPtr crtc, LOCO *palette,
 {
     int gamma_slots;
     unsigned shift;
-    CARD32 value;
     int i, j;
+    CARD32 value = 0;
 
     for (shift = 0; (gamma_size << shift) < (1 << 16); shift++);
 
@@ -1273,6 +1267,10 @@ xf86RandR12CrtcComputeGamma(xf86CrtcPtr crtc, LOCO *palette,
             for (j = 0; j < gamma_slots; j++)
                 crtc->gamma_red[i * gamma_slots + j] = value;
         }
+
+        /* Replicate last value until end of crtc for gamma_size not a power of 2 */
+        for (j = i * gamma_slots; j < crtc->gamma_size; j++)
+                crtc->gamma_red[j] = value;
     } else {
         /* Downsampling of larger palette to smaller hw lut size */
         for (i = 0; i < crtc->gamma_size; i++) {
@@ -1299,6 +1297,10 @@ xf86RandR12CrtcComputeGamma(xf86CrtcPtr crtc, LOCO *palette,
             for (j = 0; j < gamma_slots; j++)
                 crtc->gamma_green[i * gamma_slots + j] = value;
         }
+
+        /* Replicate last value until end of crtc for gamma_size not a power of 2 */
+        for (j = i * gamma_slots; j < crtc->gamma_size; j++)
+            crtc->gamma_green[j] = value;
     } else {
         /* Downsampling of larger palette to smaller hw lut size */
         for (i = 0; i < crtc->gamma_size; i++) {
@@ -1325,6 +1327,10 @@ xf86RandR12CrtcComputeGamma(xf86CrtcPtr crtc, LOCO *palette,
             for (j = 0; j < gamma_slots; j++)
                 crtc->gamma_blue[i * gamma_slots + j] = value;
         }
+
+        /* Replicate last value until end of crtc for gamma_size not a power of 2 */
+        for (j = i * gamma_slots; j < crtc->gamma_size; j++)
+            crtc->gamma_blue[j] = value;
     } else {
         /* Downsampling of larger palette to smaller hw lut size */
         for (i = 0; i < crtc->gamma_size; i++) {
@@ -1358,6 +1364,7 @@ xf86RandR12CrtcSetGamma(ScreenPtr pScreen, RRCrtcPtr randr_crtc)
 {
     XF86RandRInfoPtr randrp = XF86RANDRINFO(pScreen);
     xf86CrtcPtr crtc = randr_crtc->devPrivate;
+    int max_size = crtc->gamma_size;
 
     if (crtc->funcs->gamma_set == NULL)
         return FALSE;
@@ -1372,12 +1379,15 @@ xf86RandR12CrtcSetGamma(ScreenPtr pScreen, RRCrtcPtr randr_crtc)
                                     randr_crtc->gammaBlue,
                                     randr_crtc->gammaSize);
     } else {
+        if (max_size > randr_crtc->gammaSize)
+            max_size = randr_crtc->gammaSize;
+
         memcpy(crtc->gamma_red, randr_crtc->gammaRed,
-               crtc->gamma_size * sizeof(crtc->gamma_red[0]));
+               max_size * sizeof(crtc->gamma_red[0]));
         memcpy(crtc->gamma_green, randr_crtc->gammaGreen,
-               crtc->gamma_size * sizeof(crtc->gamma_green[0]));
+               max_size * sizeof(crtc->gamma_green[0]));
         memcpy(crtc->gamma_blue, randr_crtc->gammaBlue,
-               crtc->gamma_size * sizeof(crtc->gamma_blue[0]));
+               max_size * sizeof(crtc->gamma_blue[0]));
     }
 
     xf86RandR12CrtcReloadGamma(crtc);

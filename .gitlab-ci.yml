@@ -11,7 +11,7 @@ variables:
     FDO_UPSTREAM_REPO: xorg/xserver
     FDO_DISTRIBUTION_VERSION: buster-slim
     FDO_DISTRIBUTION_EXEC: 'env FDO_CI_CONCURRENT=${FDO_CI_CONCURRENT} bash .gitlab-ci/debian-install.sh'
-    FDO_DISTRIBUTION_TAG: "2021-07-09"
+    FDO_DISTRIBUTION_TAG: "2021-10-22"
 
 include:
   - project: 'freedesktop/ci-templates'
@@ -58,17 +58,6 @@ debian-buster:
         - ccache --show-stats
     after_script:
         - ccache --show-stats
-
-autotools:
-    extends: .common-build-and-test
-    script:
-        - mkdir build/
-        - cd build/
-        - ../autogen.sh --prefix=/usr CFLAGS="-fno-common"
-        - make -j${FDO_CI_CONCURRENT:-4} distcheck
-        - PIGLIT_DIR=/root/piglit XTEST_DIR=/root/xts make -j${FDO_CI_CONCURRENT:-4} check
-        - cd ..
-        - .gitlab-ci/manpages-check
 
 meson:
     extends: .common-build-and-test

@@ -522,6 +522,7 @@ Bool
 xwl_realize_window(WindowPtr window)
 {
     ScreenPtr screen = window->drawable.pScreen;
+    CompScreenPtr comp_screen = GetCompScreen(screen);
     struct xwl_screen *xwl_screen;
     Bool ret;
 
@@ -535,12 +536,20 @@ xwl_realize_window(WindowPtr window)
     if (!ret)
         return FALSE;
 
-    if (xwl_screen->rootless && !window->parent) {
-        BoxRec box = { 0, 0, xwl_screen->width, xwl_screen->height };
+    if (xwl_screen->rootless) {
+        /* We do not want the COW to be mapped when rootless in Xwayland */
+        if (window == comp_screen->pOverlayWin) {
+            window->mapped = FALSE;
+            return TRUE;
+        }
 
-        RegionReset(&window->winSize, &box);
-        RegionNull(&window->clipList);
-        RegionNull(&window->borderClip);
+        if (!window->parent) {
+            BoxRec box = { 0, 0, xwl_screen->width, xwl_screen->height };
+
+            RegionReset(&window->winSize, &box);
+            RegionNull(&window->clipList);
+            RegionNull(&window->borderClip);
+        }
     }
 
     if (xwl_screen->rootless ?
@@ -596,16 +605,6 @@ xwl_unrealize_window(WindowPtr window)
     if (xwl_window_has_viewport_enabled(xwl_window))
         xwl_window_disable_viewport(xwl_window);
 
-    wl_surface_destroy(xwl_window->surface);
-    xorg_list_del(&xwl_window->link_damage);
-    xorg_list_del(&xwl_window->link_window);
-    unregister_damage(window);
-
-    xwl_window_buffers_dispose(xwl_window);
-
-    if (xwl_window->frame_callback)
-        wl_callback_destroy(xwl_window->frame_callback);
-
 #ifdef GLAMOR_HAS_GBM
     if (xwl_screen->present) {
         struct xwl_present_window *xwl_present_window, *tmp;
@@ -617,6 +616,16 @@ xwl_unrealize_window(WindowPtr window)
         }
     }
 #endif
+
+    wl_surface_destroy(xwl_window->surface);
+    xorg_list_del(&xwl_window->link_damage);
+    xorg_list_del(&xwl_window->link_window);
+    unregister_damage(window);
+
+    xwl_window_buffers_dispose(xwl_window);
+
+    if (xwl_window->frame_callback)
+        wl_callback_destroy(xwl_window->frame_callback);
 
     free(xwl_window);
     dixSetPrivate(&window->devPrivates, &xwl_window_private_key, NULL);
@@ -756,6 +765,18 @@ xwl_window_create_frame_callback(struct xwl_window *xwl_window)
     xwl_window->frame_callback = wl_surface_frame(xwl_window->surface);
     wl_callback_add_listener(xwl_window->frame_callback, &frame_listener,
                              xwl_window);
+
+#ifdef GLAMOR_HAS_GBM
+    if (xwl_window->xwl_screen->present) {
+        struct xwl_present_window *xwl_present_window, *tmp;
+
+        xorg_list_for_each_entry_safe(xwl_present_window, tmp,
+                                      &xwl_window->frame_callback_list,
+                                      frame_callback_list) {
+            xwl_present_reset_timer(xwl_present_window);
+        }
+    }
+#endif
 }
 
 Bool

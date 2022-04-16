@@ -147,6 +147,7 @@ extern _X_EXPORT ClientPtr serverClient;
 extern _X_EXPORT int currentMaxClients;
 extern _X_EXPORT char dispatchExceptionAtReset;
 extern _X_EXPORT int terminateDelay;
+extern _X_EXPORT Bool touchEmulatePointer;
 
 typedef int HWEventQueueType;
 typedef HWEventQueueType *HWEventQueuePtr;
@@ -457,7 +458,7 @@ WindowHasNewCursor(WindowPtr /* pWin */ );
 
 extern Bool
 CheckDeviceGrabs(DeviceIntPtr /* device */ ,
-                 DeviceEvent * /* event */ ,
+                 InternalEvent * /* event */ ,
                  WindowPtr /* ancestor */ );
 
 extern void

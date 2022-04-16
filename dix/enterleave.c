@@ -377,7 +377,7 @@ CoreEnterLeaveNonLinear(DeviceIntPtr dev, WindowPtr A, WindowPtr B, int mode)
        Case 3C: Otherwise:
        The pointer window moves from W to a window above W.
        The detail may need to be changed from Ancestor to Nonlinear or
-       vice versa depending on the the new P(W)
+       vice versa depending on the new P(W)
      */
 
     if (!HasPointer(dev, A)) {
@@ -459,7 +459,7 @@ CoreEnterLeaveToAncestor(DeviceIntPtr dev, WindowPtr A, WindowPtr B, int mode)
        Case 3C: Otherwise:
        The pointer window moves from W to a window above W.
        The detail may need to be changed from Ancestor to Nonlinear or
-       vice versa depending on the the new P(W)
+       vice versa depending on the new P(W)
      */
     if (!HasPointer(dev, A)) {
         WindowPtr child = FirstPointerChild(A);
@@ -1065,7 +1065,7 @@ CoreFocusNonLinear(DeviceIntPtr dev, WindowPtr A, WindowPtr B, int mode)
        Case 3C: Otherwise:
        The focus window moves from W to a window above W.
        The detail may need to be changed from Ancestor to Nonlinear or
-       vice versa depending on the the new F(W)
+       vice versa depending on the new F(W)
      */
 
     if (!HasFocus(A)) {
@@ -1153,7 +1153,7 @@ CoreFocusToAncestor(DeviceIntPtr dev, WindowPtr A, WindowPtr B, int mode)
        Case 3C: Otherwise:
        The focus window moves from W to a window above W.
        The detail may need to be changed from Ancestor to Nonlinear or
-       vice versa depending on the the new F(W)
+       vice versa depending on the new F(W)
      */
     if (!HasFocus(A)) {
         WindowPtr child = FirstFocusChild(A);

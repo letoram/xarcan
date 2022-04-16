@@ -1,5 +1,6 @@
 /*
- * Copyright © 2018 Roman Gilg
+ * Copyright © 2020 Drew Devault
+ * Copyright © 2021 Xaver Hugl
  *
  * Permission to use, copy, modify, distribute, and sell this software
  * and its documentation for any purpose is hereby granted without
@@ -23,50 +24,44 @@
  * SOFTWARE.
  */
 
-#ifndef XWAYLAND_PRESENT_H
-#define XWAYLAND_PRESENT_H
+#ifndef XWAYLAND_DRM_LEASE_H
+#define XWAYLAND_DRM_LEASE_H
 
-#include <xwayland-config.h>
-
-#include <dix.h>
-#include <present_priv.h>
+#include <X11/Xatom.h>
+#include <randrstr.h>
 
 #include "xwayland-types.h"
+#include "list.h"
 
-#ifdef GLAMOR_HAS_GBM
-struct xwl_present_window {
-    WindowPtr window;
+#include "drm-lease-v1-client-protocol.h"
 
-    struct xorg_list frame_callback_list;
-
-    uint64_t msc;
-    uint64_t ust;
-
-    OsTimerPtr frame_timer;
-    /* Timestamp when the current timer was first armed */
-    CARD32 timer_armed;
-
-    struct wl_callback *sync_callback;
-
-    struct xorg_list wait_list;
-    struct xorg_list flip_queue;
-    struct xorg_list idle_queue;
-
-    present_vblank_ptr flip_active;
+struct xwl_drm_lease_device {
+    struct xorg_list link;
+    struct wp_drm_lease_device_v1 *drm_lease_device;
+    int drm_read_only_fd;
+    struct xwl_screen *xwl_screen;
+    uint32_t id;
 };
 
-struct xwl_present_event {
-    present_vblank_rec vblank;
-
-    PixmapPtr pixmap;
+struct xwl_queued_drm_lease_device {
+    struct xorg_list link;
+    uint32_t id;
 };
 
-void xwl_present_reset_timer(struct xwl_present_window *xwl_present_window);
-void xwl_present_frame_callback(struct xwl_present_window *xwl_present_window);
-Bool xwl_present_init(ScreenPtr screen);
-void xwl_present_cleanup(WindowPtr window);
-void xwl_present_unrealize_window(struct xwl_present_window *xwl_present_window);
+struct xwl_drm_lease {
+    struct xorg_list link;
+    struct wp_drm_lease_v1 *lease;
+    RRLeasePtr rrLease;
+    ClientPtr client;
+    int fd;
+};
 
-#endif /* GLAMOR_HAS_GBM */
+int xwl_randr_request_lease(ClientPtr client, ScreenPtr screen, RRLeasePtr rrLease);
+void xwl_randr_get_lease(ClientPtr client, ScreenPtr screen, RRLeasePtr *rrLease, int *fd);
+void xwl_randr_terminate_lease(ScreenPtr screen, RRLeasePtr lease);
 
-#endif /* XWAYLAND_PRESENT_H */
+void xwl_screen_add_drm_lease_device(struct xwl_screen *xwl_screen, uint32_t id);
+void xwl_screen_destroy_drm_lease_device(struct xwl_screen *xwl_screen,
+                                         struct wp_drm_lease_device_v1 *wp_drm_lease_device_v1);
+
+#endif /* XWAYLAND_DRM_LEASE_H */

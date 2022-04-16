@@ -2405,21 +2405,19 @@ _XkbSetMapCheckLength(xkbSetMapReq *req)
         keytype = (xkbKeyTypeWireDesc *)(req + 1);
         for (i = 0; i < req->nTypes; i++) {
             _add_check_len(XkbPaddedSize(sz_xkbKeyTypeWireDesc));
-            if (req->flags & XkbSetMapResizeTypes) {
-                _add_check_len(keytype->nMapEntries
-                               * sz_xkbKTSetMapEntryWireDesc);
-                preserve = keytype->preserve;
-                map_count = keytype->nMapEntries;
-                if (preserve) {
-                    _add_check_len(map_count * sz_xkbModsWireDesc);
-                }
-                keytype += 1;
-                keytype = (xkbKeyTypeWireDesc *)
-                          ((xkbKTSetMapEntryWireDesc *)keytype + map_count);
-                if (preserve)
-                    keytype = (xkbKeyTypeWireDesc *)
-                              ((xkbModsWireDesc *)keytype + map_count);
+            _add_check_len(keytype->nMapEntries
+                           * sz_xkbKTSetMapEntryWireDesc);
+            preserve = keytype->preserve;
+            map_count = keytype->nMapEntries;
+            if (preserve) {
+                _add_check_len(map_count * sz_xkbModsWireDesc);
             }
+            keytype += 1;
+            keytype = (xkbKeyTypeWireDesc *)
+                      ((xkbKTSetMapEntryWireDesc *)keytype + map_count);
+            if (preserve)
+                keytype = (xkbKeyTypeWireDesc *)
+                          ((xkbModsWireDesc *)keytype + map_count);
         }
     }
     /* syms */
@@ -2513,17 +2511,15 @@ _XkbSetMapChecks(ClientPtr client, DeviceIntPtr dev, xkbSetMapReq * req,
         }
     }
 
-    if ((req->present & XkbKeyTypesMask) &&
-        (!CheckKeyTypes(client, xkb, req, (xkbKeyTypeWireDesc **) &values,
-                        &nTypes, mapWidths, doswap))) {
-        client->errorValue = nTypes;
-        return BadValue;
-    }
-    else {
-        nTypes = xkb->map->num_types;
+    /* nTypes/mapWidths/symsPerKey must be filled for further tests below,
+     * regardless of client-side flags */
+
+    if (!CheckKeyTypes(client, xkb, req, (xkbKeyTypeWireDesc **) &values,
+		       &nTypes, mapWidths, doswap)) {
+	    client->errorValue = nTypes;
+	    return BadValue;
     }
 
-    /* symsPerKey/mapWidths must be filled regardless of client-side flags */
     map = &xkb->map->key_sym_map[xkb->min_key_code];
     for (i = xkb->min_key_code; i < xkb->max_key_code; i++, map++) {
         register int g, ng, w;

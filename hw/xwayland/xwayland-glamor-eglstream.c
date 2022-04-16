@@ -99,37 +99,6 @@ xwl_eglstream_get(struct xwl_screen *xwl_screen)
                             &xwl_eglstream_private_key);
 }
 
-static GLint
-xwl_eglstream_compile_glsl_prog(GLenum type, const char *source)
-{
-    GLint ok;
-    GLint prog;
-
-    prog = glCreateShader(type);
-    glShaderSource(prog, 1, (const GLchar **) &source, NULL);
-    glCompileShader(prog);
-    glGetShaderiv(prog, GL_COMPILE_STATUS, &ok);
-    if (!ok) {
-        GLchar *info;
-        GLint size;
-
-        glGetShaderiv(prog, GL_INFO_LOG_LENGTH, &size);
-        info = malloc(size);
-        if (info) {
-            glGetShaderInfoLog(prog, size, NULL, info);
-            ErrorF("Failed to compile %s: %s\n",
-                   type == GL_FRAGMENT_SHADER ? "FS" : "VS", info);
-            ErrorF("Program source:\n%s", source);
-            free(info);
-        }
-        else
-            ErrorF("Failed to get shader compilation info.\n");
-        FatalError("GLSL compile failure\n");
-    }
-
-    return prog;
-}
-
 static GLuint
 xwl_eglstream_build_glsl_prog(GLuint vs, GLuint fs)
 {
@@ -722,12 +691,14 @@ xwl_glamor_eglstream_has_wl_interfaces(struct xwl_screen *xwl_screen)
         xwl_eglstream_get(xwl_screen);
 
     if (xwl_eglstream->display == NULL) {
-        ErrorF("glamor: 'wl_eglstream_display' not supported\n");
+        LogMessageVerb(X_INFO, 3,
+                       "glamor: 'wl_eglstream_display' not supported\n");
         return FALSE;
     }
 
     if (xwl_eglstream->controller == NULL) {
-        ErrorF("glamor: 'wl_eglstream_controller' not supported\n");
+        LogMessageVerb(X_INFO, 3,
+                       "glamor: 'wl_eglstream_controller' not supported\n");
         return FALSE;
     }
 
@@ -775,8 +746,8 @@ xwl_eglstream_init_shaders(struct xwl_screen *xwl_screen)
          0,  0,
     };
 
-    vs = xwl_eglstream_compile_glsl_prog(GL_VERTEX_SHADER, blit_vs_src);
-    fs = xwl_eglstream_compile_glsl_prog(GL_FRAGMENT_SHADER, blit_fs_src);
+    vs = glamor_compile_glsl_prog(GL_VERTEX_SHADER, blit_vs_src);
+    fs = glamor_compile_glsl_prog(GL_FRAGMENT_SHADER, blit_fs_src);
 
     xwl_eglstream->blit_prog = xwl_eglstream_build_glsl_prog(vs, fs);
     glDeleteShader(vs);
@@ -1020,8 +991,10 @@ xwl_glamor_eglstream_init_egl(struct xwl_screen *xwl_screen)
 #endif
 
     eglBindAPI(EGL_OPENGL_API);
-    xwl_screen->egl_context = eglCreateContext(
-        xwl_screen->egl_display, config, EGL_NO_CONTEXT, attrib_list);
+    xwl_screen->egl_context = eglCreateContext(xwl_screen->egl_display,
+                                               EGL_NO_CONFIG_KHR,
+                                               EGL_NO_CONTEXT,
+                                               attrib_list);
     if (xwl_screen->egl_context == EGL_NO_CONTEXT) {
         ErrorF("Failed to create main EGL context: 0x%x\n", eglGetError());
         goto error;
@@ -1108,7 +1081,7 @@ xwl_eglstream_get_device(struct xwl_screen *xwl_screen)
     free(devices);
 out:
     if (!device)
-        ErrorF("glamor: No eglstream capable devices found\n");
+        LogMessageVerb(X_INFO, 3, "glamor: No eglstream capable devices found\n");
     return device;
 }
 

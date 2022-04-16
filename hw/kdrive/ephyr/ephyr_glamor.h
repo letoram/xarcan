@@ -21,26 +21,45 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef GLAMOR_CONTEXT_H
-#define GLAMOR_CONTEXT_H
+#include <xcb/xcb.h>
+#include "dix-config.h"
 
-#include <epoxy/egl.h>
+struct ephyr_glamor;
+struct pixman_region16;
 
-/**
- * @file glamor_context.h
- *
- * This is the struct of state required for context switching in
- * glamor. Initially this was abstracted away from EGL, and
- * presumably it would need to be again if someone wanted to use
- * glamor with WGL/CGL.
- */
+xcb_connection_t *
+ephyr_glamor_connect(void);
 
-struct glamor_context {
-    EGLDisplay display;
-    EGLContext ctx;
-    EGLSurface surface;
+void
+ephyr_glamor_set_texture(struct ephyr_glamor *ephyr_glamor, uint32_t tex);
 
-    void (*make_current)(struct glamor_context *glamor_ctx);
-};
+struct ephyr_glamor *
+ephyr_glamor_screen_init(xcb_window_t win, xcb_visualid_t vid);
 
-#endif
+void
+ephyr_glamor_screen_fini(struct ephyr_glamor *glamor);
+
+#ifdef GLAMOR
+void
+ephyr_glamor_set_window_size(struct ephyr_glamor *glamor,
+                             unsigned width, unsigned height);
+
+void
+ephyr_glamor_damage_redisplay(struct ephyr_glamor *glamor,
+                              struct pixman_region16 *damage);
+
+#else /* !GLAMOR */
+
+static inline void
+ephyr_glamor_set_window_size(struct ephyr_glamor *glamor,
+                             unsigned width, unsigned height)
+{
+}
+
+static inline void
+ephyr_glamor_damage_redisplay(struct ephyr_glamor *glamor,
+                              struct pixman_region16 *damage)
+{
+}
+
+#endif /* !GLAMOR */

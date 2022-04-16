@@ -519,13 +519,13 @@ connector_add_prop(drmModeAtomicReq *req, drmmode_output_private_ptr drmmode_out
 }
 
 static int
-drmmode_CompareKModes(drmModeModeInfo * kmode, drmModeModeInfo * other)
+drmmode_CompareKModes(const drmModeModeInfo * kmode, const drmModeModeInfo * other)
 {
     return memcmp(kmode, other, sizeof(*kmode));
 }
 
 static int
-drm_mode_ensure_blob(xf86CrtcPtr crtc, drmModeModeInfo mode_info)
+drm_mode_ensure_blob(xf86CrtcPtr crtc, const drmModeModeInfo* mode_info)
 {
     modesettingPtr ms = modesettingPTR(crtc->scrn);
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
@@ -533,14 +533,14 @@ drm_mode_ensure_blob(xf86CrtcPtr crtc, drmModeModeInfo mode_info)
     int ret;
 
     if (drmmode_crtc->current_mode &&
-        drmmode_CompareKModes(&drmmode_crtc->current_mode->mode_info, &mode_info) == 0)
+        drmmode_CompareKModes(&drmmode_crtc->current_mode->mode_info, mode_info) == 0)
         return 0;
 
     mode = calloc(sizeof(drmmode_mode_rec), 1);
     if (!mode)
         return -1;
 
-    mode->mode_info = mode_info;
+    mode->mode_info = *mode_info;
     ret = drmModeCreatePropertyBlob(ms->fd,
                                     &mode->mode_info,
                                     sizeof(mode->mode_info),
@@ -589,7 +589,7 @@ crtc_add_dpms_props(drmModeAtomicReq *req, xf86CrtcPtr crtc,
         drmModeModeInfo kmode;
 
         drmmode_ConvertToKMode(crtc->scrn, &kmode, &crtc->mode);
-        ret |= drm_mode_ensure_blob(crtc, kmode);
+        ret |= drm_mode_ensure_blob(crtc, &kmode);
 
         ret |= crtc_add_prop(req, drmmode_crtc,
                              DRMMODE_CRTC_ACTIVE, 1);
@@ -627,7 +627,7 @@ drmmode_crtc_can_test_mode(xf86CrtcPtr crtc)
     return ms->atomic_modeset;
 }
 
-static Bool
+Bool
 drmmode_crtc_get_fb_id(xf86CrtcPtr crtc, uint32_t *fb_id, int *x, int *y)
 {
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
@@ -2404,10 +2404,23 @@ drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_res
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, MS_LOGLEVEL_DEBUG,
                    "Allocated crtc nr. %d to this screen.\n", num);
 
-    drmmode_crtc->use_gamma_lut =
-        drmmode_crtc->props[DRMMODE_CRTC_GAMMA_LUT_SIZE].prop_id &&
-        drmmode_crtc->props[DRMMODE_CRTC_GAMMA_LUT_SIZE].value &&
-        xf86ReturnOptValBool(drmmode->Options, OPTION_USE_GAMMA_LUT, TRUE);
+    if (drmmode_crtc->props[DRMMODE_CRTC_GAMMA_LUT_SIZE].prop_id &&
+        drmmode_crtc->props[DRMMODE_CRTC_GAMMA_LUT_SIZE].value) {
+        /*
+         * GAMMA_LUT property supported, and so far tested to be safe to use by
+         * default for lut sizes up to 4096 slots. Intel Tigerlake+ has some
+         * issues, and a large GAMMA_LUT with 262145 slots, so keep GAMMA_LUT
+         * off for large lut sizes by default for now.
+         */
+        drmmode_crtc->use_gamma_lut = drmmode_crtc->props[DRMMODE_CRTC_GAMMA_LUT_SIZE].value <= 4096;
+
+        /* Allow config override. */
+        drmmode_crtc->use_gamma_lut = xf86ReturnOptValBool(drmmode->Options,
+                                                           OPTION_USE_GAMMA_LUT,
+                                                           drmmode_crtc->use_gamma_lut);
+    } else {
+        drmmode_crtc->use_gamma_lut = FALSE;
+    }
 
     if (drmmode_crtc->use_gamma_lut &&
         drmmode_crtc->props[DRMMODE_CRTC_CTM].prop_id) {
@@ -3296,7 +3309,7 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_r
         }
     }
 
-    ms->is_connector_vrr_capable =
+    ms->is_connector_vrr_capable |=
 	         drmmode_connector_check_vrr_capable(drmmode->fd,
                                                   drmmode_output->output_id);
     return 1;

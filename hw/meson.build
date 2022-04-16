@@ -3,10 +3,6 @@ if (get_option('xephyr') or build_xarcan)
     subdir('kdrive')
 endif
 
-if get_option('dmx')
-    subdir('dmx')
-endif
-
 if get_option('xvfb')
     subdir('vfb')
 endif

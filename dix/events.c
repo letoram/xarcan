@@ -467,6 +467,20 @@ WindowXI2MaskIsset(DeviceIntPtr dev, WindowPtr win, xEvent *ev)
     return xi2mask_isset(inputMasks->xi2mask, dev, evtype);
 }
 
+/**
+ * When processing events we operate on InternalEvent pointers. They may actually refer to a
+ * an instance of DeviceEvent, GestureEvent or any other event that comprises the InternalEvent
+ * union. This works well in practice because we always look into event type before doing anything,
+ * except in the case of copying the event. Any copying of InternalEvent should use this function
+ * instead of doing *dst_event = *src_event whenever it's not clear whether source event actually
+ * points to full InternalEvent instance.
+ */
+void
+CopyPartialInternalEvent(InternalEvent* dst_event, const InternalEvent* src_event)
+{
+    memcpy(dst_event, src_event, src_event->any.length);
+}
+
 Mask
 GetEventMask(DeviceIntPtr dev, xEvent *event, InputClients * other)
 {
@@ -1191,7 +1205,7 @@ EnqueueEvent(InternalEvent *ev, DeviceIntPtr device)
         }
     }
 
-    eventlen = event->length;
+    eventlen = sizeof(InternalEvent);
 
     qe = malloc(sizeof(QdEventRec) + eventlen);
     if (!qe)
@@ -1319,7 +1333,7 @@ ComputeFreezes(void)
 
         syncEvents.replayDev = (DeviceIntPtr) NULL;
 
-        if (!CheckDeviceGrabs(replayDev, &event->device_event,
+        if (!CheckDeviceGrabs(replayDev, event,
                               syncEvents.replayWin)) {
             if (IsTouchEvent(event)) {
                 TouchPointInfoPtr ti =
@@ -1491,16 +1505,13 @@ UpdateTouchesForGrab(DeviceIntPtr mouse)
             CLIENT_BITS(listener->listener) == grab->resource) {
             if (grab->grabtype == CORE || grab->grabtype == XI ||
                 !xi2mask_isset(grab->xi2mask, mouse, XI_TouchBegin)) {
+                /*  Note that the grab will override any current listeners and if these listeners
+                    already received touch events then this is the place to send touch end event
+                    to complete the touch sequence.
 
-                if (listener->type == TOUCH_LISTENER_REGULAR &&
-                    listener->state != TOUCH_LISTENER_AWAITING_BEGIN &&
-                    listener->state != TOUCH_LISTENER_HAS_END) {
-                    /* if the listener already got any events relating to the touch, we must send
-                       a touch end because the grab overrides the previous listener and won't
-                       itself send any touch events.
-                    */
-                    TouchEmitTouchEnd(mouse, ti, 0, listener->listener);
-                }
+                    Unfortunately GTK3 menu widget implementation relies on not getting touch end
+                    event, so we can't fix the current behavior.
+                */
                 listener->type = TOUCH_LISTENER_POINTER_GRAB;
             } else {
                 listener->type = TOUCH_LISTENER_GRAB;
@@ -3027,7 +3038,7 @@ BOOL
 ActivateFocusInGrab(DeviceIntPtr dev, WindowPtr old, WindowPtr win)
 {
     BOOL rc = FALSE;
-    DeviceEvent event;
+    InternalEvent event;
 
     if (dev->deviceGrab.grab) {
         if (!dev->deviceGrab.fromPassiveGrab ||
@@ -3042,16 +3053,16 @@ ActivateFocusInGrab(DeviceIntPtr dev, WindowPtr old, WindowPtr win)
     if (win == NoneWin || win == PointerRootWin)
         return FALSE;
 
-    event = (DeviceEvent) {
-        .header = ET_Internal,
-        .type = ET_FocusIn,
-        .length = sizeof(DeviceEvent),
-        .time = GetTimeInMillis(),
-        .deviceid = dev->id,
-        .sourceid = dev->id,
-        .detail.button = 0
+    event = (InternalEvent) {
+        .device_event.header = ET_Internal,
+        .device_event.type = ET_FocusIn,
+        .device_event.length = sizeof(DeviceEvent),
+        .device_event.time = GetTimeInMillis(),
+        .device_event.deviceid = dev->id,
+        .device_event.sourceid = dev->id,
+        .device_event.detail.button = 0
     };
-    rc = (CheckPassiveGrabsOnWindow(win, dev, (InternalEvent *) &event, FALSE,
+    rc = (CheckPassiveGrabsOnWindow(win, dev, &event, FALSE,
                                     TRUE) != NULL);
     if (rc)
         DoEnterLeaveEvents(dev, dev->id, old, win, XINotifyPassiveGrab);
@@ -3068,7 +3079,7 @@ static BOOL
 ActivateEnterGrab(DeviceIntPtr dev, WindowPtr old, WindowPtr win)
 {
     BOOL rc = FALSE;
-    DeviceEvent event;
+    InternalEvent event;
 
     if (dev->deviceGrab.grab) {
         if (!dev->deviceGrab.fromPassiveGrab ||
@@ -3080,16 +3091,16 @@ ActivateEnterGrab(DeviceIntPtr dev, WindowPtr old, WindowPtr win)
         (*dev->deviceGrab.DeactivateGrab) (dev);
     }
 
-    event = (DeviceEvent) {
-        .header = ET_Internal,
-        .type = ET_Enter,
-        .length = sizeof(DeviceEvent),
-        .time = GetTimeInMillis(),
-        .deviceid = dev->id,
-        .sourceid = dev->id,
-        .detail.button = 0
+    event = (InternalEvent) {
+        .device_event.header = ET_Internal,
+        .device_event.type = ET_Enter,
+        .device_event.length = sizeof(DeviceEvent),
+        .device_event.time = GetTimeInMillis(),
+        .device_event.deviceid = dev->id,
+        .device_event.sourceid = dev->id,
+        .device_event.detail.button = 0
     };
-    rc = (CheckPassiveGrabsOnWindow(win, dev, (InternalEvent *) &event, FALSE,
+    rc = (CheckPassiveGrabsOnWindow(win, dev, &event, FALSE,
                                     TRUE) != NULL);
     if (rc)
         DoEnterLeaveEvents(dev, dev->id, old, win, XINotifyPassiveGrab);
@@ -3873,7 +3884,7 @@ void ActivateGrabNoDelivery(DeviceIntPtr dev, GrabPtr grab,
 
     if (grabinfo->sync.state == FROZEN_NO_EVENT)
         grabinfo->sync.state = FROZEN_WITH_EVENT;
-    *grabinfo->sync.event = *real_event;
+    CopyPartialInternalEvent(grabinfo->sync.event, real_event);
 }
 
 static BOOL
@@ -4141,14 +4152,15 @@ CheckPassiveGrabsOnWindow(WindowPtr pWin,
 */
 
 Bool
-CheckDeviceGrabs(DeviceIntPtr device, DeviceEvent *event, WindowPtr ancestor)
+CheckDeviceGrabs(DeviceIntPtr device, InternalEvent *ievent, WindowPtr ancestor)
 {
     int i;
     WindowPtr pWin = NULL;
     FocusClassPtr focus =
-        IsPointerEvent((InternalEvent *) event) ? NULL : device->focus;
+        IsPointerEvent(ievent) ? NULL : device->focus;
     BOOL sendCore = (IsMaster(device) && device->coreEvents);
     Bool ret = FALSE;
+    DeviceEvent *event = &ievent->device_event;
 
     if (event->type != ET_ButtonPress && event->type != ET_KeyPress)
         return FALSE;
@@ -4171,7 +4183,7 @@ CheckDeviceGrabs(DeviceIntPtr device, DeviceEvent *event, WindowPtr ancestor)
     if (focus) {
         for (; i < focus->traceGood; i++) {
             pWin = focus->trace[i];
-            if (CheckPassiveGrabsOnWindow(pWin, device, (InternalEvent *) event,
+            if (CheckPassiveGrabsOnWindow(pWin, device, ievent,
                                           sendCore, TRUE)) {
                 ret = TRUE;
                 goto out;
@@ -4186,7 +4198,7 @@ CheckDeviceGrabs(DeviceIntPtr device, DeviceEvent *event, WindowPtr ancestor)
 
     for (; i < device->spriteInfo->sprite->spriteTraceGood; i++) {
         pWin = device->spriteInfo->sprite->spriteTrace[i];
-        if (CheckPassiveGrabsOnWindow(pWin, device, (InternalEvent *) event,
+        if (CheckPassiveGrabsOnWindow(pWin, device, ievent,
                                       sendCore, TRUE)) {
             ret = TRUE;
             goto out;
@@ -4454,7 +4466,7 @@ FreezeThisEventIfNeededForSyncGrab(DeviceIntPtr thisDev, InternalEvent *event)
     case FREEZE_NEXT_EVENT:
         grabinfo->sync.state = FROZEN_WITH_EVENT;
         FreezeThaw(thisDev, TRUE);
-        *grabinfo->sync.event = *event;
+        CopyPartialInternalEvent(grabinfo->sync.event, event);
         break;
     }
 }
