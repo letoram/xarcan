@@ -6,7 +6,9 @@
 #include "arcan.h"
 #include "arcan_cursor.h"
 
+#ifdef DEBUG
 #define ARCAN_TRACE
+#endif
 static inline void trace(const char* msg, ...)
 {
 #ifdef ARCAN_TRACE

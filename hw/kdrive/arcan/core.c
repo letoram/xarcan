@@ -11,51 +11,64 @@
  *       that might need some work, and then forwarding the input event.
  *
  * - [p] Re-add DRI3 buffer hooks
- *       most of it is there (though planes and modifiers coms isn't)
- *       but for some reason it's still black or mesa jumps back to software
+ *       most of it is there, and now the missing bits for proper dma-buf
+ *       has been added via:
+ *       (see arcan_shmif_interop.h)
+ *           arcan_shmif_export_image,
+ *           arcan_shmif_import_buffer
+ *       and arcan_shmifext_signal_planes
+ *
+ * - [ ] Keymap Synch (XkbDeviceApplyKeymap, ...)
+         send that as a decodeMessage control (one for LVMO and other for remap)
  *
  * - [ ] Rootless window buffer redirection
  *       possibly better solved by redirecting the pixmap on a per-window basis,
  *       let segment-push with a XID substitute into the affected window, just
  *       need some tag to know when we have a toplevel.
  *
- * - [ ] Xace buffer interception
- *       getImage 'should' be enough but there also seem to be some other magic
- *       path used by obs et al. to compose into offscreen buffer and handle-pass
- *       that (getPixmap involved?)
+ * - [ ] PRESENT
+ *       Should just fit naturally what we are doing, add the PTS field sampling
+ *       on read and write, so comes with the conductor work arcan side.
+ *       A big gotcha is that dma-bufs need to actually copy/plit into the pixmap
+ *       at the present stage for it to be used.
  *
+  * - [ ] Xace buffer interception
+ *       getImage 'should' be enough but there also seem to be some other magic
+ *       path used by obs et al. to compose into offscreen buffer and handle-pass.
+ *       Since PRESENT already has us explicitly blitting, we could save the clip
+ *       region for non-rootless and blit proper into that, then blit decoy into
+ *       window pixmap, and it is even easier for rootless.
+
  * - [ ] Proxy-Window with presence
  *       Let the processing thread update the pixmap of the proxy client if
  *       we are pushed an output segment. That should just be a continuation of
  *       the Xace interception tactic.
  *
- * - [ ] PRESENT
- *       should just fit naturally what we are doing, add the PTS field sampling
- *       on read and write, so comes with the conductor work arcan side.
- *
  * - [ ] Shmif-server thread, map to windows and event loop
- *       last bit needed for arcan clients to go into a normal Xorg path, need
- *       some separate logic for input event translation.
+ *       Last bit needed for arcan clients to go into a normal Xorg path, need
+ *       some separate logic for input event translation. This should come when
+ *       shmif has a fallback platform to native when an Arcan server is unavailable.
  *
  * - [ ] Adding multiple screens
  *       KdInitOutput and then more or less the same code we already have,
  *       add the corresponding shmif segment descriptor to the event loop as
  *       normal.
  *
- * - [ ] XVideo, does anyone actually care?
+ * - [ ] RandR fixes - expose larger mode-table based on OUTPUTHINT
  *
- * - [ ] Keymap Synch (XkbDeviceApplyKeymap, ...)
- *       send that as a decodeMessage control (one for LVMO and other for remap)
+ * - [ ] XVideo, does anyone actually care?
  *
  * - [ ] Synch recent changes to XI (gestures)
  *
  * - [ ] Crash Recovery nits - transition between glamor and regular as well
- *       as re-sending metadata and unpairing redirected windows.
+ *       as re-sending metadata and unpairing redirected windows. The same goes
+ *       for deviceHint for GPU swapping.
  *
  * - [ ] Performance nits - visibility hints to equal display off when there
  *       are no redirected surfaces etc. KdEnableScreen / KdDisableScreen
+ *
+ * - [ ] Remove all the code we are not touching / using, be aggressive.
  */
-
 #ifdef HAVE_DIX_CONFIG_H
 #include <dix-config.h>
 #endif
@@ -67,7 +80,7 @@
 #include <xcb/xcb.h>
 
 #ifdef GLAMOR
-#define MESA_EGL_NO_X11_HEADERS
+#define EGL_NO_X11
 #include <gbm.h>
 #include "glamor.h"
 #include "glamor_context.h"
@@ -97,7 +110,6 @@ int arcanGlamor;
 #include "../../dmx/input/atKeynames.h"
 #include "bsd_KbdMap.c"
 
-
 static void enqueueKeyboard(uint16_t scancode, int active)
 {
     KdEnqueueKeyboardEvent(arcanInputPriv.ki, wsUsbMap[scancode], !active);
@@ -114,7 +126,10 @@ static struct arcan_shmif_initial* arcan_init;
 static DevPrivateKeyRec pixmapPriv;
 static DevPrivateKeyRec windowPriv;
 
+#ifdef DEBUG
 #define ARCAN_TRACE
+#endif
+
 static inline void trace(const char* msg, ...)
 {
 #ifdef ARCAN_TRACE
@@ -134,7 +149,7 @@ static inline void trace(const char* msg, ...)
  */
 static void setArcanMask(KdScreenInfo* screen)
 {
-    screen->rate = 60;
+    screen->rate = 144;
     screen->fb.depth = 24;
     screen->fb.bitsPerPixel = 32;
     screen->fb.visuals = (1 << TrueColor) | (1 << DirectColor);
@@ -146,7 +161,7 @@ static void setArcanMask(KdScreenInfo* screen)
 static void setGlamorMask(KdScreenInfo* screen)
 {
     int bpc, green_bpc;
-    screen->rate = 60;
+    screen->rate = 144;
     screen->fb.visuals = (1 << TrueColor) | (1 << DirectColor);
     screen->fb.depth = 24;
 /* calculations used in xWayland and elsewhere */
@@ -708,7 +723,8 @@ arcanSignal(struct arcan_shmif_cont* con, bool dirty)
         return;
 
 /* Inform about cursor state if we don't have an accelerated cursor */
-    arcanSynchCursor(scrpriv, false);
+    if (arcanConfigPriv.mouse)
+        arcanSynchCursor(scrpriv, false);
 
 /*
  * We don't use fine-grained dirty regions really, the data gathered gave
@@ -748,8 +764,6 @@ arcanSignal(struct arcan_shmif_cont* con, bool dirty)
                                         scrpriv->tex, &fd, &stride, &fourcc);
         }
 
-/* This should be changed into the planes + modifiers + ... format,
- * just waiting for the synch primitives to go with it. */
         arcan_shmif_signalhandle(scrpriv->acon,
                                  SHMIF_SIGVID | SHMIF_SIGBLK_NONE,
                                  fd, stride, fourcc);
@@ -1254,11 +1268,10 @@ static int depth_to_gbm(int depth)
         return GBM_FORMAT_XRGB8888;
     else if (depth == 30)
         return GBM_FORMAT_ARGB2101010;
-    else if (depth == 32)
-        return GBM_FORMAT_ARGB8888;
-    else
+    else if (depth != 32)
         ErrorF("unhandled gbm depth: %d\n", depth);
-    return 0;
+
+    return GBM_FORMAT_ARGB8888;
 }
 
 static
@@ -1300,6 +1313,7 @@ PixmapPtr boToPixmap(ScreenPtr pScreen, struct gbm_bo* bo, int depth)
  /* Unfortunately shmifext- don't expose the buffer-import setup yet,
  * waiting for the whole GBM v Streams to sort itself out, so just
  * replicate that code once more. */
+/* helper_dmabuf_eglimage(agp_fenv, agp_eglenv, EGLDisplay, planes, n_planes) */
     pixmap = glamor_create_pixmap(pScreen,
                                   gbm_bo_get_width(bo),
                                   gbm_bo_get_height(bo),
@@ -1396,6 +1410,7 @@ Bool arcanGlamorCreateScreenResources(ScreenPtr pScreen)
         newpix = boToPixmap(pScreen, bo, pScreen->rootDepth);
         scrpriv->bo = bo;
     }
+
     if (!newpix){
         newpix = pScreen->CreatePixmap(pScreen,
                                        pScreen->width,
@@ -1518,13 +1533,19 @@ int arcanInit(void)
 /* request a cursor and a clipboard, if they arrive we initialize that code
  * as well, otherwise we have our own implementation of save-under + cursor
  * bitblit */
-    arcan_shmif_enqueue(con, &(struct arcan_event){
-        .ext.kind = ARCAN_EVENT(SEGREQ),
-        .ext.segreq.width = 32,
-        .ext.segreq.height = 32,
-        .ext.segreq.kind = SEGID_CURSOR,
-        .ext.segreq.id = CURSOR_REQUEST_ID
-    });
+    if (arcanConfigPriv.mouse)
+        arcan_shmif_enqueue(con, &(struct arcan_event){
+            .ext.kind = ARCAN_EVENT(SEGREQ),
+            .ext.segreq.width = 32,
+            .ext.segreq.height = 32,
+            .ext.segreq.kind = SEGID_CURSOR,
+            .ext.segreq.id = CURSOR_REQUEST_ID
+        });
+    else
+        arcan_shmif_enqueue(con, &(arcan_event){
+            .ext.kind = ARCAN_EVENT(CURSORHINT),
+            .ext.message.data = "hidden"
+        });
 
     arcan_shmif_enqueue(con, &(struct arcan_event){
         .ext.kind = ARCAN_EVENT(SEGREQ),
@@ -1533,7 +1554,6 @@ int arcanInit(void)
         .ext.segreq.kind = SEGID_CLIPBOARD,
         .ext.segreq.id = CLIPBOARD_REQUEST_ID
     });
-
 
 /* announce a 'dot' and 'svg' exported file extensions for getting a snapshot
  * of the window tree in order to make debugging much less painful */
@@ -1617,7 +1637,10 @@ arcanRandRScreenResize(ScreenPtr pScreen,
             return FALSE;
         }
 
-/* need something else here, like Crtcnotify */
+/* need something else here, like Crtcnotify - bigger mode table than 'just the one'
+ * is probably needed for picky games where / if that still matters -- RRCrtcNotify
+ * seems to be a broadcast 'this has changed' for everyone (which might be useful
+ * for a dedicated XRandr like path) */
         RROutputSetModes(scrpriv->randrOutput, &mode, 1, 1);
         RRCrtcGammaSetSize(scrpriv->randrCrtc, scrpriv->block.plane_sizes[0] / 3);
         RROutputSetPhysicalSize(scrpriv->randrOutput, size.mmWidth, size.mmHeight);
@@ -1683,7 +1706,7 @@ arcanRandRSetConfig(ScreenPtr pScreen,
     arcanSetScreenSizes(screen->pScreen);
 
 #ifdef GLAMOR
-    if (arcanGlamor){
+    if (arcanConfigPriv.glamor){
         arcan_shmifext_make_current(scrpriv->acon);
         arcanGlamorCreateScreenResources(pScreen);
     }
@@ -1943,59 +1966,60 @@ static PixmapPtr dri3PixmapFromFds(ScreenPtr pScreen,
     struct gbm_device *gbmdev;
     struct gbm_bo *bo = NULL;
 
-        if (!scrpriv->in_glamor){
+    if (!scrpriv->in_glamor){
         trace("ArcanDRI3PixmapFromFD()::Not in GLAMOR state");
         return NULL;
     }
 
 /* reject invalid values outright */
-        if (!width || !height || !num_fds || depth < 16 ||
-            bpp != BitsPerPixel(depth) || strides[0] < (width * bpp / 8)){
-            trace("ArcanDRI3PixmapFromFD::invalid input arguments");
-            return NULL;
-        }
-
-        uintptr_t dev_handle;
-        if (-1 == arcan_shmifext_dev(scrpriv->acon, &dev_handle, false)){
-                trace("ArcanDRI3PixmapFromFD()::Couldn't get device handle");
-                return NULL;
+    if (!width || !height || !num_fds || depth < 16 ||
+         bpp != BitsPerPixel(depth) || strides[0] < (width * bpp / 8)){
+        trace("ArcanDRI3PixmapFromFD::invalid input arguments");
+        return NULL;
     }
-        else
-            gbmdev = (struct gbm_device*) dev_handle;
+
+    uintptr_t dev_handle;
+    if (-1 == arcan_shmifext_dev(scrpriv->acon, &dev_handle, false)){
+        trace("ArcanDRI3PixmapFromFD()::Couldn't get device handle");
+        return NULL;
+    }
+    else
+        gbmdev = (struct gbm_device*) dev_handle;
 
     int gbm_fmt = depth_to_gbm(depth);
-
-        if (modifier != DRM_FORMAT_MOD_INVALID){
-            struct gbm_import_fd_modifier_data data = {
-                .width = width,
-                .height = height,
-                .num_fds = num_fds,
-                .format = gbm_fmt,
-                .modifier = modifier
-            };
-            for (size_t i = 0; i < num_fds; i++){
-                data.fds[i] = fds[i];
-                data.strides[i] = strides[i];
-                data.offsets[i] = offsets[i];
-            }
-            bo = gbm_bo_import(gbmdev,
-                         GBM_BO_IMPORT_FD_MODIFIER, &data, GBM_BO_USE_RENDERING);
+    if (modifier != DRM_FORMAT_MOD_INVALID){
+        struct gbm_import_fd_modifier_data data = {
+            .width = width,
+            .height = height,
+            .num_fds = num_fds,
+            .format = gbm_fmt,
+            .modifier = modifier
+        };
+        for (size_t i = 0; i < num_fds; i++){
+            data.fds[i] = fds[i];
+            data.strides[i] = strides[i];
+            data.offsets[i] = offsets[i];
         }
-        else if (num_fds == 1){
-            struct gbm_import_fd_data data = {
-                .fd = fds[0],
-                .width = width,
-                .height = height,
-                .stride = strides[0],
-                .format = gbm_fmt
-            };
+        bo = gbm_bo_import(gbmdev,
+                           GBM_BO_IMPORT_FD_MODIFIER,
+                           &data,
+                           GBM_BO_USE_RENDERING);
+    }
+    else if (num_fds == 1){
+        struct gbm_import_fd_data data = {
+            .fd = fds[0],
+            .width = width,
+            .height = height,
+            .stride = strides[0],
+            .format = gbm_fmt
+        };
 
-            bo = gbm_bo_import(gbmdev, GBM_BO_IMPORT_FD, &data, GBM_BO_USE_RENDERING);
-            if (!bo){
-                trace("ArcanDRI3PixmapFromFD()::BO_mod_invalid import fail");
-                return NULL;
-            }
+        bo = gbm_bo_import(gbmdev, GBM_BO_IMPORT_FD, &data, GBM_BO_USE_RENDERING);
+        if (!bo){
+            trace("ArcanDRI3PixmapFromFD()::BO_mod_invalid import fail");
+            return NULL;
         }
+    }
 
     return boToPixmap(pScreen, bo, depth);
 }
@@ -2246,24 +2270,24 @@ arcanPresentUnflip(ScreenPtr screen, uint64_t eventid)
 static Bool
 arcanPresentCheckFlip(RRCrtcPtr crtc,
                       WindowPtr window,
-                                            PixmapPtr pixmap,
-                                            Bool sync_flip)
+                      PixmapPtr pixmap,
+                      Bool sync_flip)
 {
     trace("present:check flip");
     return true;
 }
 
 static present_screen_info_rec arcan_present_info = {
-    .version = PRESENT_SCREEN_INFO_VERSION,
-    .get_crtc = arcanPresentGetCrtc,
-    .get_ust_msc = arcanPresentGetUstMsc,
+    .version      = PRESENT_SCREEN_INFO_VERSION,
+    .get_crtc     = arcanPresentGetCrtc,
+    .get_ust_msc  = arcanPresentGetUstMsc,
     .queue_vblank = arcanPresentQueueVblank,
     .abort_vblank = arcanPresentAbortVblank,
-    .flush = arcanPresentFlush,
+    .flush        = arcanPresentFlush,
     .capabilities = PresentCapabilityAsync,
-    .check_flip = arcanPresentCheckFlip,
-    .flip = arcanPresentFlip,
-    .unflip = arcanPresentUnflip
+    .check_flip   = arcanPresentCheckFlip,
+    .flip         = arcanPresentFlip,
+    .unflip       = arcanPresentUnflip
 };
 
 Bool
@@ -2284,7 +2308,8 @@ arcanFinishInitScreen(ScreenPtr pScreen)
     scrpriv->BlockHandler = pScreen->BlockHandler;
     pScreen->BlockHandler = arcanScreenBlockHandler;
 
-    present_screen_init(pScreen, &arcan_present_info);
+    if (arcanConfigPriv.present)
+        present_screen_init(pScreen, &arcan_present_info);
 
 /* hook window actions so that we can map / forward */
     scrpriv->hooks.positionWindow = screen->pScreen->PositionWindow;

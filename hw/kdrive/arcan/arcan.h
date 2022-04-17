@@ -94,9 +94,10 @@ typedef struct _arcanConfig {
     const char* ident;
     Bool no_dri3;
     Bool glamor;
+    Bool present;
     Bool no_dynamic_resize;
-    Bool txpass;
     Bool accel_cursor;
+    Bool mouse;
 } arcanConfig;
 
 extern int arcanGlamor;

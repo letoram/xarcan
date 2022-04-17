@@ -33,6 +33,9 @@ extern Bool kdHasKbd;
 
 static int wm_fd = -1;
 
+#ifdef DEBUG
+#define ARCAN_TRACE
+#endif
 static inline void trace(const char* msg, ...)
 {
 #ifdef ARCAN_TRACE
@@ -170,6 +173,8 @@ ddxUseMsg(void)
     ErrorF("-aident [str]          Set window dynamic identity\n");
     ErrorF("-atitle [str]          Set window static identity\n");
 		ErrorF("-wm fd                 Create X client for WM on given FD\n");
+    ErrorF("-present               Enable PRESENT extension (experimental)\n");
+    ErrorF("-mouse                 Enable split mouse surface (experimental)\n");
 #ifdef GLAMOR
     ErrorF("-glamor                Enable glamor rendering\n");
 #endif
@@ -181,7 +186,7 @@ ddxProcessArgument(int argc, char **argv, int i)
 {
 #ifdef GLAMOR
     if (strcmp(argv[i], "-glamor") == 0){
-        arcanGlamor = 1;
+        arcanConfigPriv.glamor = 1;
         arcanFuncs.initAccel = arcanGlamorInit;
         arcanFuncs.enableAccel = arcanGlamorEnable;
         arcanFuncs.disableAccel = arcanGlamorDisable;
@@ -219,6 +224,12 @@ ddxProcessArgument(int argc, char **argv, int i)
         wm_fd = atoi(argv[i + 1]);
         return 2;
     }
+    else if (strcmp(argv[i], "-present") == 0){
+        arcanConfigPriv.present = true;
+    }
+    else if (strcmp(argv[i], "-mouse") == 0){
+        arcanConfigPriv.mouse = true;
+    }
     return KdProcessArgument(argc, argv, i);
 }
 
@@ -245,7 +256,6 @@ KdCardFuncs arcanFuncs = {
     arcanCreateResources,        /* createRes */
     arcanScreenFini,             /* scrfini */
     arcanCardFini,               /* cardfini */
-
     arcanCursorInit,             /* initCursor */
 
     0,                          /* initAccel */
