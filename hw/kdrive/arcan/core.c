@@ -2,8 +2,8 @@
  * TODO
  *
  * - [p] Clipboard integration
- *       - [ ] copy
- *       - [ ] paste (to which buffer and should it merely synch)?
+ *       - [p] copy
+ *       - [p] paste (to which buffer and should it merely synch)?
  *       - [ ] dnd
  *
  * - [p] Accelerated cursor mapping
@@ -830,7 +830,7 @@ cmdClipboardWindow(struct arcan_shmif_cont *con, bool paste)
     *proxy = (struct proxyWindowData){
         .socket = pair[1],
         .cont = con,
-                .paste = paste
+        .paste = paste
     };
 
     pthread_attr_t pthattr;
