@@ -216,7 +216,9 @@ glamor_create_pixmap(ScreenPtr screen, int w, int h, int depth,
              w <= glamor_priv->glyph_max_dim &&
              h <= glamor_priv->glyph_max_dim)
          || (w == 0 && h == 0)
-         || !glamor_priv->formats[depth].rendering_supported))
+         || !glamor_priv->formats[depth].rendering_supported
+         || (glamor_priv->formats[depth].texture_only &&
+              (usage != GLAMOR_CREATE_FBO_NO_FBO))))
         return fbCreatePixmap(screen, w, h, depth, usage);
     else
         pixmap = fbCreatePixmap(screen, 0, 0, depth, usage);
@@ -467,6 +469,7 @@ glamor_add_format(ScreenPtr screen, int depth, CARD32 render_format,
 {
     glamor_screen_private *glamor_priv = glamor_get_screen_private(screen);
     struct glamor_format *f = &glamor_priv->formats[depth];
+    Bool texture_only = FALSE;
 
     /* If we're trying to run on GLES, make sure that we get the read
      * formats that we're expecting, since glamor_transfer relies on
@@ -489,6 +492,13 @@ glamor_add_format(ScreenPtr screen, int depth, CARD32 render_format,
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexImage2D(GL_TEXTURE_2D, 0, internalformat, 1, 1, 0,
                      format, type, NULL);
+        if (glGetError() != GL_NO_ERROR)
+        {
+            ErrorF("glamor: Cannot upload texture for depth %d.  "
+                   "Falling back to software.\n", depth);
+            glDeleteTextures(1, &tex);
+            return;
+        }
 
         glGenFramebuffers(1, &fbo);
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
@@ -500,21 +510,23 @@ glamor_add_format(ScreenPtr screen, int depth, CARD32 render_format,
                    "Falling back to software.\n", depth);
             glDeleteTextures(1, &tex);
             glDeleteFramebuffers(1, &fbo);
-            return;
+            texture_only = TRUE;
         }
 
-        glGetIntegerv(GL_IMPLEMENTATION_COLOR_READ_FORMAT, &read_format);
-        glGetIntegerv(GL_IMPLEMENTATION_COLOR_READ_TYPE, &read_type);
+        if (!texture_only) {
+            glGetIntegerv(GL_IMPLEMENTATION_COLOR_READ_FORMAT, &read_format);
+            glGetIntegerv(GL_IMPLEMENTATION_COLOR_READ_TYPE, &read_type);
+        }
 
         glDeleteTextures(1, &tex);
         glDeleteFramebuffers(1, &fbo);
 
-        if (format != read_format || type != read_type) {
+        if (!texture_only && (format != read_format || type != read_type)) {
             ErrorF("glamor: Implementation returned 0x%x/0x%x read format/type "
                    "for depth %d, expected 0x%x/0x%x.  "
                    "Falling back to software.\n",
                    read_format, read_type, depth, format, type);
-            return;
+            texture_only = TRUE;
         }
     }
 
@@ -524,6 +536,7 @@ glamor_add_format(ScreenPtr screen, int depth, CARD32 render_format,
     f->format = format;
     f->type = type;
     f->rendering_supported = rendering_supported;
+    f->texture_only = texture_only;
 }
 
 /* Set up the GL format/types that glamor will use for the various depths
@@ -617,6 +630,7 @@ glamor_setup_formats(ScreenPtr screen)
     glamor_priv->cbcr_format.render_format = PICT_yuv2;
     glamor_priv->cbcr_format.type = GL_UNSIGNED_BYTE;
     glamor_priv->cbcr_format.rendering_supported = TRUE;
+    glamor_priv->cbcr_format.texture_only = FALSE;
 }
 
 /** Set up glamor for an already-configured GL context. */

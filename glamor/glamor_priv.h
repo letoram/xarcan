@@ -194,6 +194,13 @@ struct glamor_format {
      * just before upload)
      */
     Bool rendering_supported;
+    /**
+     * Whether image with this depth is framebuffer-complete in GL.
+     * This flag is set on GL ES when rendering is supported without
+     * conversion, but reading from framebuffer can bring some caveats
+     * like different format combination or incomplete framebuffer.
+     */
+    Bool texture_only;
 };
 
 struct glamor_saved_procs {
