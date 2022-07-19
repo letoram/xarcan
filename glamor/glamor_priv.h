@@ -49,6 +49,11 @@
     "precision mediump float;\n"  \
     "#endif\n"
 
+#define GLAMOR_DEFAULT_POINT_SIZE  \
+    "#ifdef GL_ES\n"              \
+    "       gl_PointSize = 1.0;\n"  \
+    "#endif\n"
+
 #include "glyphstr.h"
 
 #include "glamor_debug.h"
