@@ -77,6 +77,7 @@ glamor_egl_screen_init(ScreenPtr screen, struct glamor_context *glamor_ctx)
 {
     struct xwl_screen *xwl_screen = xwl_screen_get(screen);
 
+    glamor_set_glvnd_vendor(screen, xwl_screen->glvnd_vendor);
     glamor_enable_dri3(screen);
     glamor_ctx->ctx = xwl_screen->egl_context;
     glamor_ctx->display = xwl_screen->egl_display;

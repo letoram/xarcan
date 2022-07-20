@@ -887,6 +887,7 @@ glamor_egl_screen_init(ScreenPtr screen, struct glamor_context *glamor_ctx)
 #ifdef DRI3
     glamor_screen_private *glamor_priv = glamor_get_screen_private(screen);
 #endif
+    const char *gbm_backend_name;
 
     glamor_egl->saved_close_screen = screen->CloseScreen;
     screen->CloseScreen = glamor_egl_close_screen;
@@ -899,6 +900,10 @@ glamor_egl_screen_init(ScreenPtr screen, struct glamor_context *glamor_ctx)
 
     glamor_ctx->make_current = glamor_egl_make_current;
 
+    gbm_backend_name = gbm_device_get_backend_name(glamor_egl->gbm);
+    /* Mesa uses "drm" as backend name, in that case, just do nothing */
+    if (gbm_backend_name && strcmp(gbm_backend_name, "drm") != 0)
+        glamor_set_glvnd_vendor(screen, gbm_backend_name);
 #ifdef DRI3
     /* Tell the core that we have the interfaces for import/export
      * of pixmaps.
