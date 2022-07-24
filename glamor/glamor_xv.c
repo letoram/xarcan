@@ -65,9 +65,9 @@ static const glamor_facet glamor_facet_xv_planar_2 = {
     .version = 120,
 
     .source_name = "v_texcoord0",
-    .vs_vars = ("attribute vec2 position;\n"
-                "attribute vec2 v_texcoord0;\n"
-                "varying vec2 tcs;\n"),
+    .vs_vars = ("in vec2 position;\n"
+                "in vec2 v_texcoord0;\n"
+                "out vec2 tcs;\n"),
     .vs_exec = (GLAMOR_POS(gl_Position, position)
                 "        tcs = v_texcoord0;\n"),
 
@@ -76,18 +76,18 @@ static const glamor_facet glamor_facet_xv_planar_2 = {
                 "uniform vec4 offsetyco;\n"
                 "uniform vec4 ucogamma;\n"
                 "uniform vec4 vco;\n"
-                "varying vec2 tcs;\n"),
+                "in vec2 tcs;\n"),
     .fs_exec = (
                 "        float sample;\n"
                 "        vec2 sample_uv;\n"
                 "        vec4 temp1;\n"
-                "        sample = texture2D(y_sampler, tcs).w;\n"
+                "        sample = texture(y_sampler, tcs).w;\n"
                 "        temp1.xyz = offsetyco.www * vec3(sample) + offsetyco.xyz;\n"
-                "        sample_uv = texture2D(u_sampler, tcs).xy;\n"
+                "        sample_uv = texture(u_sampler, tcs).xy;\n"
                 "        temp1.xyz = ucogamma.xyz * vec3(sample_uv.x) + temp1.xyz;\n"
                 "        temp1.xyz = clamp(vco.xyz * vec3(sample_uv.y) + temp1.xyz, 0.0, 1.0);\n"
                 "        temp1.w = 1.0;\n"
-                "        gl_FragColor = temp1;\n"
+                "        frag_color = temp1;\n"
                 ),
 };
 
@@ -97,9 +97,9 @@ static const glamor_facet glamor_facet_xv_planar_3 = {
     .version = 120,
 
     .source_name = "v_texcoord0",
-    .vs_vars = ("attribute vec2 position;\n"
-                "attribute vec2 v_texcoord0;\n"
-                "varying vec2 tcs;\n"),
+    .vs_vars = ("in vec2 position;\n"
+                "in vec2 v_texcoord0;\n"
+                "out vec2 tcs;\n"),
     .vs_exec = (GLAMOR_POS(gl_Position, position)
                 "        tcs = v_texcoord0;\n"),
 
@@ -109,18 +109,18 @@ static const glamor_facet glamor_facet_xv_planar_3 = {
                 "uniform vec4 offsetyco;\n"
                 "uniform vec4 ucogamma;\n"
                 "uniform vec4 vco;\n"
-                "varying vec2 tcs;\n"),
+                "in vec2 tcs;\n"),
     .fs_exec = (
                 "        float sample;\n"
                 "        vec4 temp1;\n"
-                "        sample = texture2D(y_sampler, tcs).w;\n"
+                "        sample = texture(y_sampler, tcs).w;\n"
                 "        temp1.xyz = offsetyco.www * vec3(sample) + offsetyco.xyz;\n"
-                "        sample = texture2D(u_sampler, tcs).w;\n"
+                "        sample = texture(u_sampler, tcs).w;\n"
                 "        temp1.xyz = ucogamma.xyz * vec3(sample) + temp1.xyz;\n"
-                "        sample = texture2D(v_sampler, tcs).w;\n"
+                "        sample = texture(v_sampler, tcs).w;\n"
                 "        temp1.xyz = clamp(vco.xyz * vec3(sample) + temp1.xyz, 0.0, 1.0);\n"
                 "        temp1.w = 1.0;\n"
-                "        gl_FragColor = temp1;\n"
+                "        frag_color = temp1;\n"
                 ),
 };
 

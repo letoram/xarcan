@@ -54,6 +54,19 @@
     "       gl_PointSize = 1.0;\n"  \
     "#endif\n"
 
+#define GLAMOR_COMPAT_DEFINES_VS  \
+    "#define in attribute\n" \
+    "#define out varying\n"  \
+
+#define GLAMOR_COMPAT_DEFINES_FS  \
+    "#if __VERSION__ < 130\n" \
+    "#define in varying\n"  \
+    "#define frag_color gl_FragColor\n" \
+    "#define texture texture2D\n" \
+    "#else\n" \
+    "out vec4 frag_color;\n" \
+    "#endif\n"
+
 #include "glyphstr.h"
 
 #include "glamor_debug.h"

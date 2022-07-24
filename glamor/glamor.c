@@ -689,17 +689,6 @@ glamor_init(ScreenPtr screen, unsigned int flags)
 
     glamor_priv->glsl_version = epoxy_glsl_version();
 
-    if (glamor_priv->is_gles) {
-        /* Force us back to the base version of our programs on an ES
-         * context, anyway.  Basically glamor only uses desktop 1.20
-         * or 1.30 currently.  1.30's new features are also present in
-         * ES 3.0, but our glamor_program.c constructions use a lot of
-         * compatibility features (to reduce the diff between 1.20 and
-         * 1.30 programs).
-         */
-        glamor_priv->glsl_version = 120;
-    }
-
     /* We'd like to require GL_ARB_map_buffer_range or
      * GL_OES_map_buffer_range, since it offers more information to
      * the driver than plain old glMapBuffer() or glBufferSubData().
@@ -733,6 +722,7 @@ glamor_init(ScreenPtr screen, unsigned int flags)
          * etnaviv offers GLSL 140 with OpenGL 2.1.
          */
         if (glamor_glsl_has_ints(glamor_priv) &&
+            !glamor_priv->is_gles &&
             !epoxy_has_gl_extension("GL_ARB_instanced_arrays"))
                 glamor_priv->glsl_version = 120;
     } else {
