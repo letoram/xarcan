@@ -272,3 +272,23 @@ dri3_get_supported_modifiers(ScreenPtr screen, DrawablePtr drawable,
 
     return Success;
 }
+
+int dri3_import_syncobj(ClientPtr client, ScreenPtr screen, XID id, int fd)
+{
+    const dri3_screen_info_rec *info = dri3_screen_priv(screen)->info;
+    struct dri3_syncobj *syncobj = NULL;
+
+    if (info->version < 4 || !info->import_syncobj)
+        return BadImplementation;
+
+    syncobj = info->import_syncobj(client, screen, id, fd);
+    close(fd);
+
+    if (!syncobj)
+        return BadAlloc;
+
+    if (!AddResource(id, dri3_syncobj_type, syncobj))
+        return BadAlloc;
+
+    return Success;
+}
