@@ -46,6 +46,7 @@
 #include "xwayland-shm.h"
 
 #include "linux-dmabuf-unstable-v1-client-protocol.h"
+#include "tearing-control-v1-client-protocol.h"
 #include "viewporter-client-protocol.h"
 #include "xdg-shell-client-protocol.h"
 #include "xwayland-shell-v1-client-protocol.h"
@@ -896,6 +897,11 @@ ensure_surface_for_window(WindowPtr window)
         xwl_window_check_resolution_change_emulation(xwl_window);
     }
 
+    if (xwl_screen->tearing_control_manager) {
+        xwl_window->tearing_control = wp_tearing_control_manager_v1_get_tearing_control(
+            xwl_screen->tearing_control_manager, xwl_window->surface);
+    }
+
     return TRUE;
 
 err:
@@ -1105,6 +1111,9 @@ xwl_unrealize_window(WindowPtr window)
     if (xwl_window->xwl_screen->present)
         xwl_present_for_each_frame_callback(xwl_window, xwl_present_unrealize_window);
 #endif
+
+    if (xwl_window->tearing_control)
+        wp_tearing_control_v1_destroy(xwl_window->tearing_control);
 
     release_wl_surface_for_window(xwl_window);
     xorg_list_del(&xwl_window->link_damage);

@@ -34,8 +34,9 @@
 #include "xwayland-pixmap.h"
 #include "glamor.h"
 
+#include "tearing-control-v1-client-protocol.h"
 
-#define XWL_PRESENT_CAPS PresentCapabilityAsync
+#define XWL_PRESENT_CAPS PresentCapabilityAsync | PresentCapabilityAsyncMayTear
 
 
 /*
@@ -794,6 +795,16 @@ xwl_present_flip(present_vblank_ptr vblank, RegionPtr damage)
                        damage_box->x2 - damage_box->x1,
                        damage_box->y2 - damage_box->y1);
 
+    if (xwl_window->tearing_control) {
+        uint32_t hint;
+        if (event->async_may_tear)
+            hint = WP_TEARING_CONTROL_V1_PRESENTATION_HINT_ASYNC;
+        else
+            hint = WP_TEARING_CONTROL_V1_PRESENTATION_HINT_VSYNC;
+
+        wp_tearing_control_v1_set_presentation_hint(xwl_window->tearing_control, hint);
+    }
+
     wl_surface_commit(xwl_window->surface);
 
     if (!vblank->sync_flip) {
@@ -997,11 +1008,15 @@ xwl_present_pixmap(WindowPtr window,
     }
 
     vblank->event_id = ++xwl_present_event_id;
+    event->async_may_tear = options & PresentOptionAsyncMayTear;
 
-    /* Xwayland presentations always complete (at least) one frame after they
+    /* Synchronous Xwayland presentations always complete (at least) one frame after they
      * are executed
      */
-    vblank->exec_msc = vblank->target_msc - 1;
+    if (event->async_may_tear)
+        vblank->exec_msc = vblank->target_msc;
+    else
+        vblank->exec_msc = vblank->target_msc - 1;
 
     vblank->queued = TRUE;
     if (crtc_msc < vblank->exec_msc) {
