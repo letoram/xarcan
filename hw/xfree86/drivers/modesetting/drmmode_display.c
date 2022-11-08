@@ -2843,7 +2843,7 @@ static DisplayModePtr
 drmmode_output_add_gtf_modes(xf86OutputPtr output, DisplayModePtr Modes)
 {
     xf86MonPtr mon = output->MonInfo;
-    DisplayModePtr i, m, preferred = NULL;
+    DisplayModePtr i, j, m, preferred = NULL;
     int max_x = 0, max_y = 0;
     float max_vrefresh = 0.0;
 
@@ -2875,6 +2875,17 @@ drmmode_output_add_gtf_modes(xf86OutputPtr output, DisplayModePtr Modes)
             i->VDisplay >= preferred->VDisplay &&
             xf86ModeVRefresh(i) >= xf86ModeVRefresh(preferred))
             i->status = MODE_VSYNC;
+        if (preferred && xf86ModeVRefresh(i) > 0.0) {
+            i->Clock = i->Clock * xf86ModeVRefresh(preferred) / xf86ModeVRefresh(i);
+            i->VRefresh = xf86ModeVRefresh(preferred);
+        }
+        for (j = m; j != i; j = j->next) {
+            if (!strcmp(i->name, j->name) &&
+                xf86ModeVRefresh(i) * (1 + SYNC_TOLERANCE) >= xf86ModeVRefresh(j) &&
+                xf86ModeVRefresh(i) * (1 - SYNC_TOLERANCE) <= xf86ModeVRefresh(j)) {
+                i->status = MODE_DUPLICATE;
+            }
+        }
     }
 
     xf86PruneInvalidModes(output->scrn, &m, FALSE);
