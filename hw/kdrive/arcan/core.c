@@ -1,74 +1,9 @@
 /*
- * TODO
+ * Xonotic:
+ *  cursor warp bug
  *
- * - [p] Clipboard integration
- *       - [p] copy
- *       - [p] paste (to which buffer and should it merely synch)?
- *       - [ ] dnd
- *
- * - [p] Accelerated cursor mapping
- *       the entry points seem trivial, it's only the cursor bitblt itself
- *       that might need some work, and then forwarding the input event.
- *
- * - [p] Re-add DRI3 buffer hooks
- *       most of it is there, and now the missing bits for proper dma-buf
- *       has been added via:
- *       (see arcan_shmif_interop.h)
- *           arcan_shmif_export_image,
- *           arcan_shmif_import_buffer
- *       and arcan_shmifext_signal_planes
- *
- * - [ ] Keymap Synch (XkbDeviceApplyKeymap, ...)
-         send that as a decodeMessage control (one for LVMO and other for remap)
- *
- * - [ ] Rootless window buffer redirection
- *       possibly better solved by redirecting the pixmap on a per-window basis,
- *       let segment-push with a XID substitute into the affected window, just
- *       need some tag to know when we have a toplevel.
- *
- * - [ ] PRESENT
- *       Should just fit naturally what we are doing, add the PTS field sampling
- *       on read and write, so comes with the conductor work arcan side.
- *       A big gotcha is that dma-bufs need to actually copy/plit into the pixmap
- *       at the present stage for it to be used.
- *
-  * - [ ] Xace buffer interception
- *       getImage 'should' be enough but there also seem to be some other magic
- *       path used by obs et al. to compose into offscreen buffer and handle-pass.
- *       Since PRESENT already has us explicitly blitting, we could save the clip
- *       region for non-rootless and blit proper into that, then blit decoy into
- *       window pixmap, and it is even easier for rootless.
-
- * - [ ] Proxy-Window with presence
- *       Let the processing thread update the pixmap of the proxy client if
- *       we are pushed an output segment. That should just be a continuation of
- *       the Xace interception tactic.
- *
- * - [ ] Shmif-server thread, map to windows and event loop
- *       Last bit needed for arcan clients to go into a normal Xorg path, need
- *       some separate logic for input event translation. This should come when
- *       shmif has a fallback platform to native when an Arcan server is unavailable.
- *
- * - [ ] Adding multiple screens
- *       KdInitOutput and then more or less the same code we already have,
- *       add the corresponding shmif segment descriptor to the event loop as
- *       normal.
- *
- * - [ ] RandR fixes - expose larger mode-table based on OUTPUTHINT
- *
- * - [ ] XVideo, does anyone actually care?
- *
- * - [ ] Synch recent changes to XI (gestures)
- *
- * - [ ] Crash Recovery nits - transition between glamor and regular as well
- *       as re-sending metadata and unpairing redirected windows. The same goes
- *       for deviceHint for GPU swapping.
- *
- * - [ ] Performance nits - visibility hints to equal display off when there
- *       are no redirected surfaces etc. KdEnableScreen / KdDisableScreen
- *
- * - [ ] Remove all the code we are not touching / using, be aggressive.
  */
+
 #ifdef HAVE_DIX_CONFIG_H
 #include <dix-config.h>
 #endif
@@ -78,6 +13,7 @@
 #include <X11/keysym.h>
 #include <pthread.h>
 #include <xcb/xcb.h>
+#include <sys/wait.h>
 
 #ifdef GLAMOR
 #define EGL_NO_X11
@@ -88,6 +24,9 @@
 #include "dri3.h"
 #include <drm_fourcc.h>
 #endif
+
+#include "inputstr.h"
+#include "inpututils.h"
 
 #define CURSOR_REQUEST_ID 0xfef0
 #define CLIPBOARD_REQUEST_ID 0xfafa
@@ -149,7 +88,7 @@ static inline void trace(const char* msg, ...)
  */
 static void setArcanMask(KdScreenInfo* screen)
 {
-    screen->rate = 144;
+    screen->rate = arcan_init->rate;
     screen->fb.depth = 24;
     screen->fb.bitsPerPixel = 32;
     screen->fb.visuals = (1 << TrueColor) | (1 << DirectColor);
@@ -161,7 +100,7 @@ static void setArcanMask(KdScreenInfo* screen)
 static void setGlamorMask(KdScreenInfo* screen)
 {
     int bpc, green_bpc;
-    screen->rate = 144;
+    screen->rate = arcan_init->rate;
     screen->fb.visuals = (1 << TrueColor) | (1 << DirectColor);
     screen->fb.depth = 24;
 /* calculations used in xWayland and elsewhere */
@@ -229,9 +168,10 @@ static void arcanGetImage(DrawablePtr pDrawable, int sx, int sy, int w, int h,
 
 static bool isWindowVisible(WindowPtr wnd)
 {
-    return wnd->mapped && wnd->realized &&
-               wnd->visibility != VisibilityNotViewable &&
-                     wnd->visibility != VisibilityFullyObscured;
+    return wnd->mapped &&
+           wnd->realized &&
+           wnd->visibility != VisibilityNotViewable &&
+           wnd->visibility != VisibilityFullyObscured;
 }
 
 static void sendWndData(WindowPtr wnd, int depth, int max_depth, void* tag)
@@ -331,7 +271,10 @@ static Bool arcanMarkOverlapped(WindowPtr pwnd, WindowPtr firstchild, WindowPtr 
         ascr->screen->MarkOverlappedWindows = arcanMarkOverlapped;
       }
 
-/* if (firstchild) sendWndData(firstchild, 1, 1, ascr->acon); */
+    if (pwnd)
+        pwnd->unsynched = 1;
+    if (firstchild)
+        firstchild->unsynched = 1;
     return rv;
 }
 
@@ -350,8 +293,18 @@ static Bool arcanRealizeWindow(WindowPtr wnd)
     struct arcan_event* aev = malloc(sizeof(struct arcan_event));
     *aev = (struct arcan_event){0};
 
+/* Fixme: redirect
+ *  if we don't have a surface ready for the window, request one and
+ *  prepare to swap out the surface when we do.
+ *
+ *  Use a cached pool of up to N windows and viewport visibility for
+ *  them in order to avoid the allocation overhead each time (though
+ *  trading for resize might not be that much better).
+ *
+ *  Then check window->drawable.class for InputOutput and parent to be root.
+ */
     dixSetPrivate(&wnd->devPrivates, &windowPriv, aev);
-    sendWndData(wnd, 1, 1, ascr->acon);
+    wnd->unsynched = 1;
     return rv;
 }
 
@@ -360,6 +313,7 @@ static Bool arcanUnrealizeWindow(WindowPtr wnd)
     arcanScrPriv *ascr = getArcanScreen(wnd);
     trace("UnrealizeWindow(%d)", (int) wnd->drawable.id);
     Bool rv = true;
+    wnd->unsynched = 1;
 
     if (ascr->hooks.unrealizeWindow){
         ascr->screen->UnrealizeWindow = ascr->hooks.unrealizeWindow;
@@ -367,7 +321,6 @@ static Bool arcanUnrealizeWindow(WindowPtr wnd)
         ascr->screen->UnrealizeWindow = arcanUnrealizeWindow;
     }
 
-    sendWndData(wnd, 1, 1, ascr->acon);
     struct arcan_event* aev =
         dixLookupPrivate(&wnd->devPrivates, &windowPriv);
     free(aev);
@@ -386,10 +339,6 @@ static void arcanRestackWindow(WindowPtr wnd, WindowPtr oldNextSibling)
         ascr->screen->RestackWindow = arcanRestackWindow;
     }
 
-/* There is no real 'restack/sibling' approach in Arcan, only a strict
- * parent/child. This makes ordering somewhat complicated and the struct needs
- * to be re-built on the other side. To avoid thrashing with events we send the
- * hierarchy separately from expose/configure */
     struct arcan_event ev = (struct arcan_event){
         .ext.kind = ARCAN_EVENT(MESSAGE),
     };
@@ -398,7 +347,7 @@ static void arcanRestackWindow(WindowPtr wnd, WindowPtr oldNextSibling)
              "kind=restack:xid=%d:parent=%d:next=%d",
              (int) wnd->drawable.id,
              wnd->parent ? (int) wnd->parent->drawable.id : -1,
-             wnd->prevSib ? (int) wnd->prevSib->drawable.id : -1
+             wnd->nextSib ? (int) wnd->nextSib->drawable.id : -1
             );
     arcan_shmif_enqueue(ascr->acon, &ev);
 }
@@ -494,7 +443,6 @@ arcanScreenInitialize(KdScreenInfo * screen, arcanScrPriv * scrpriv)
         SHMIF_RHINT_IGNORE_ALPHA |
         SHMIF_RHINT_VSIGNAL_EV;
     scrpriv->dirty = true;
-
     trace("arcanScreenInitialize");
 
     if (!screen->width || !screen->height) {
@@ -533,79 +481,75 @@ arcanScreenInitialize(KdScreenInfo * screen, arcanScrPriv * scrpriv)
     return arcanMapFramebuffer(screen);
 }
 
-static void
-TranslateInput(struct arcan_shmif_cont* con, arcan_ioevent* ev, int* x, int* y)
+static int convertMouseButton(int btn)
 {
+    int ind = 0;
+    switch (btn){
+        case MBTN_LEFT_IND: return 1; break;
+        case MBTN_RIGHT_IND: return 3; break;
+        case MBTN_MIDDLE_IND: return 2; break;
+        case MBTN_WHEEL_UP_IND: return 4; break;
+        case MBTN_WHEEL_DOWN_IND: return 5; break;
+        default:
+            return ind + 8;
+        break;
+    }
+}
+
+static void
+TranslateInput(struct arcan_shmif_cont* con, arcan_event* oev)
+{
+    int x = 0, y = 0;
+    arcan_ioevent *ev = &oev->io;
     if (ev->devkind == EVENT_IDEVKIND_MOUSE){
-        int flags = arcanInputPriv.pi->buttonState;
+/*
+ * There's a trick here -
+ *
+ * The problems with FPS and other games that wholly or partially grab+warp to try and get
+ * relative mouse input is that the WM end in Arcan gets to implement the warp.
+ * This is inherently racey, as multiple input samples can happen before the next warp.
+ *
+ * With relative mouse samples (gotrel) [0] and [2] will be dx, dy and [1, 3] calculated
+ * context- absolute positions and for absolute samples (gotrel=false), [0, 2] will be absolute
+ * and [1, 3] relative. For both cases we can compare to the last sent 'warp' position as the
+ * equality of absx+rx, absy+ry should match up with warpx-absx, warpy-absy or we get the
+ * error to compensate for.
+ */
         if (ev->datatype == EVENT_IDATATYPE_ANALOG){
-/* buffer the relatives and push them in once fell swoop */
             if (ev->input.analog.gotrel){
-                switch (ev->input.analog.nvalues){
-                case 1:
-                case 2:
-                case 3:
-                    if (ev->subid == 0)
-                        *x += ev->input.analog.axisval[0];
-                    else if (ev->subid == 1)
-                        *y += ev->input.analog.axisval[0];
-                break;
-                case 4:
-                    *x += ev->input.analog.axisval[0];
-                    *y += ev->input.analog.axisval[2];
-                break;
+                ValuatorMask mask;
+                int valuators[3] = {0, 0, 0};
+                if (ev->subid == 2){
+                    valuators[0] = ev->input.analog.axisval[0];
+                    valuators[1] = ev->input.analog.axisval[2];
                 }
+                else
+                    valuators[ev->input.analog.axisval[ev->subid % 2]] = ev->input.analog.axisval[0];
+                valuator_mask_set_range(&mask, 0, 3, valuators);
+                QueuePointerEvents(arcanInputPriv.pi->dixdev, MotionNotify, 0, POINTER_RELATIVE, &mask);
             }
-            else {
-                static int ox, oy;
-                bool dirty = false;
-                flags |= KD_POINTER_DESKTOP;
-
-                switch (ev->input.analog.nvalues){
-                case 1: case 2:
-                    if (ev->subid == 0){
-                        dirty |= ev->input.analog.axisval[0] != ox;
-                        ox = ev->input.analog.axisval[0];
-                    }
-                    else if (ev->subid == 1){
-                        dirty |= ev->input.analog.axisval[0] != oy;
-                        oy = ev->input.analog.axisval[0];
-                    }
-                break;
-                case 3: case 4:
-                    dirty |= ev->input.analog.axisval[0] != ox;
-                    dirty |= ev->input.analog.axisval[2] != oy;
-                    ox = ev->input.analog.axisval[0];
-                    oy = ev->input.analog.axisval[2];
-                break;
-                }
-
-                if (dirty)
-                    KdEnqueuePointerEvent(arcanInputPriv.pi, flags, ox, oy, 0);
+            else if (arcan_shmif_mousestate(con, arcanInputPriv.mstate, oev, &x, &y)){
+                ValuatorMask mask;
+                int valuators[3] = {x, y, 0};
+                valuator_mask_set_range(&mask, 0, 3, valuators);
+                QueuePointerEvents(arcanInputPriv.pi->dixdev,
+                                   MotionNotify,
+                                   0, /* buttons must be 0 for motion */
+                                   POINTER_DESKTOP | POINTER_ABSOLUTE,
+                                   &mask
+                                   );
             }
         }
         else {
-            int ind = -1;
-            flags |= KD_MOUSE_DELTA;
-            switch (ev->subid){
-            case MBTN_LEFT_IND: ind = KD_BUTTON_1; break;
-            case MBTN_RIGHT_IND: ind = KD_BUTTON_3; break;
-            case MBTN_MIDDLE_IND: ind = KD_BUTTON_2; break;
-            case MBTN_WHEEL_UP_IND: ind = KD_BUTTON_4; break;
-            case MBTN_WHEEL_DOWN_IND: ind = KD_BUTTON_5; break;
-            default:
-                return;
-            }
-            if (ev->input.digital.active)
-                flags |= ind;
-            else
-                flags = flags & (~ind);
-            if (*x != 0 || *y != 0){
-                KdEnqueuePointerEvent(arcanInputPriv.pi, flags, *x, *y, 0);
-                *x = 0;
-                *y = 0;
-            }
-            KdEnqueuePointerEvent(arcanInputPriv.pi, flags, 0, 0, 0);
+              int index = convertMouseButton(ev->subid);
+              ValuatorMask mask;
+              valuator_mask_zero(&mask);
+              QueuePointerEvents(arcanInputPriv.pi->dixdev,
+                                 ev->input.digital.active ? ButtonPress : ButtonRelease,
+                                 index,
+                                 0,
+                                 &mask
+                                 );
         }
     }
     else if (ev->datatype == EVENT_IDATATYPE_TRANSLATED){
@@ -655,12 +599,12 @@ arcanDisplayHint(struct arcan_shmif_cont* con,
            ppcm = arcan_init->density;
 
        RRScreenSetSizeRange(apriv->screen,
-            640, 480, PP_SHMPAGE_MAXW, PP_SHMPAGE_MAXH);
-        arcanRandRScreenResize(apriv->screen,
-            w, h,
-            ppcm > 0 ? (float)w / (0.1 * ppcm) : 0,
-            ppcm > 0 ? (float)h / (0.1 * ppcm) : 0
-        );
+                            640, 480, PP_SHMPAGE_MAXW, PP_SHMPAGE_MAXH);
+       arcanRandRScreenResize(apriv->screen,
+                              w, h,
+                              ppcm > 0 ? (float)w / (0.1 * ppcm) : 0,
+                              ppcm > 0 ? (float)h / (0.1 * ppcm) : 0
+                             );
         RRScreenSizeNotify(apriv->screen);
         return;
 #endif
@@ -712,7 +656,8 @@ arcanSignal(struct arcan_shmif_cont* con, bool dirty)
     if (arcan_shmif_signalstatus(con))
         return;
 
-    synchTreeDepth(scrpriv, sendWndData, false, con);
+     if (((arcanScrPriv*)con->user)->wmSynch)
+         synchTreeDepth(scrpriv, sendWndData, false, con);
     RegionPtr region;
     BoxPtr box;
     bool in_glamor = false;
@@ -722,9 +667,7 @@ arcanSignal(struct arcan_shmif_cont* con, bool dirty)
     if (!RegionNotEmpty(region))
         return;
 
-/* Inform about cursor state if we don't have an accelerated cursor */
-    if (arcanConfigPriv.mouse)
-        arcanSynchCursor(scrpriv, false);
+    arcanSynchCursor(scrpriv, false);
 
 /*
  * We don't use fine-grained dirty regions really, the data gathered gave
@@ -817,6 +760,54 @@ cmdCreateProxyWindow(
     AddClientOnOpenFD(pair[0]);
     pthread_t pth;
     pthread_create(&pth, &pthattr, (void*)(void*)arcanProxyWindowDispatch, proxy);
+}
+
+static
+void
+cmdSpawnBuiltinWM(void)
+{
+    if (!arcanConfigPriv.miniwm && !arcanConfigPriv.wmexec)
+        return;
+
+    if (arcanConfigPriv.miniwm)
+    {
+        int pair[2];
+        socketpair(AF_UNIX, SOCK_STREAM, AF_UNIX, pair);
+
+        struct proxyWindowData *proxy = malloc(sizeof(struct proxyWindowData));
+        *proxy = (struct proxyWindowData){
+            .socket = pair[1]
+     };
+
+    pthread_attr_t pthattr;
+    pthread_attr_init(&pthattr);
+    pthread_attr_setdetachstate(&pthattr, PTHREAD_CREATE_DETACHED);
+
+    AddClientOnOpenFD(pair[0]);
+
+    pthread_t pth;
+    pthread_create(&pth, &pthattr, (void*)(void*)arcanMiniWMDispatch, proxy);
+    return;
+}
+
+/* This one is quite annoying as neither xcb nor xlib permits is to specify
+ * a process-inherited descriptor to the socket which would really be the
+ * proper thing to do. */
+    pid_t pid = fork();
+    if (-1 == pid){
+        ErrorF("couldn't spawn wm child\n");
+        return;
+    }
+
+    if (0 == pid){
+        char* const argv[] = {(char*)arcanConfigPriv.wmexec, NULL};
+        char buf[16];
+        snprintf(buf, 16, ":%s", display);
+        setenv("DISPLAY", buf, 1);
+        unsetenv("ARCAN_CONNPATH");
+        execvp(arcanConfigPriv.wmexec, argv);
+        exit(EXIT_FAILURE);
+    }
 }
 
 static
@@ -1001,8 +992,9 @@ decodeMessage(struct arcan_shmif_cont* con, const char* msg)
     bool newwnd = strcmp(kind, "new") == 0;
     bool modwnd = strcmp(kind, "configure") == 0;
 
+/* it's noisy so only enable on demand */
     if (strcmp(kind, "synch") == 0){
-        synchTreeDepth(con->user, sendWndData, true, con);
+        ((arcanScrPriv*)con->user)->wmSynch = true;
         return;
     }
 
@@ -1054,17 +1046,19 @@ handleNewSegment(struct arcan_shmif_cont *C, arcanScrPriv *S, int kind)
 void
 arcanFlushEvents(int fd, void* tag)
 {
-    int mx = 0, my = 0;
     struct arcan_shmif_cont* con = arcan_shmif_primary(SHMIF_INPUT);
     struct arcan_event ev;
     if (!con || !con->user)
         return;
 
+    input_lock();
     bool trySignal = false;
     int rv;
+
+    input_lock();
     while ((rv = arcan_shmif_poll(con, &ev)) > 0){
         if (ev.category == EVENT_IO){
-            TranslateInput(con, &(ev.io), &mx, &my);
+            TranslateInput(con, &ev);
         }
         else if (ev.category != EVENT_TARGET)
             continue;
@@ -1095,7 +1089,8 @@ arcanFlushEvents(int fd, void* tag)
                 }
 /* all the window metadata need to be resent as create, and the ones that
  * are paired to a vid needs to have the corresponding pair being sent */
-                              synchTreeDepth(con->user, resetWndData, true, con);
+                if (((arcanScrPriv*)con->user)->wmSynch)
+                    synchTreeDepth(con->user, resetWndData, true, con);
                 trySignal = true;
             break;
             case TARGET_COMMAND_DISPLAYHINT:
@@ -1124,17 +1119,9 @@ arcanFlushEvents(int fd, void* tag)
         break;
         }
     }
+    input_unlock();
 
-/* aggregate mouse input events unless it's clicks,
- * where we have to flush for the values to register correctly */
-    if (mx != 0 || my != 0){
-        KdEnqueuePointerEvent(arcanInputPriv.pi,
-            KD_MOUSE_DELTA | arcanInputPriv.pi->buttonState,
-            mx, my, 0
-        );
-    }
-
-    if (trySignal)
+   if (trySignal)
         arcanSignal(con, false);
 
 /* This should only happen if crash recovery fail and the segment is dead.
@@ -1533,7 +1520,7 @@ int arcanInit(void)
 /* request a cursor and a clipboard, if they arrive we initialize that code
  * as well, otherwise we have our own implementation of save-under + cursor
  * bitblit */
-    if (arcanConfigPriv.mouse)
+    if (!arcanConfigPriv.soft_mouse)
         arcan_shmif_enqueue(con, &(struct arcan_event){
             .ext.kind = ARCAN_EVENT(SEGREQ),
             .ext.segreq.width = 32,
@@ -1568,6 +1555,7 @@ int arcanInit(void)
     });
 
     arcan_shmif_setprimary(SHMIF_INPUT, con);
+
     return 1;
 }
 
@@ -1630,7 +1618,7 @@ arcanRandRScreenResize(ScreenPtr pScreen,
     size.mmHeight = mmHeight;
 
     if (arcanRandRSetConfig(pScreen, screen->randr, 0, &size)){
-            RRModePtr mode = arcan_cvt(width, height, 60.0 / 1000.0, 0, 0);
+            RRModePtr mode = arcan_cvt(width, height, (float) arcan_init->rate / 1000.0, 0, 0);
 
         if (!scrpriv->randrOutput){
           trace("arcanRandRInit(No output)");
@@ -2335,6 +2323,8 @@ arcanFinishInitScreen(ScreenPtr pScreen)
     screen->pScreen->CreateWindow = arcanCreateWindow;
     screen->pScreen->MarkOverlappedWindows = arcanMarkOverlapped;
 
+    arcan_shmif_mousestate_setup(scrpriv->acon, false, arcanInputPriv.mstate);
+    cmdSpawnBuiltinWM();
     return TRUE;
 }
 
@@ -2423,16 +2413,15 @@ arcanCloseScreen(ScreenPtr pScreen)
     if (!scrpriv)
         return;
 
-/*  ASAN reports UAF if we manually Unset @ Close
- *  arcanUnsetInternalDamage(pScreen);
- */
-    arcan_shmifext_drop(scrpriv->acon);
-
     scrpriv->acon->user = NULL;
     pScreen->CloseScreen = scrpriv->CloseHandler;
     free(scrpriv);
     screen->driver = NULL;
     (*pScreen->CloseScreen)(pScreen);
+
+/* drop shmifext last as t hat will kill the GL context and thus all the
+ * VAOs / VBOs etc. that glamour is using will be defunct */
+    arcan_shmifext_drop(scrpriv->acon);
 }
 
 void

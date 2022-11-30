@@ -172,9 +172,10 @@ ddxUseMsg(void)
     ErrorF("-nodynamic             Disable connection-controlled resize\n");
     ErrorF("-aident [str]          Set window dynamic identity\n");
     ErrorF("-atitle [str]          Set window static identity\n");
-		ErrorF("-wm fd                 Create X client for WM on given FD\n");
+		ErrorF("-wmexec path           Launch explicit WM when initialised\n");
+		ErrorF("-miniwm                Use instead of -wmexec\n");
     ErrorF("-present               Enable PRESENT extension (experimental)\n");
-    ErrorF("-mouse                 Enable split mouse surface (experimental)\n");
+    ErrorF("-softmouse             Force pre-composed non-accelerade mouse cursor\n");
 #ifdef GLAMOR
     ErrorF("-glamor                Enable glamor rendering\n");
 #endif
@@ -193,26 +194,40 @@ ddxProcessArgument(int argc, char **argv, int i)
         arcanFuncs.finiAccel = arcanGlamorFini;
         return 1;
     }
-    else
 #endif
+		if (strcmp(argv[i], "-miniwm") == 0){
+			if (arcanConfigPriv.wmexec){
+				FatalError("can't use -miniwm with -wmexec\n");
+			}
+			arcanConfigPriv.miniwm = true;
+			return 1;
+		}
+		if (strcmp(argv[i], "-wmexec") == 0){
+			if ((i+1) < argc){
+				arcanConfigPriv.wmexec = strdup(argv[i+1]);
+				return 2;
+			}
+			FatalError("-wmexec without path argument\n");
+			exit(1);
+		}
     if (strcmp(argv[i], "-nodri3") == 0){
         arcanConfigPriv.no_dri3 = true;
         return 1;
     }
     else if (strcmp(argv[i], "-aident") == 0){
         if ((i+1) < argc){
+				    arcanConfigPriv.ident = strdup(argv[i+1]);
             return 2;
         }
-        arcanConfigPriv.ident = strdup(argv[i+1]);
-        ddxUseMsg();
+				FatalError("-aident without ident string\n");
         exit(1);
     }
     else if (strcmp(argv[i], "-atitle") == 0){
         if ((i+1) < argc){
+            arcanConfigPriv.title = strdup(argv[i+1]);
             return 2;
         }
-        arcanConfigPriv.title = strdup(argv[i+1]);
-        ddxUseMsg();
+				FatalError("-atitle without title argument\n");
         exit(1);
     }
     else if (strcmp(argv[i], "-nodynamic") == 0){
@@ -226,9 +241,11 @@ ddxProcessArgument(int argc, char **argv, int i)
     }
     else if (strcmp(argv[i], "-present") == 0){
         arcanConfigPriv.present = true;
+				return 1;
     }
-    else if (strcmp(argv[i], "-mouse") == 0){
-        arcanConfigPriv.mouse = true;
+    else if (strcmp(argv[i], "-softmouse") == 0){
+        arcanConfigPriv.soft_mouse = true;
+				return 1;
     }
     return KdProcessArgument(argc, argv, i);
 }

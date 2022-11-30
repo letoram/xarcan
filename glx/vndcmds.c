@@ -463,8 +463,9 @@ Bool GlxDispatchInit(void)
 void GlxDispatchReset(void)
 {
     memset(dispatchFuncs, 0, sizeof(dispatchFuncs));
-
-    ht_destroy(vendorPrivHash);
+    if (vendorPrivHash){
+        ht_destroy(vendorPrivHash);
+    }
     vendorPrivHash = NULL;
 }
 

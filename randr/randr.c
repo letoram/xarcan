@@ -66,9 +66,11 @@ RRClientCallback(CallbackListPtr *list, void *closure, void *data)
     NewClientInfoRec *clientinfo = (NewClientInfoRec *) data;
     ClientPtr pClient = clientinfo->client;
 
-    rrClientPriv(pClient);
+		rrClientPriv(pClient);
     RRTimesPtr pTimes = (RRTimesPtr) (pRRClient + 1);
     int i;
+    if (!pRRClient)
+		    return;
 
     pRRClient->major_version = 0;
     pRRClient->minor_version = 0;

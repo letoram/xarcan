@@ -44,6 +44,9 @@ typedef struct _arcanScrPriv {
     int windowCount;
     Bool dirty;
     Bool unsynched;
+    Bool wmSynch;
+    arcan_event cursor_event;
+    Bool cursorRealized;
 
 #ifdef RANDR
     RROutputPtr randrOutput;
@@ -80,24 +83,27 @@ typedef struct _arcanScrPriv {
     CARD16 stride;
     CARD32 size;
     int format;
-    int cx, cy;
     Bool cursorUpdated;
 } arcanScrPriv;
 
 typedef struct _arcanInput {
     KdKeyboardInfo * ki;
     KdPointerInfo * pi;
+		uint8_t mstate[ASHMIF_MSTATE_SZ];
+		int wx, wy;
+		uint64_t bmask;
 } arcanInput;
 
 typedef struct _arcanConfig {
     const char* title;
     const char* ident;
+		const char* wmexec;
+		Bool miniwm;
     Bool no_dri3;
     Bool glamor;
     Bool present;
     Bool no_dynamic_resize;
-    Bool accel_cursor;
-    Bool mouse;
+    Bool soft_mouse;
 } arcanConfig;
 
 extern int arcanGlamor;
@@ -178,6 +184,7 @@ void arcanGlamorFini(ScreenPtr screen);
 
 void* arcanProxyWindowDispatch(struct proxyWindowData*);
 void* arcanClipboardDispatch(struct proxyWindowData*);
+void* arcanMiniWMDispatch(struct proxyWindowData*);
 
 /*
  * With RandR enabled, we treat the DISPLAYHINT events from parent
