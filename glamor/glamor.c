@@ -307,6 +307,10 @@ glamor_gldrawarrays_quads_using_indices(glamor_screen_private *glamor_priv,
 {
     unsigned i;
 
+    /* If there is no quads to draw, just exit */
+    if (count == 0)
+        return;
+
     /* For a single quad, don't bother with an index buffer. */
     if (count ==  1)
         goto fallback;
