@@ -84,9 +84,16 @@ xwl_present_window_get_priv(WindowPtr window)
 }
 
 static struct xwl_present_event *
-xwl_present_event_from_id(uint64_t event_id)
+xwl_present_event_from_id(WindowPtr present_window, uint64_t event_id)
 {
-    return (struct xwl_present_event*)(uintptr_t)event_id;
+    present_window_priv_ptr window_priv = present_get_window_priv(present_window, TRUE);
+    struct xwl_present_event *event;
+
+    xorg_list_for_each_entry(event, &window_priv->vblank, vblank.window_list) {
+        if (event->vblank.event_id == event_id)
+            return event;
+    }
+    return NULL;
 }
 
 static struct xwl_present_event *
@@ -546,7 +553,12 @@ xwl_present_queue_vblank(ScreenPtr screen,
 {
     struct xwl_present_window *xwl_present_window = xwl_present_window_get_priv(present_window);
     struct xwl_window *xwl_window = xwl_window_from_window(present_window);
-    struct xwl_present_event *event = xwl_present_event_from_id(event_id);
+    struct xwl_present_event *event = xwl_present_event_from_id(present_window, event_id);
+
+    if (!event) {
+        ErrorF("present: Error getting event\n");
+        return BadImplementation;
+    }
 
     event->vblank.exec_msc = msc;
 
