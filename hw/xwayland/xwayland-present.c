@@ -930,6 +930,7 @@ xwl_present_pixmap(WindowPtr window,
                    present_notify_ptr notifies,
                    int num_notifies)
 {
+    static uint64_t xwl_present_event_id;
     uint64_t                    ust = 0;
     uint64_t                    target_msc;
     uint64_t                    crtc_msc = 0;
@@ -995,7 +996,7 @@ xwl_present_pixmap(WindowPtr window,
         return BadAlloc;
     }
 
-    vblank->event_id = (uintptr_t)event;
+    vblank->event_id = ++xwl_present_event_id;
 
     /* Xwayland presentations always complete (at least) one frame after they
      * are executed
