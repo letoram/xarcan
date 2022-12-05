@@ -738,18 +738,15 @@ xwl_present_clear_window_flip(WindowPtr window)
 }
 
 static Bool
-xwl_present_flip(WindowPtr present_window,
-                 RRCrtcPtr crtc,
-                 uint64_t event_id,
-                 PixmapPtr pixmap,
-                 Bool sync_flip,
-                 RegionPtr damage)
+xwl_present_flip(present_vblank_ptr vblank, RegionPtr damage)
 {
+    WindowPtr present_window = vblank->window;
+    PixmapPtr pixmap = vblank->pixmap;
     struct xwl_window           *xwl_window = xwl_window_from_window(present_window);
     struct xwl_present_window   *xwl_present_window = xwl_present_window_priv(present_window);
     BoxPtr                      damage_box;
     struct wl_buffer            *buffer;
-    struct xwl_present_event    *event = xwl_present_event_from_id(event_id);
+    struct xwl_present_event    *event = xwl_present_event_from_vblank(vblank);
 
     if (!xwl_window)
         return FALSE;
@@ -787,7 +784,7 @@ xwl_present_flip(WindowPtr present_window,
 
     wl_surface_commit(xwl_window->surface);
 
-    if (!sync_flip) {
+    if (!vblank->sync_flip) {
         xwl_present_window->sync_callback =
             wl_display_sync(xwl_window->xwl_screen->display);
         wl_callback_add_listener(xwl_present_window->sync_callback,
@@ -851,8 +848,7 @@ xwl_present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
             } else
                 damage = RegionDuplicate(&window->clipList);
 
-            if (xwl_present_flip(vblank->window, vblank->crtc, vblank->event_id,
-                                 vblank->pixmap, vblank->sync_flip, damage)) {
+            if (xwl_present_flip(vblank, damage)) {
                 WindowPtr toplvl_window = xwl_present_toplvl_pixmap_window(vblank->window);
                 PixmapPtr old_pixmap = screen->GetWindowPixmap(window);
 
