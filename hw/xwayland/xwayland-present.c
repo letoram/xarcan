@@ -89,6 +89,12 @@ xwl_present_event_from_id(uint64_t event_id)
     return (struct xwl_present_event*)(uintptr_t)event_id;
 }
 
+static struct xwl_present_event *
+xwl_present_event_from_vblank(present_vblank_ptr vblank)
+{
+    return container_of(vblank, struct xwl_present_event, vblank);
+}
+
 static Bool entered_for_each_frame_callback;
 
 Bool
@@ -268,7 +274,7 @@ static void
 xwl_present_free_idle_vblank(present_vblank_ptr vblank)
 {
     present_pixmap_idle(vblank->pixmap, vblank->window, vblank->serial, vblank->idle_fence);
-    xwl_present_free_event(xwl_present_event_from_id((uintptr_t)vblank));
+    xwl_present_free_event(xwl_present_event_from_vblank(vblank));
 }
 
 static WindowPtr
@@ -306,7 +312,7 @@ xwl_present_flips_stop(WindowPtr window)
         struct xwl_present_event *event;
 
         vblank = xwl_present_window->flip_active;
-        event = xwl_present_event_from_id((uintptr_t)vblank);
+        event = xwl_present_event_from_vblank(vblank);
         if (event->pixmap)
             xwl_present_free_idle_vblank(vblank);
         else
@@ -336,7 +342,7 @@ xwl_present_flip_notify_vblank(present_vblank_ptr vblank, uint64_t ust, uint64_t
 
     if (xwl_present_window->flip_active) {
         struct xwl_present_event *event =
-            xwl_present_event_from_id((uintptr_t)xwl_present_window->flip_active);
+            xwl_present_event_from_vblank(xwl_present_window->flip_active);
 
         if (!event->pixmap)
             xwl_present_free_event(event);
