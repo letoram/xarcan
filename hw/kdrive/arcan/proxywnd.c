@@ -52,10 +52,10 @@ void *arcanProxyWindowDispatch(struct proxyWindowData* inWnd)
             );
 
     arcan_shmif_lock(inWnd->cont);
-		    struct proxyMapEntry *ent = ht_add(scrpriv->proxyMap, &window);
+        struct proxyMapEntry *ent = ht_add(scrpriv->proxyMap, &window);
         ent->vid = inWnd->arcan_vid;
         arcan_shmif_enqueue(inWnd->cont, &arcan_ev);
-	  arcan_shmif_unlock(inWnd->cont);
+    arcan_shmif_unlock(inWnd->cont);
 
     xcb_map_window(con, window);
     xcb_intern_atom_cookie_t iac_prot = xcb_intern_atom(con, 1, 12, "WM_PROTOCOLS");
@@ -84,9 +84,9 @@ void *arcanProxyWindowDispatch(struct proxyWindowData* inWnd)
     }
 
 out:
-		arcan_shmif_lock(inWnd->cont);
-		    ht_remove(scrpriv->proxyMap, &window);
-		arcan_shmif_unlock(inWnd->cont);
+    arcan_shmif_lock(inWnd->cont);
+        ht_remove(scrpriv->proxyMap, &window);
+    arcan_shmif_unlock(inWnd->cont);
     xcb_disconnect(con);
     free(inWnd);
     return NULL;

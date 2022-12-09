@@ -686,7 +686,8 @@ ProcShmGetImage(ClientPtr client)
     VERIFY_SHMSIZE(shmdesc, stuff->offset, length, client);
     xgi.size = length;
 
-    if (length == 0) {
+    pDraw->pScreen->DispatchReqSrc = client;
+		if (length == 0) {
         /* nothing to do */
     }
     else if (stuff->format == ZPixmap) {
@@ -719,6 +720,7 @@ ProcShmGetImage(ClientPtr client)
             }
         }
     }
+    pDraw->pScreen->DispatchReqSrc = NULL;
 
     if (client->swapped) {
         swaps(&xgi.sequenceNumber);

@@ -98,8 +98,8 @@ InitOutput(ScreenInfo * pScreenInfo, int argc, char **argv)
     KdInitOutput(pScreenInfo, argc, argv);
 
     if (wm_fd > -1){
-			TimerSet(NULL, 0, 1, add_client_fd, NULL);
-		}
+        TimerSet(NULL, 0, 1, add_client_fd, NULL);
+    }
 }
 
 void

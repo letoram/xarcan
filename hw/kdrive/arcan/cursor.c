@@ -98,19 +98,19 @@ mouseSpriteSet(DeviceIntPtr dev, ScreenPtr scr, CursorPtr cursor, int cx, int cy
 
 /* converge to the largest cursor size over time and just pad */
     if (cursor->bits->width > ccon->w || cursor->bits->height > ccon->h){
-        trace("cursor-resize (%d, %d)\n", ccon->w, ccon->h);
+        trace("cursor-resize (%d, %d) -> (%d, %d)\n", ccon->w, ccon->h, cursor->bits->width, cursor->bits->height);
         arcan_shmif_resize(ccon, cursor->bits->width, cursor->bits->height);
         memset(ccon->vidp, '\0', ccon->h * ccon->stride);
     }
 
 /* size to fit then blit and synch - trivial one */
     if (cursor->bits->argb){
-        trace("argb-cursor\n");
+        trace("argb-cursor (%d, %d)\n", cursor->bits->width, cursor->bits->height);
         for (size_t y = 0; y < ccon->h; y++){
             for (size_t x = 0; x < ccon->w; x++){
                 shmif_pixel cc = SHMIF_RGBA(0, 0, 0, 0);
                 if (x < cursor->bits->width && y < cursor->bits->height){
-                     cc = cursor->bits->argb[y * cursor->bits->width * 4 + x];
+                     cc = cursor->bits->argb[y * cursor->bits->width + x];
                 }
                 ccon->vidp[y * ccon->pitch + x] = cc;
             }
@@ -221,6 +221,7 @@ void arcanSynchCursor(arcanScrPriv *scr, Bool softUpdate)
     scr->cursor_event.ext.kind = ARCAN_EVENT(VIEWPORT);
     scr->cursor_event.ext.viewport.x = x;
     scr->cursor_event.ext.viewport.y = y;
+    scr->cursor_event.ext.viewport.invisible = !scr->cursorRealized;
 
 /* the synch request comes from a context where it isn't determinable if there
  * are more in the queue to collate in order to reduce backpressure, mark the

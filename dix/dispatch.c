@@ -492,10 +492,10 @@ Dispatch(void)
         if (!WaitForSomething(clients_are_ready()))
             continue;
 
-       /*****************
-	*  Handle events in round robin fashion, doing input between
-	*  each round
-	*****************/
+/*****************
+ *  Handle events in round robin fashion, doing input between
+ *  each round
+ *****************/
 
         if (!dispatchException && clients_are_ready()) {
             client = SmartScheduleClient();
@@ -1786,7 +1786,18 @@ ProcCopyArea(ClientPtr client)
     else
         pSrc = pDst;
 
-    pRgn = (*pGC->ops->CopyArea) (pSrc, pDst, pGC, stuff->srcX, stuff->srcY,
+     /* Common trick is to composite into an XShm backed pixmap as a way of
+      * performing screen capture (which can sidestep Xace censorImage etc.)
+      * The screen hook here is used to swap out the drawable to something
+      * else or stop it entirely. */
+
+     if (pSrc->pScreen->InterposeDrawableSrcDst){
+         pSrc = pSrc->pScreen->InterposeDrawableSrcDst(client, pSrc, pDst);
+         if (!pSrc){
+             return BadMatch;
+         }
+     }
+     pRgn = (*pGC->ops->CopyArea) (pSrc, pDst, pGC, stuff->srcX, stuff->srcY,
                                   stuff->width, stuff->height,
                                   stuff->dstX, stuff->dstY);
     if (pGC->graphicsExposures) {
@@ -2183,9 +2194,14 @@ DoGetImage(ClientPtr client, int format, Drawable drawable,
         relx += pDraw->x;
         rely += pDraw->y;
 
+        /* Before requesting a pixmap, provide which client that is currently
+         * trying to access the screen. This was added to the Screen structure
+         * in order to avoid changing the GetWindowPixmap interface directly
+         * as that change would transfer to many more parts of the codebase. */
         if (pDraw->pScreen->GetWindowPixmap) {
+            pDraw->pScreen->DispatchReqSrc = client;
             PixmapPtr pPix = (*pDraw->pScreen->GetWindowPixmap) (pWin);
-
+            pDraw->pScreen->DispatchReqSrc = NULL;
             pBoundingDraw = &pPix->drawable;
 #ifdef COMPOSITE
             relx -= pPix->screen_x;
@@ -3657,11 +3673,11 @@ ProcInitialConnection(ClientPtr client)
     prefix = (xConnClientPrefix *) ((char *)stuff + sz_xReq);
     order = prefix->byteOrder;
     if (order != 'l' && order != 'B' && order != 'r' && order != 'R')
-	return client->noClientException = -1;
+        return client->noClientException = -1;
     if (((*(char *) &whichbyte) && (order == 'B' || order == 'R')) ||
-	(!(*(char *) &whichbyte) && (order == 'l' || order == 'r'))) {
-	client->swapped = TRUE;
-	SwapConnClientPrefix(prefix);
+        (!(*(char *) &whichbyte) && (order == 'l' || order == 'r'))) {
+            client->swapped = TRUE;
+            SwapConnClientPrefix(prefix);
     }
     stuff->reqType = 2;
     stuff->length += bytes_to_int32(prefix->nbytesAuthProto) +
@@ -3670,7 +3686,7 @@ ProcInitialConnection(ClientPtr client)
         swaps(&stuff->length);
     }
     if (order == 'r' || order == 'R') {
-	client->local = FALSE;
+        client->local = FALSE;
     }
     ResetCurrentRequest(client);
     return Success;
@@ -3752,7 +3768,7 @@ SendConnSetup(ClientPtr client, const char *reason)
     else {
         WriteToClient(client, sizeof(xConnSetupPrefix), lconnSetupPrefix);
         WriteToClient(client, (int) (lconnSetupPrefix->length << 2),
-		      lConnectionInfo);
+                      lConnectionInfo);
     }
     client->clientState = ClientStateRunning;
     if (ClientStateCallback) {
@@ -3781,8 +3797,8 @@ ProcEstablishConnection(ClientPtr client)
     auth_string = auth_proto + pad_to_int32(prefix->nbytesAuthProto);
 
     if ((client->req_len << 2) != sz_xReq + sz_xConnClientPrefix +
-	pad_to_int32(prefix->nbytesAuthProto) +
-	pad_to_int32(prefix->nbytesAuthString))
+        pad_to_int32(prefix->nbytesAuthProto) +
+        pad_to_int32(prefix->nbytesAuthString))
         reason = "Bad length";
     else if ((prefix->majorVersion != X_PROTOCOL) ||
         (prefix->minorVersion != X_PROTOCOL_REVISION))
@@ -3894,11 +3910,10 @@ static int indexForScanlinePad[65] = {
 };
 
 /*
-	grow the array of screenRecs if necessary.
-	call the device-supplied initialization procedure
-with its screen number, a pointer to its ScreenRec, argc, and argv.
-	return the number of successfully installed screens.
-
+ * grow the array of screenRecs if necessary.
+ * call the device-supplied initialization procedure
+ * with its screen number, a pointer to its ScreenRec, argc, and argv.
+ * return the number of successfully installed screens.
 */
 
 static int init_screen(ScreenPtr pScreen, int i, Bool gpu)

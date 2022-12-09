@@ -48,6 +48,10 @@ typedef struct _arcanScrPriv {
     arcan_event cursor_event;
     Bool cursorRealized;
 
+    struct arcan_shmif_cont redirectSegments[64];
+    uint64_t redirectBitmap;
+    Bool defaultRootless;
+
 #ifdef RANDR
     RROutputPtr randrOutput;
     RRCrtcPtr randrCrtc;
@@ -70,6 +74,9 @@ typedef struct _arcanScrPriv {
         CreateWindowProcPtr createWindow;
         MarkOverlappedWindowsProcPtr markOverlappedWindows;
         GetImageProcPtr getImage;
+        SetWindowPixmapProcPtr setWindowPixmap;
+        GetWindowPixmapProcPtr getWindowPixmap;
+        InterposeDrawableSrcDstProcPtr interposeDrawableSrcDst;
     } hooks;
 
     HashTable proxyMap;
@@ -89,16 +96,16 @@ typedef struct _arcanScrPriv {
 typedef struct _arcanInput {
     KdKeyboardInfo * ki;
     KdPointerInfo * pi;
-		uint8_t mstate[ASHMIF_MSTATE_SZ];
-		int wx, wy;
-		uint64_t bmask;
+    uint8_t mstate[ASHMIF_MSTATE_SZ];
+    int wx, wy;
+    uint64_t bmask;
 } arcanInput;
 
 typedef struct _arcanConfig {
     const char* title;
     const char* ident;
-		const char* wmexec;
-		Bool miniwm;
+    const char* wmexec;
+    Bool miniwm;
     Bool no_dri3;
     Bool glamor;
     Bool present;
