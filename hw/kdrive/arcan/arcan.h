@@ -37,6 +37,13 @@ struct pixmap_ext {
     unsigned int texture;
 };
 
+struct redirectMeta {
+	struct arcan_shmif_cont *C;
+	DamagePtr damage;
+  PixmapPtr pmap;
+	bool redirected;
+};
+
 struct gbm_bo;
 typedef struct _arcanScrPriv {
     struct arcan_shmif_cont *acon, *cursor;
@@ -48,8 +55,8 @@ typedef struct _arcanScrPriv {
     arcan_event cursor_event;
     Bool cursorRealized;
 
-    struct arcan_shmif_cont redirectSegments[64];
-    uint64_t redirectBitmap;
+    struct redirectMeta redirectSegments[64];
+    uint64_t redirectBitmap, dirtyBitmap;
     Bool defaultRootless;
 
 #ifdef RANDR
@@ -111,6 +118,7 @@ typedef struct _arcanConfig {
     Bool present;
     Bool no_dynamic_resize;
     Bool soft_mouse;
+		Bool redirect;
 } arcanConfig;
 
 extern int arcanGlamor;

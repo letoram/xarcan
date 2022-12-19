@@ -12,6 +12,7 @@
 #include <pthread.h>
 #include <xcb/xcb.h>
 #include <sys/wait.h>
+#include "compint.h"
 
 #ifdef GLAMOR
 #define EGL_NO_X11
@@ -165,6 +166,28 @@ static arcanScrPriv* getArcanScreen(WindowPtr wnd)
     return scrpriv;
  }
 
+static struct redirectMeta* redirectForWindow(WindowPtr wnd)
+{
+    arcanScrPriv *scr = getArcanScreen(wnd);
+    for (size_t i = 0; i < 64; i++){
+        if (!scr->redirectSegments[i].C)
+            continue;
+        if (scr->redirectSegments[i].C->user == (void *)wnd)
+            return &scr->redirectSegments[i];
+    }
+    return NULL;
+}
+
+static void updateDirty(struct arcan_shmif_cont *C, DamagePtr damage)
+{
+    RegionPtr region = DamageRegion(damage);
+    if (!RegionNotEmpty(region))
+        return;
+
+    BoxPtr box = RegionExtents(region);
+    arcan_shmif_dirty(C, box->x1, box->y1, box->x2, box->y2, 0);
+}
+
 static void arcanGetImage(DrawablePtr pDrawable, int sx, int sy, int w, int h,
                           unsigned int format, unsigned long planeMask, char *pdstLine)
 {
@@ -200,6 +223,17 @@ static PixmapPtr arcanGetWindowPixmap(WindowPtr wnd)
     KdScreenInfo *screen = pScreenPriv->screen;
     arcanScrPriv *scrpriv = screen->driver;
     PixmapPtr res = NULL;
+
+/*
+ * for (size_t i = 0; i < 64; i++){
+      if (!scrpriv->redirectSegments[i].C)
+        continue;
+      if (wnd == scrpriv->redirectSegments[i].C->user){
+        trace("return intercept");
+        return scrpriv->redirectSegments[i].pmap;
+      }
+    }
+ */
 
 /* Reject or substitute DispatchReqScr if the window has been marked as
  * protected. */
@@ -241,6 +275,8 @@ static void sendWndData(WindowPtr wnd, int depth, int max_depth, void* tag)
  * don't saturate the event-queue with a pile-up */
     int bw = wnd->borderWidth;
 
+/* the stacking order could be reconstructed through miXYToWindow with
+ * the pSprite structure from miXYToWindow actually */
     struct arcan_event out = (struct arcan_event)
     {
        .category = EVENT_EXTERNAL,
@@ -276,33 +312,12 @@ static void sendWndData(WindowPtr wnd, int depth, int max_depth, void* tag)
 
 static void checkWindowSegmentMapping(arcanScrPriv *ascr, WindowPtr wnd)
 {
-    if (!ascr->defaultRootless || 0)
+    if (!ascr->defaultRootless || !wnd->parent)
         return;
 
-    struct arcan_shmif_cont* reuse = NULL;
-    for (size_t i = 0; i < 64; i++){
-        if (ascr->redirectSegments[i].addr && !ascr->redirectSegments[i].user){
-            reuse = &ascr->redirectSegments[i];
-            reuse->user = wnd;
-        }
-        return;
-    }
-
-/* Fixme: redirect
- *  if we don't have a surface ready for the window, request one and
- *  prepare to swap out the surface when we do.
- *
- *  the resize call should be swapped out for a thread runner queue
- *  that signals when it has been ack:ed
- *
- *  Use a cached pool of up to N windows and viewport visibility for
- *  them in order to avoid the allocation overhead each time (though
- *  trading for resize might not be that much better).
- *
- *  Then check window->drawable.class for InputOutput and parent to be
- *  root as any of our immediate children will be within the bounding
- *  box that gets redirected into.
- */
+/* the only difference between the interactive form is that the segment request
+ * is triggered by a message command in the interactive form, the other paths
+ * are the same. */
     if (ascr->defaultRootless && wnd->drawable.class == InputOutput){
         ARCAN_ENQUEUE(ascr->acon, &(struct arcan_event){
             .ext.kind = ARCAN_EVENT(SEGREQ),
@@ -367,6 +382,12 @@ static Bool arcanRealizeWindow(WindowPtr wnd)
     arcanScrPriv *ascr = getArcanScreen(wnd);
     trace("realizeWindow(%d)", (int) wnd->drawable.id);
 
+    struct redirectMeta* rmeta = redirectForWindow(wnd);
+    if (rmeta && !rmeta->redirected){
+        compRedirectWindow(serverClient, wnd, CompositeRedirectManual);
+        rmeta->redirected = true;
+    }
+
     if (ascr->hooks.realizeWindow){
         ascr->screen->RealizeWindow = ascr->hooks.realizeWindow;
         rv = ascr->hooks.realizeWindow(wnd);
@@ -397,6 +418,13 @@ static Bool arcanUnrealizeWindow(WindowPtr wnd)
     arcanScrPriv *ascr = getArcanScreen(wnd);
     trace("UnrealizeWindow(%d)", (int) wnd->drawable.id);
     Bool rv = true;
+
+/* remove any active redirection */
+    struct redirectMeta* rmeta = redirectForWindow(wnd);
+    if (rmeta && rmeta->redirected){
+        compUnredirectWindow(serverClient, wnd, CompositeRedirectManual);
+        rmeta->redirected = false;
+    }
 
     if (ascr->hooks.unrealizeWindow){
         ascr->screen->UnrealizeWindow = ascr->hooks.unrealizeWindow;
@@ -536,6 +564,13 @@ arcanResizeWindow(WindowPtr wnd, int x, int y, unsigned w, unsigned h, WindowPtr
         ascr->hooks.resizeWindow(wnd, x, y, w, h, sibling);
         ascr->screen->ResizeWindow = arcanResizeWindow;
     }
+    struct redirectMeta* rmeta = redirectForWindow(wnd);
+    if (rmeta){
+        struct arcan_shmif_cont *C = rmeta->C;
+        arcan_shmif_resize(C, w, h);
+        ascr->screen->ModifyPixmapHeader(rmeta->pmap, C->w, C->h, 24, BitsPerPixel(24), C->stride, C->vidp);
+    }
+
 /* note: changeWindowAttributes tell us (SubstructureRedirectMask | ResizeRedirectMask)
  *       if the client is a window manager or not, and if the direct parent of a window
  *       is the window manager, or we have manually marked the window as having its own
@@ -706,6 +741,7 @@ arcanDisplayHint(struct arcan_shmif_cont* con,
     if (fl & 4){
         for (size_t i = 0; i < sizeof(code_tbl) / sizeof(code_tbl[0]); i++){
             if (code_tbl[i]){
+                trace("force-release:%d", code_tbl[i]);
                 enqueueKeyboard(i, 1);
                 code_tbl[i] = 0;
             }
@@ -782,15 +818,14 @@ arcanSignal(struct arcan_shmif_cont* con, bool dirty)
          synchTreeDepth(scrpriv, scrpriv->screen->root, sendWndData, false, con);
 
     RegionPtr region;
-    BoxPtr box;
     bool in_glamor = false;
 
     region = DamageRegion(scrpriv->damage);
+    updateDirty(scrpriv->acon, scrpriv->damage);
+    arcanSynchCursor(scrpriv, false);
 
     if (!RegionNotEmpty(region))
         return;
-
-    arcanSynchCursor(scrpriv, false);
 
 /*
  * We don't use fine-grained dirty regions really, the data gathered gave
@@ -798,19 +833,6 @@ arcanSignal(struct arcan_shmif_cont* con, bool dirty)
  * magic ratio where subtex- update vs full texture update tipped in favor
  * of the latter.
  */
-    box = RegionExtents(region);
-    if (box->x1 < scrpriv->acon->dirty.x1)
-        scrpriv->acon->dirty.x1 = box->x1;
-
-    if (box->x2 > scrpriv->acon->dirty.x2)
-        scrpriv->acon->dirty.x2 = box->x2;
-
-    if (box->y1 < scrpriv->acon->dirty.y1)
-        scrpriv->acon->dirty.y1 = box->y1;
-
-    if (box->y2 > scrpriv->acon->dirty.y2)
-        scrpriv->acon->dirty.y2 = box->y2;
-
 #ifdef GLAMOR
     in_glamor = scrpriv->in_glamor;
     if (in_glamor){
@@ -844,15 +866,11 @@ arcanSignal(struct arcan_shmif_cont* con, bool dirty)
 /* The other bit is that we might want to be able to toggle to front-buffer
  * only scanout, the mechanism for that is through DEVICE_NODE providing a
  * different vbuffer, we swap the signalling buffer and then rely on the
- * VSIGNAL to carry. */
+ * VSIGNAL to carry. The dirty region is reset on signal. */
     if (!in_glamor)
         arcan_shmif_signal(con, SHMIF_SIGVID | SHMIF_SIGBLK_NONE);
 
     DamageEmpty(scrpriv->damage);
-    con->dirty.x1 = con->w;
-    con->dirty.y1 = con->h;
-    con->dirty.y2 = 0;
-    con->dirty.x2 = 0;
     scrpriv->dirty = false;
 }
 
@@ -1092,6 +1110,22 @@ cmdReconfigureWindow(int32_t x, int32_t y, uint32_t w, uint32_t h, bool xy, XID 
      }
 }
 
+static void
+cmdRedirectWindow(struct arcan_shmif_cont *con, XID id)
+{
+    WindowPtr res;
+    if (Success != dixLookupResourceByType((void**) &res, id, RT_WINDOW, NULL, DixWriteAccess))
+        return;
+
+    arcan_shmif_enqueue(con, &(struct arcan_event){
+            .ext.kind = ARCAN_EVENT(SEGREQ),
+            .ext.segreq.width = res->drawable.width,
+            .ext.segreq.height = res->drawable.height,
+            .ext.segreq.kind = SEGID_BRIDGE_X11,
+            .ext.segreq.id = id
+        });
+}
+
 static
 void
 decodeMessage(struct arcan_shmif_cont* con, const char* msg)
@@ -1114,6 +1148,12 @@ decodeMessage(struct arcan_shmif_cont* con, const char* msg)
 
     bool newwnd = strcmp(kind, "new") == 0;
     bool modwnd = strcmp(kind, "configure") == 0;
+    bool redirwnd = strcmp(kind, "redirect") == 0;
+
+    if (redirwnd){
+        cmdRedirectWindow(con, id);
+        return;
+    }
 
 /* it's noisy so only enable on demand */
     if (strcmp(kind, "synch") == 0){
@@ -1146,9 +1186,99 @@ cleanup:
 }
 
 static void
-handleNewSegment(struct arcan_shmif_cont *C, arcanScrPriv *S, int kind)
+damageReport(DamagePtr damage, RegionPtr region, void *tag)
 {
-    if (kind == SEGID_CLIPBOARD || kind == SEGID_CLIPBOARD_PASTE){
+/* forward the damage rect to the shmif, with SUBREGION_CHAIN (if it gets
+ * implemented) we can signal here already and not think about the blocking,
+ * otherwise just mark now and let the present or block-handler trigger */
+    struct arcan_shmif_cont *C = tag;
+    updateDirty(C, damage);
+    arcanScrPriv* ascr = getArcanScreen((WindowPtr)C->user);
+    ascr->dirtyBitmap = 1;
+}
+
+static void
+damageDestroy(DamagePtr damage, void *tag)
+{
+}
+
+static PixmapPtr
+pixmapFromShmif(ScreenPtr pScreen, struct arcan_shmif_cont *C, unsigned usage)
+{
+    PixmapPtr pPixmap = AllocatePixmap(pScreen, 0);
+    if (!pPixmap)
+        return pPixmap;
+
+    pPixmap->drawable.type = DRAWABLE_PIXMAP;
+    pPixmap->drawable.class = 0;
+    pPixmap->drawable.pScreen = pScreen;
+    pPixmap->drawable.bitsPerPixel = 24;
+    pPixmap->drawable.id = 0;
+    pPixmap->drawable.serialNumber = NEXT_SERIAL_NUMBER;
+    pPixmap->drawable.x = 0;
+    pPixmap->drawable.y = 0;
+    pPixmap->drawable.width = C->w;
+    pPixmap->drawable.height = C->h;
+    pPixmap->refcnt = 1;
+    pPixmap->devPrivate.ptr = NULL;
+    pPixmap->primary_pixmap = NULL;
+    pPixmap->screen_x = 0;
+    pPixmap->screen_y = 0;
+    pPixmap->usage_hint = usage;
+    pScreen->ModifyPixmapHeader(pPixmap, C->w, C->h, 24, BitsPerPixel(24), C->stride, C->vidp);
+    return pPixmap;
+/* mark it in our static list, walk it and set user for it */
+}
+
+static void
+redirectWindow(arcanScrPriv *S, WindowPtr wnd, struct arcan_shmif_cont *C)
+{
+/* RHINT_IGNORE_ALPHA, CSPACE_SRGB, ORIGO_UL */
+    C->hints = SHMIF_RHINT_SUBREGION | SHMIF_RHINT_CSPACE_SRGB;
+    arcan_shmif_resize(C, wnd->drawable.width, wnd->drawable.height);
+    PixmapPtr pmap = pixmapFromShmif(wnd->drawable.pScreen, C, CREATE_PIXMAP_USAGE_BACKING_PIXMAP);
+
+/* if we just redirect a single window into a separate shmif buffer, Auto is fine to keep the
+ * screen pixmap intact (though could defer that based on displayhint visibility) */
+    compRedirectWindow(serverClient, wnd, CompositeRedirectManual);
+    C->user = wnd;
+
+/* add to tracking bitmap, should perhaps chunk this into groups and cap at a k windows or sth */
+    uint64_t i = __builtin_ffsll(~S->redirectBitmap);
+    if (0 == i){
+        return;
+    }
+
+/* Attach a damage tracker that will track dirty updates and rectangles used
+ * for the blit from the redirected backing pixmap to the context one. It
+ * should be possible to compSetPixmap the shm segment directly and save a full
+ * copy(!) but there seem to be quite some patching needed to make sure the x/y
+ * positions of the window adjust into the buffer when the GC is working on it.
+ */
+    C->dirty = (struct arcan_shmif_region){0};
+    S->redirectBitmap |= (uint64_t)1 << (i-1);
+    S->redirectSegments[i].C = C;
+    S->redirectSegments[i].redirected = true;
+    S->redirectSegments[i].pmap = pmap;
+    S->redirectSegments[i].damage = DamageCreate(
+                                               damageReport,
+                                               damageDestroy,
+                                               DamageReportNonEmpty,
+                                               FALSE, S->screen, C
+                                              );
+    DamageRegister(&wnd->drawable, S->redirectSegments[i].damage);
+    DamageSetReportAfterOp(S->redirectSegments[i].damage, true);
+
+/* if we got glamor / dri3 then accelerate the segment as well and n-buffer */
+}
+
+static void
+handleNewSegment(struct arcan_shmif_cont *C, arcanScrPriv *S, int kind, bool out, unsigned id)
+{
+    if (out){
+        /* handle interpositioning of root or specific XID - do we need explicit copy for Xshm? */
+    }
+    else if (kind == SEGID_CLIPBOARD || kind == SEGID_CLIPBOARD_PASTE){
         struct arcan_shmif_cont *clip = malloc(sizeof(struct arcan_shmif_cont));
         *clip = arcan_shmif_acquire(C, NULL, kind, 0);
         cmdClipboardWindow(clip, kind == SEGID_CLIPBOARD_PASTE);
@@ -1163,9 +1293,16 @@ handleNewSegment(struct arcan_shmif_cont *C, arcanScrPriv *S, int kind)
             *(S->cursor) = arcan_shmif_acquire(C, NULL, SEGID_CURSOR, 0);
         }
     }
-/* Other types of note is an X11 one where the other .iv carries either the XID
- * of the corresponding parent window that we should redirect OR it becomes a
- * new screen for multi-screen output */
+    else if (id){
+        WindowPtr wnd;
+        if (Success != dixLookupResourceByType((void**) &wnd, id, RT_WINDOW, NULL, DixWriteAccess)){
+            trace("redirect on unknown ID");
+            return;
+        }
+        struct arcan_shmif_cont *pxout = malloc(sizeof(struct arcan_shmif_cont));
+        *pxout = arcan_shmif_acquire(C, NULL, kind, 0);
+        redirectWindow(S, wnd, pxout);
+    }
 }
 
 void
@@ -1235,7 +1372,7 @@ arcanFlushEvents(int fd, void* tag)
             break;
 
             case TARGET_COMMAND_NEWSEGMENT:
-                handleNewSegment(con, con->user, ev.tgt.ioevs[2].iv);
+                handleNewSegment(con, con->user, ev.tgt.ioevs[2].iv, ev.tgt.ioevs[1].iv, ev.tgt.ioevs[3].uiv);
             break;
             case TARGET_COMMAND_EXIT:
                 input_unlock();
@@ -1608,6 +1745,37 @@ arcanUnmapFramebuffer(KdScreenInfo * screen)
     priv->base = NULL;
  */
     return TRUE;
+}
+
+static void
+redirectSignalDirty(struct redirectMeta *M)
+{
+/* If we do this manually, re-extract the extents from ->C and GC copy, also
+ * resize. Two big optimizations is to move this to a worker thread, to let the
+ * backing store be handled by XComposite and ofc. dri- buffers */
+    WindowPtr pWnd = M->C->user;
+    arcanScrPriv* ascr = getArcanScreen(pWnd);
+    struct arcan_shmif_region dirty = M->C->dirty;
+    int x = dirty.x1;
+    int y = dirty.y1;
+    int h = dirty.y2 - y;
+    int w = dirty.x2 - x;
+
+    if (w < 0 || h < 0 || (!w && !h))
+        return;
+
+    GCPtr pGC = GetScratchGC(pWnd->drawable.depth, ascr->screen);
+    if (!pGC)
+        return;
+
+    /* the src-x,y should take borderwidth into account */
+    ValidateGC(&M->pmap->drawable, pGC);
+    (void) (*pGC->ops->CopyArea)(&pWnd->drawable,
+                                 &M->pmap->drawable, pGC,
+                                 x, y, w, y, x, y);
+    FreeScratchGC(pGC);
+    arcan_shmif_signal(M->C, SHMIF_SIGVID | SHMIF_SIGBLK_NONE);
+    DamageEmpty(M->damage);
 }
 
 int arcanInit(void)
@@ -2273,6 +2441,7 @@ static void
 arcanSetWindowPixmap(WindowPtr wnd, PixmapPtr pixmap)
 {
     arcanScrPriv* ascr = getArcanScreen(wnd);
+    trace("replace_pixmap:id=%d", wnd->drawable.id);
     if (ascr->hooks.setWindowPixmap){
         ascr->screen->SetWindowPixmap = ascr->hooks.setWindowPixmap;
         ascr->hooks.setWindowPixmap(wnd, pixmap);
@@ -2287,18 +2456,22 @@ arcanScreenBlockHandler(ScreenPtr pScreen, void* timeout)
     KdScreenInfo *screen = pScreenPriv->screen;
     arcanScrPriv *scrpriv = screen->driver;
 
-/*
- * This one is rather unfortunate as it seems to be called 'whenever' and we
- * don't know the synch- state of the contents in the buffer. At the same
- * time, it doesn't trigger when idle- so we can't just skip synching and wait
- * for the next one. We can also set the context to be in event-frame delivery
- * mode and use the STEPFRAME event as a trigger to signal-if-dirty
- */
-//    trace("arcanScreenBlockHandler(%lld)",(long long) currentTime.milliseconds);
     pScreen->BlockHandler = scrpriv->BlockHandler;
     (*pScreen->BlockHandler)(pScreen, timeout);
     scrpriv->BlockHandler = pScreen->BlockHandler;
     pScreen->BlockHandler = arcanScreenBlockHandler;
+
+    /* just signal them all, will be a nop if there is nothing pending */
+    if (scrpriv->redirectBitmap && scrpriv->dirtyBitmap)
+    {
+        for (size_t i = 0; i < 64; i++){
+            if (!scrpriv->redirectSegments[i].C)
+                continue;
+
+            redirectSignalDirty(&scrpriv->redirectSegments[i]);
+            scrpriv->dirtyBitmap = 0;
+        }
+    }
 
     if (scrpriv->damage)
         arcanInternalDamageRedisplay(pScreen);
@@ -2476,6 +2649,9 @@ arcanFinishInitScreen(ScreenPtr pScreen)
 #endif
 
     arcan_shmif_mousestate_setup(scrpriv->acon, false, arcanInputPriv.mstate);
+    if (arcanConfigPriv.redirect)
+        scrpriv->defaultRootless = true;
+
     cmdSpawnBuiltinWM();
     return TRUE;
 }

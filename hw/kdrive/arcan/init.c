@@ -176,6 +176,7 @@ ddxUseMsg(void)
 		ErrorF("-miniwm                Use instead of -wmexec\n");
     ErrorF("-present               Enable PRESENT extension (experimental)\n");
     ErrorF("-softmouse             Force pre-composed non-accelerade mouse cursor\n");
+		ErrorF("-redirect              Default-redirect new toplevel windows\n");
 #ifdef GLAMOR
     ErrorF("-glamor                Enable glamor rendering\n");
 #endif
@@ -247,6 +248,10 @@ ddxProcessArgument(int argc, char **argv, int i)
         arcanConfigPriv.soft_mouse = true;
 				return 1;
     }
+		else if (strcmp(argv[i], "-redirect") == 0){
+		    arcanConfigPriv.redirect = true;
+				return 1;
+		}
     return KdProcessArgument(argc, argv, i);
 }
 
