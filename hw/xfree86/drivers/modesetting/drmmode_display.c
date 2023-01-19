@@ -1922,6 +1922,7 @@ drmmode_set_gamma_lut(drmmode_crtc_private_ptr drmmode_crtc,
         lut[i].red = red[i];
         lut[i].green = green[i];
         lut[i].blue = blue[i];
+        lut[i].reserved = 0;
     }
 
     if (drmModeCreatePropertyBlob(drmmode->fd, lut, sizeof(lut), &blob_id))
