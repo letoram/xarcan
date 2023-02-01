@@ -307,9 +307,16 @@ xwl_glamor_gbm_create_pixmap_internal(struct xwl_screen *xwl_screen,
                                          &num_modifiers, &modifiers);
             }
 
-            if (num_modifiers > 0)
+            if (num_modifiers > 0) {
+#ifdef GBM_BO_WITH_MODIFIERS2
+                bo = gbm_bo_create_with_modifiers2(xwl_gbm->gbm, width, height,
+                                                   format, modifiers, num_modifiers,
+                                                   GBM_BO_USE_RENDERING);
+#else
                 bo = gbm_bo_create_with_modifiers(xwl_gbm->gbm, width, height,
                                                   format, modifiers, num_modifiers);
+#endif
+            }
             free(modifiers);
         }
 #endif
