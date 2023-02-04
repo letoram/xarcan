@@ -1790,12 +1790,11 @@ drmmode_set_cursor_position(xf86CrtcPtr crtc, int x, int y)
 }
 
 static Bool
-drmmode_set_cursor(xf86CrtcPtr crtc)
+drmmode_set_cursor(xf86CrtcPtr crtc, int width, int height)
 {
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
     drmmode_ptr drmmode = drmmode_crtc->drmmode;
     uint32_t handle = drmmode_crtc->cursor_bo->handle;
-    modesettingPtr ms = modesettingPTR(crtc->scrn);
     CursorPtr cursor = xf86CurrentCursor(crtc->scrn->pScreen);
     int ret = -EINVAL;
 
@@ -1803,14 +1802,14 @@ drmmode_set_cursor(xf86CrtcPtr crtc)
 	    return TRUE;
 
     ret = drmModeSetCursor2(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
-                            handle, ms->cursor_width, ms->cursor_height,
+                            handle, width, height,
                             cursor->bits->xhot, cursor->bits->yhot);
 
     /* -EINVAL can mean that an old kernel supports drmModeSetCursor but
      * not drmModeSetCursor2, though it can mean other things too. */
     if (ret == -EINVAL)
         ret = drmModeSetCursor(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
-                               handle, ms->cursor_width, ms->cursor_height);
+                               handle, width, height);
 
     /* -ENXIO normally means that the current drm driver supports neither
      * cursor_set nor cursor_set2.  Disable hardware cursor support for
@@ -1826,6 +1825,10 @@ drmmode_set_cursor(xf86CrtcPtr crtc)
     if (ret)
         /* fallback to swcursor */
         return FALSE;
+
+    drmmode_crtc->cursor_width = width;
+    drmmode_crtc->cursor_height = height;
+
     return TRUE;
 }
 
@@ -1842,31 +1845,55 @@ static Bool
 drmmode_load_cursor_argb_check(xf86CrtcPtr crtc, CARD32 *image)
 {
     modesettingPtr ms = modesettingPTR(crtc->scrn);
+    CursorPtr cursor = xf86CurrentCursor(crtc->scrn->pScreen);
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-    int i;
+    int width, height, x, y, i;
     uint32_t *ptr;
 
     /* cursor should be mapped already */
     ptr = (uint32_t *) (drmmode_crtc->cursor_bo->ptr);
 
-    for (i = 0; i < ms->cursor_width * ms->cursor_height; i++)
-        ptr[i] = image[i];      // cpu_to_le32(image[i]);
+    /* FIXME deal with rotation */
+    if (crtc->rotation == RR_Rotate_0) {
+        for (width = ms->min_cursor_width; width < cursor->bits->width; )
+            width *= 2;
+        for (height = ms->min_cursor_height; height < cursor->bits->height; )
+            height *= 2;
+
+        /* assume only square works for now */
+        width = height = max(width, height);
+
+        /* if the max limits aren't square+POT we may have gone a bit over */
+        width = min(width, ms->max_cursor_width);
+        height = min(height, ms->max_cursor_height);
+    } else {
+        width = ms->max_cursor_width;
+        height = ms->max_cursor_height;
+    }
+
+    i = 0;
+    for (y = 0; y < height; y++) {
+        for (x = 0; x < width; x++)
+            ptr[i++] = image[y * ms->max_cursor_width + x];      // cpu_to_le32(image[i]);
+    }
+    /* clear the remainder for good measure */
+    for (; i < ms->max_cursor_width * ms->max_cursor_height; i++)
+        ptr[i++] = 0;
 
     if (drmmode_crtc->cursor_up)
-        return drmmode_set_cursor(crtc);
+        return drmmode_set_cursor(crtc, width, height);
     return TRUE;
 }
 
 static void
 drmmode_hide_cursor(xf86CrtcPtr crtc)
 {
-    modesettingPtr ms = modesettingPTR(crtc->scrn);
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
     drmmode_ptr drmmode = drmmode_crtc->drmmode;
 
     drmmode_crtc->cursor_up = FALSE;
     drmModeSetCursor(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id, 0,
-                     ms->cursor_width, ms->cursor_height);
+                     drmmode_crtc->cursor_width, drmmode_crtc->cursor_height);
 }
 
 static Bool
@@ -1874,7 +1901,7 @@ drmmode_show_cursor(xf86CrtcPtr crtc)
 {
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
     drmmode_crtc->cursor_up = TRUE;
-    return drmmode_set_cursor(crtc);
+    return drmmode_set_cursor(crtc, drmmode_crtc->cursor_width, drmmode_crtc->cursor_height);
 }
 
 static void
@@ -4330,6 +4357,52 @@ drmmode_uevent_fini(ScrnInfoPtr scrn, drmmode_ptr drmmode)
 #endif
 }
 
+static void drmmode_probe_cursor_size(xf86CrtcPtr crtc)
+{
+    modesettingPtr ms = modesettingPTR(crtc->scrn);
+    drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+    uint32_t handle = drmmode_crtc->cursor_bo->handle;
+    drmmode_ptr drmmode = drmmode_crtc->drmmode;
+    int width, height, size;
+
+    /* probe square min first */
+    for (size = 1; size <= ms->max_cursor_width &&
+             size <= ms->max_cursor_height; size *= 2) {
+        int ret;
+
+        ret = drmModeSetCursor2(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
+                                handle, size, size, 0, 0);
+        if (ret == 0)
+            break;
+    }
+
+    /* check if smaller width works with non-square */
+    for (width = 1; width <= size; width *= 2) {
+        int ret;
+
+        ret = drmModeSetCursor2(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
+                                handle, width, size, 0, 0);
+        if (ret == 0) {
+            ms->min_cursor_width = width;
+            break;
+        }
+    }
+
+    /* check if smaller height works with non-square */
+    for (height = 1; height <= size; height *= 2) {
+        int ret;
+
+        ret = drmModeSetCursor2(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
+                                handle, size, height, 0, 0);
+        if (ret == 0) {
+            ms->min_cursor_height = height;
+            break;
+        }
+    }
+
+    drmModeSetCursor2(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id, 0, 0, 0, 0, 0);
+}
+
 /* create front and cursor BOs */
 Bool
 drmmode_create_initial_bos(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
@@ -4349,8 +4422,8 @@ drmmode_create_initial_bos(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
         return FALSE;
     pScrn->displayWidth = drmmode_bo_get_pitch(&drmmode->front_bo) / cpp;
 
-    width = ms->cursor_width;
-    height = ms->cursor_height;
+    width = ms->max_cursor_width;
+    height = ms->max_cursor_height;
     bpp = 32;
     for (i = 0; i < xf86_config->num_crtc; i++) {
         xf86CrtcPtr crtc = xf86_config->crtc[i];
@@ -4359,6 +4432,14 @@ drmmode_create_initial_bos(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
         drmmode_crtc->cursor_bo =
             dumb_bo_create(drmmode->fd, width, height, bpp);
     }
+
+    drmmode_probe_cursor_size(xf86_config->crtc[0]);
+
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, MS_LOGLEVEL_DEBUG,
+                   "Supported cursor sizes %dx%d -> %dx%d\n",
+                   ms->min_cursor_width, ms->min_cursor_height,
+                   ms->max_cursor_width, ms->max_cursor_height);
+
     return TRUE;
 }
 

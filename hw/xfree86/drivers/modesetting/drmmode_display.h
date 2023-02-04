@@ -222,6 +222,8 @@ typedef struct {
 
     uint64_t next_msc;
 
+    int cursor_width, cursor_height;
+
     Bool need_modeset;
     struct xorg_list mode_list;
 
