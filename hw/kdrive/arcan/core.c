@@ -1,6 +1,21 @@
 /*
  * The kdrive bits have slowly been migrated away from, can almost
  * stop using it entirely soon.
+ *
+ * Rough notes on what it is missing:
+ *
+ *  - the order value for reconstructing composition hierarch is not correct
+ *
+ *  - to get better .utf8 handling for input, consider injecting us as an XIM
+ *    and use that to provide the actual text.
+ *
+ *  - per-client rootless / hybrid are incomplete:
+ *    * subwindows don't get remapped
+ *    * remap by default is untested (likely lots of input focus things(
+ *
+ *  - present clients not handled
+ *
+ *  - modeset bits
  */
 #ifdef HAVE_DIX_CONFIG_H
 #include <dix-config.h>
@@ -26,6 +41,7 @@
 
 #include "inputstr.h"
 #include "inpututils.h"
+#include "micmap.h"
 
 #define CURSOR_REQUEST_ID 0xfef0
 #define CLIPBOARD_REQUEST_ID 0xfafa
@@ -64,7 +80,6 @@ static uint8_t code_tbl[512];
 static struct arcan_shmif_initial* arcan_init;
 static DevPrivateKeyRec pixmapPriv;
 static DevPrivateKeyRec windowPriv;
-static PixmapPtr placeholderPixmap;
 static void
 synchTreeDepth(arcanScrPriv* scrpriv, WindowPtr wnd,
       void (*callback)(WindowPtr node, int depth, int max_depth, void* tag),
@@ -85,6 +100,45 @@ static inline void trace(const char* msg, ...)
     va_end( args);
     fflush(stderr);
 #endif
+}
+
+static struct {
+    Atom _NET_WM_WINDOW_TYPE;
+    Atom _NET_WM_WINDOW_TYPE_DESKTOP;
+    Atom _NET_WM_WINDOW_TYPE_DOCK;
+    Atom _NET_WM_WINDOW_TYPE_COMBO;
+    Atom _NET_WM_WINDOW_TYPE_DND;
+    Atom _NET_WM_WINDOW_TYPE_DROPDOWN_MENU;
+    Atom _NET_WM_WINDOW_TYPE_POPUP_MENU;
+    Atom _NET_WM_WINDOW_TYPE_TOOLBAR;
+    Atom _NET_WM_WINDOW_TYPE_MENU;
+    Atom _NET_WM_WINDOW_TYPE_UTILITY;
+    Atom _NET_WM_WINDOW_TYPE_SPLASH;
+    Atom _NET_WM_WINDOW_TYPE_DIALOG;
+    Atom _NET_WM_WINDOW_TYPE_TOOLTIP;
+    Atom _NET_WM_WINDOW_TYPE_NOTIFICATION;
+    Atom _NET_WM_WINDOW_TYPE_NORMAL;
+} wm_atoms;
+
+static void resolve_atoms(void)
+{
+#define make(N) MakeAtom(N, strlen(N), false)
+    wm_atoms._NET_WM_WINDOW_TYPE = make("_NET_WM_WINDOW_TYPE");
+  wm_atoms._NET_WM_WINDOW_TYPE_DESKTOP = make("_NET_WM_WINDOW_TYPE_DESKTOP");
+  wm_atoms._NET_WM_WINDOW_TYPE_DOCK = make("_NET_WM_WINDOW_TYPE_DOCK");
+  wm_atoms._NET_WM_WINDOW_TYPE_COMBO = make("_NET_WM_WINDOW_TYPE_COMBO");
+  wm_atoms._NET_WM_WINDOW_TYPE_DND = make("_NET_WM_WINDOW_TYPE_DND");
+  wm_atoms._NET_WM_WINDOW_TYPE_DROPDOWN_MENU = make("_NET_WM_WINDOW_TYPE_DROPDOWN_MENU");
+  wm_atoms._NET_WM_WINDOW_TYPE_POPUP_MENU = make("_NET_WM_WINDOW_TYPE_POPUP_MENU");
+  wm_atoms._NET_WM_WINDOW_TYPE_TOOLBAR = make("_NET_WM_WINDOW_TYPE_TOOLBAR");
+  wm_atoms._NET_WM_WINDOW_TYPE_MENU = make("_NET_WM_WINDOW_TYPE_MENU");
+  wm_atoms._NET_WM_WINDOW_TYPE_UTILITY = make("_NET_WM_WINDOW_TYPE_UTILITY");
+  wm_atoms._NET_WM_WINDOW_TYPE_SPLASH = make("_NET_WM_WINDOW_TYPE_SPLASH");
+  wm_atoms._NET_WM_WINDOW_TYPE_DIALOG = make("_NET_WM_WINDOW_TYPE_DIALOG");
+  wm_atoms._NET_WM_WINDOW_TYPE_TOOLTIP = make("_NET_WM_WINDOW_TYPE_TOOLTIP");
+  wm_atoms._NET_WM_WINDOW_TYPE_NOTIFICATION = make("_NET_WM_WINDOW_TYPE_NOTIFICATION");
+  wm_atoms._NET_WM_WINDOW_TYPE_NORMAL = make("_NET_WM_WINDOW_TYPE_NORMAL");
+#undef make
 }
 
 /*
@@ -112,6 +166,9 @@ static void setArcanMask(KdScreenInfo* screen)
     screen->fb.redMask = SHMIF_RGBA(0xff, 0x00, 0x00, 0x00);
     screen->fb.greenMask = SHMIF_RGBA(0x00, 0xff, 0x00, 0x00);
     screen->fb.blueMask = SHMIF_RGBA(0x00, 0x00, 0xff, 0x00);
+        miSetVisualTypesAndMasks(
+            32, (1 << TrueColor) | (1 << DirectColor),
+            8, TrueColor, screen->fb.redMask, screen->fb.greenMask, screen->fb.blueMask);
  }
 
 static void setGlamorMask(KdScreenInfo* screen)
@@ -186,6 +243,7 @@ static void updateDirty(struct arcan_shmif_cont *C, DamagePtr damage)
 
     BoxPtr box = RegionExtents(region);
     arcan_shmif_dirty(C, box->x1, box->y1, box->x2, box->y2, 0);
+    DamageEmpty(damage);
 }
 
 static void arcanGetImage(DrawablePtr pDrawable, int sx, int sy, int w, int h,
@@ -242,10 +300,6 @@ static PixmapPtr arcanGetWindowPixmap(WindowPtr wnd)
         res = scrpriv->hooks.getWindowPixmap(wnd);
         scrpriv->screen->GetWindowPixmap = arcanGetWindowPixmap;
     }
-    else {
-        trace("arcanGetPixmap(intercepted)");
-        return placeholderPixmap;
-    }
 
     return res;
 }
@@ -264,6 +318,34 @@ static void flagUnsynched(WindowPtr wnd)
         wnd->unsynched = 1;
         wnd = wnd->parent;
     }
+}
+
+static void copyDrawableShmif(
+    arcanScrPriv *ascr, struct redirectMeta* M, PixmapPtr pmap,
+  struct arcan_shmif_region dirty)
+{
+        DrawablePtr src = &pmap->drawable;
+    GCPtr pGC = GetScratchGC(src->depth, ascr->screen);
+    if (!pGC)
+        return;
+
+        trace("redirect-region: %zu, %zu, %zu, %zu (origin: %d, %d)\n",
+                dirty.x1, dirty.y1, dirty.x2, dirty.y2, src->x, src->y);
+    ChangeGCVal val;
+      val.val = IncludeInferiors;
+        ChangeGC(NullClient, pGC, GCSubwindowMode, &val);
+    ValidateGC(src, pGC);
+
+        M->pmap->drawable.x = src->x;
+        M->pmap->drawable.y = src->x;
+
+    (void) (*pGC->ops->CopyArea)(src,
+                                 &M->pmap->drawable, pGC,
+                                 dirty.x1, dirty.y1,
+                                                                 dirty.x2 - dirty.x1,
+                                                                 dirty.y2 - dirty.y1,
+                                                                 dirty.x1, dirty.y1);
+    FreeScratchGC(pGC);
 }
 
 static void sendWndData(WindowPtr wnd, int depth, int max_depth, void* tag)
@@ -312,21 +394,28 @@ static void sendWndData(WindowPtr wnd, int depth, int max_depth, void* tag)
 
 static void checkWindowSegmentMapping(arcanScrPriv *ascr, WindowPtr wnd)
 {
-    if (!ascr->defaultRootless || !wnd->parent)
+/* only redirect on toplevel with rootless */
+    if (!ascr->defaultRootless || !wnd->parent || wnd->parent != ascr->screen->root)
         return;
 
 /* the only difference between the interactive form is that the segment request
  * is triggered by a message command in the interactive form, the other paths
  * are the same. */
-    if (ascr->defaultRootless && wnd->drawable.class == InputOutput){
+    if (!ascr->defaultRootless || wnd->drawable.class != InputOutput)
+              return;
+
+/* FIX: possible race here if the window is mapped/unmapped repeatedly so that
+ * the xid no longer resolves to a valid candidate. The proper solution to it
+ * would be to mark the wnd with a redirect pending. */
+        int bw = wnd->borderWidth;
+
         ARCAN_ENQUEUE(ascr->acon, &(struct arcan_event){
-            .ext.kind = ARCAN_EVENT(SEGREQ),
-            .ext.segreq.width = 32,
-            .ext.segreq.height = 32,
-            .ext.segreq.kind = SEGID_BRIDGE_X11,
-           .ext.segreq.id = wnd->drawable.id
-       });
-    }
+       .ext.kind = ARCAN_EVENT(SEGREQ),
+       .ext.segreq.width = wnd->drawable.width + bw + bw,
+       .ext.segreq.height = wnd->drawable.height + bw + bw,
+       .ext.segreq.kind = SEGID_BRIDGE_X11,
+       .ext.segreq.id = wnd->drawable.id
+    });
 }
 
 static void resetWndData(WindowPtr wnd, int depth, int max_depth, void* tag)
@@ -385,6 +474,7 @@ static Bool arcanRealizeWindow(WindowPtr wnd)
     struct redirectMeta* rmeta = redirectForWindow(wnd);
     if (rmeta && !rmeta->redirected){
         compRedirectWindow(serverClient, wnd, CompositeRedirectManual);
+/*                compRedirectSubwindows(serverClient, wnd, CompositeRedirectAutomatic); */
         rmeta->redirected = true;
     }
 
@@ -419,11 +509,21 @@ static Bool arcanUnrealizeWindow(WindowPtr wnd)
     trace("UnrealizeWindow(%d)", (int) wnd->drawable.id);
     Bool rv = true;
 
-/* remove any active redirection */
+/* remove any active redirection - hide the shmif context and mark it
+ * eligible for re-use to reduce allocation load */
     struct redirectMeta* rmeta = redirectForWindow(wnd);
     if (rmeta && rmeta->redirected){
-        compUnredirectWindow(serverClient, wnd, CompositeRedirectManual);
+/*      compUnredirectWindow(serverClient, wnd, CompositeRedirectManual); */
         rmeta->redirected = false;
+                if (rmeta->C)
+                     arcan_shmif_enqueue(
+                            rmeta->C,
+                            &(struct arcan_event){
+                                .category = EVENT_EXTERNAL,
+                                .ext.kind = ARCAN_EVENT(VIEWPORT),
+                                .ext.viewport.invisible = true
+                          }
+                      );
     }
 
     if (ascr->hooks.unrealizeWindow){
@@ -550,6 +650,15 @@ static int arcanConfigureWindow(WindowPtr wnd, int x, int y, int w, int h, int b
         ascr->screen->ConfigNotify = arcanConfigureWindow;
     }
 
+    struct redirectMeta* rmeta = redirectForWindow(wnd);
+        if (rmeta){
+        struct arcan_shmif_cont *C = rmeta->C;
+                if (w != C->w || h != C->h){
+            arcan_shmif_resize(C, w, h);
+            ascr->screen->ModifyPixmapHeader(rmeta->pmap, C->w, C->h, 24, BitsPerPixel(24), C->stride, C->vidp);
+                }
+    }
+
     flagUnsynched(wnd);
     return res;
 }
@@ -563,12 +672,6 @@ arcanResizeWindow(WindowPtr wnd, int x, int y, unsigned w, unsigned h, WindowPtr
         ascr->screen->ResizeWindow = ascr->hooks.resizeWindow;
         ascr->hooks.resizeWindow(wnd, x, y, w, h, sibling);
         ascr->screen->ResizeWindow = arcanResizeWindow;
-    }
-    struct redirectMeta* rmeta = redirectForWindow(wnd);
-    if (rmeta){
-        struct arcan_shmif_cont *C = rmeta->C;
-        arcan_shmif_resize(C, w, h);
-        ascr->screen->ModifyPixmapHeader(rmeta->pmap, C->w, C->h, 24, BitsPerPixel(24), C->stride, C->vidp);
     }
 
 /* note: changeWindowAttributes tell us (SubstructureRedirectMask | ResizeRedirectMask)
@@ -626,6 +729,7 @@ arcanScreenInitialize(KdScreenInfo * screen, arcanScrPriv * scrpriv)
         setGlamorMask(screen);
     else
         setArcanMask(screen);
+
     return arcanMapFramebuffer(screen);
 }
 
@@ -1234,13 +1338,14 @@ static void
 redirectWindow(arcanScrPriv *S, WindowPtr wnd, struct arcan_shmif_cont *C)
 {
 /* RHINT_IGNORE_ALPHA, CSPACE_SRGB, ORIGO_UL */
-    C->hints = SHMIF_RHINT_SUBREGION | SHMIF_RHINT_CSPACE_SRGB;
+    C->hints = SHMIF_RHINT_SUBREGION | SHMIF_RHINT_CSPACE_SRGB | SHMIF_RHINT_IGNORE_ALPHA;
     arcan_shmif_resize(C, wnd->drawable.width, wnd->drawable.height);
     PixmapPtr pmap = pixmapFromShmif(wnd->drawable.pScreen, C, CREATE_PIXMAP_USAGE_BACKING_PIXMAP);
 
 /* if we just redirect a single window into a separate shmif buffer, Auto is fine to keep the
  * screen pixmap intact (though could defer that based on displayhint visibility) */
     compRedirectWindow(serverClient, wnd, CompositeRedirectManual);
+        compRedirectSubwindows(serverClient, wnd, CompositeRedirectAutomatic);
     C->user = wnd;
 
 /* add to tracking bitmap, should perhaps chunk this into groups and cap at a k windows or sth */
@@ -1269,7 +1374,16 @@ redirectWindow(arcanScrPriv *S, WindowPtr wnd, struct arcan_shmif_cont *C)
     DamageRegister(&wnd->drawable, S->redirectSegments[i].damage);
     DamageSetReportAfterOp(S->redirectSegments[i].damage, true);
 
-/* if we got glamor / dri3 then accelerate the segment as well and n-buffer */
+/* FIX: If we are running with a regular window manager in hybrid mode, marking
+ * the redirected surface as override redirected to (hopefully) allow the WM to
+ * ignore it.
+ *
+ * Attach a default handler event loop that tracks events on it as part of the
+ * block handler, mainly to make sure focus events and so-on gets translated
+ * correctly.
+ */
+
+/* If we got glamor / dri3 then accelerate the segment as well and n-buffer */
 }
 
 static void
@@ -1542,19 +1656,6 @@ int ArcanSetPixmapVisitWindow(WindowPtr window, void *data)
 }
 
 #ifdef GLAMOR
-/*
-static
-int drmFmt(int depth)
-{
-    switch (depth){
-    case 16: return DRM_FORMAT_RGB565;
-    case 24: return DRM_FORMAT_XRGB8888;
-    case 32: return DRM_FORMAT_ARGB8888;
-    default:
-        return -1;
-    break;
-    }
-}*/
 
 static
 PixmapPtr boToPixmap(ScreenPtr pScreen, struct gbm_bo* bo, int depth)
@@ -1764,18 +1865,16 @@ redirectSignalDirty(struct redirectMeta *M)
     if (w < 0 || h < 0 || (!w && !h))
         return;
 
-    GCPtr pGC = GetScratchGC(pWnd->drawable.depth, ascr->screen);
-    if (!pGC)
-        return;
+        CompWindowPtr cw = GetCompWindow(pWnd);
+        PixmapPtr pmap = (pWnd->drawable.pScreen)->GetWindowPixmap(pWnd);
 
-    /* the src-x,y should take borderwidth into account */
-    ValidateGC(&M->pmap->drawable, pGC);
-    (void) (*pGC->ops->CopyArea)(&pWnd->drawable,
-                                 &M->pmap->drawable, pGC,
-                                 x, y, w, y, x, y);
-    FreeScratchGC(pGC);
+        if (cw && cw->pOldPixmap){
+            pmap = cw->pOldPixmap;
+        }
+
+        sendWndData(pWnd, 0, 0, M->C);
+        copyDrawableShmif(ascr, M, pmap, dirty);
     arcan_shmif_signal(M->C, SHMIF_SIGVID | SHMIF_SIGBLK_NONE);
-    DamageEmpty(M->damage);
 }
 
 int arcanInit(void)
@@ -1784,6 +1883,15 @@ int arcanInit(void)
     char dispstr[512] = "";
     if (!con)
         return 0;
+
+/* With -wmexec we may need sparse allocation of X11 displays, and
+ * CreateWellKnownSockets will be called after OsInit. If displayfd is notset
+ * and no display has been explicity set, it will exit if the 0 display is
+ * already taken. By setting displayfd here we force the sparse allocation path
+ * to be taken. */
+        if (-1 == displayfd){
+            displayfd = open("/dev/null", O_WRONLY);
+        }
 
 /* windisplay.c */
     trace("ArcanInit");
@@ -2013,8 +2121,6 @@ arcanRandRSetConfig(ScreenPtr pScreen,
                                     screen->fb.frameBuffer);
 
     KdSetSubpixelOrder(pScreen, scrpriv->randr);
-
-    placeholderPixmap = pScreen->CreatePixmap(pScreen, 1, 1, 32, CREATE_PIXMAP_USAGE_SHARED);
 
     if (wasEnabled)
         KdEnableScreen(pScreen);
@@ -2465,7 +2571,7 @@ arcanScreenBlockHandler(ScreenPtr pScreen, void* timeout)
     if (scrpriv->redirectBitmap && scrpriv->dirtyBitmap)
     {
         for (size_t i = 0; i < 64; i++){
-            if (!scrpriv->redirectSegments[i].C)
+            if (!scrpriv->redirectSegments[i].redirected)
                 continue;
 
             redirectSignalDirty(&scrpriv->redirectSegments[i]);
@@ -2736,7 +2842,7 @@ arcanCloseScreen(ScreenPtr pScreen)
     KdScreenPriv(pScreen);
     KdScreenInfo *screen = pScreenPriv->screen;
     arcanScrPriv *scrpriv = screen->driver;
-
+    struct arcan_shmif_cont *acon = scrpriv->acon;
     trace("arcanCloseScreen");
     if (!scrpriv)
         return;
@@ -2746,10 +2852,9 @@ arcanCloseScreen(ScreenPtr pScreen)
     free(scrpriv);
     screen->driver = NULL;
     (*pScreen->CloseScreen)(pScreen);
-
 /* drop shmifext last as that will kill the GL context and thus all the
  * VAOs / VBOs etc. that glamour is using will be defunct */
-    arcan_shmifext_drop(scrpriv->acon);
+    arcan_shmifext_drop(acon);
 }
 
 void
