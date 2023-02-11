@@ -44,6 +44,11 @@ struct redirectMeta {
 	bool redirected;
 };
 
+typedef struct _arcanWndPriv {
+	struct redirectMeta *redirect;
+	arcan_event ev;
+} arcanWndPriv;
+
 struct gbm_bo;
 typedef struct _arcanScrPriv {
     struct arcan_shmif_cont *acon, *cursor;
