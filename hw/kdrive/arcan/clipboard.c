@@ -523,7 +523,8 @@ void *arcanClipboardDispatch(struct proxyWindowData* inWnd)
         },
     };
 
-    while (1){
+		int pv = 0;
+    while (pv >= 0){
         xcb_flush(xcon);
         if (-1 == poll(pset, 2, -1)){
             if (errno == EINTR)
@@ -535,9 +536,7 @@ void *arcanClipboardDispatch(struct proxyWindowData* inWnd)
     /* select for data on the arcan and other socket */
     /* poll context and look for inbound messages or data streams */
         struct arcan_event aev;
-        int pv;
-
-        while ( (pv = arcan_shmif_poll(inWnd->cont, &aev) > 0 )){
+        while ( (pv = arcan_shmif_poll(inWnd->cont, &aev)) > 0 ){
             if (aev.category != EVENT_TARGET)
                 continue;
 
