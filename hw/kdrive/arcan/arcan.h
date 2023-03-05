@@ -38,15 +38,17 @@ struct pixmap_ext {
 };
 
 struct redirectMeta {
-	struct arcan_shmif_cont *C;
-	DamagePtr damage;
-  PixmapPtr pmap;
-	bool redirected;
+    struct arcan_shmif_cont *C;
+    DamagePtr damage;
+    PixmapPtr pmap;
+    bool redirected, dirty;
 };
 
 typedef struct _arcanWndPriv {
-	struct redirectMeta *redirect;
-	arcan_event ev;
+    struct redirectMeta *redirect;
+    bool pending;
+    XID pending_id;
+    arcan_event ev;
 } arcanWndPriv;
 
 struct gbm_bo;
@@ -123,7 +125,7 @@ typedef struct _arcanConfig {
     Bool present;
     Bool no_dynamic_resize;
     Bool soft_mouse;
-		Bool redirect;
+    Bool redirect;
 } arcanConfig;
 
 extern int arcanGlamor;
@@ -154,6 +156,9 @@ Bool
 
 Bool
  arcanCreateResources(ScreenPtr pScreen);
+
+int
+ arcanEventDispatch(struct arcan_shmif_cont*, arcanScrPriv*, arcan_event* ev, int64_t);
 
 void
 arcanFlushEvents(int fd, void* tag);

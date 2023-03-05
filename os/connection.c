@@ -267,7 +267,7 @@ CreateWellKnownSockets(void)
         if (!found)
             FatalError("Failed to find a socket to listen on");
         snprintf(dynamic_display, sizeof(dynamic_display), "%d", i);
-        display = dynamic_display;
+        display = strdup(dynamic_display);
         LogSetDisplay();
     }
 
