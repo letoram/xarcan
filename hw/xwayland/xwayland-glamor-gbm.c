@@ -278,7 +278,8 @@ static PixmapPtr
 xwl_glamor_gbm_create_pixmap_internal(struct xwl_screen *xwl_screen,
                                       DrawablePtr drawable,
                                       int width, int height, int depth,
-                                      unsigned int hint)
+                                      unsigned int hint,
+                                      Bool implicit_scanout)
 {
     struct xwl_gbm_private *xwl_gbm = xwl_gbm_get(xwl_screen);
     struct gbm_bo *bo = NULL;
@@ -313,9 +314,11 @@ xwl_glamor_gbm_create_pixmap_internal(struct xwl_screen *xwl_screen,
         }
 #endif
         if (bo == NULL) {
+            uint32_t usage = GBM_BO_USE_RENDERING;
             implicit = TRUE;
-            bo = gbm_bo_create(xwl_gbm->gbm, width, height, format,
-                               GBM_BO_USE_RENDERING);
+            if (implicit_scanout)
+                usage |= GBM_BO_USE_SCANOUT;
+            bo = gbm_bo_create(xwl_gbm->gbm, width, height, format, usage);
         }
 
         if (bo) {
@@ -342,21 +345,19 @@ xwl_glamor_gbm_create_pixmap(ScreenPtr screen,
                              unsigned int hint)
 {
     return xwl_glamor_gbm_create_pixmap_internal(xwl_screen_get(screen), NULL,
-                                                 width, height, depth, hint);
+                                                 width, height, depth, hint, FALSE);
 }
 
 static PixmapPtr
 xwl_glamor_gbm_create_pixmap_for_window(struct xwl_window *xwl_window)
 {
-   if (xwl_window->window == NullWindow)
-        return NullPixmap;
-
     return xwl_glamor_gbm_create_pixmap_internal(xwl_window->xwl_screen,
                                                  &xwl_window->window->drawable,
                                                  xwl_window->window->drawable.width,
                                                  xwl_window->window->drawable.height,
                                                  xwl_window->window->drawable.depth,
-                                                 CREATE_PIXMAP_USAGE_BACKING_PIXMAP);
+                                                 CREATE_PIXMAP_USAGE_BACKING_PIXMAP,
+                                                 xwl_window->has_implicit_scanout_support);
 }
 
 static Bool
