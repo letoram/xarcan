@@ -1100,16 +1100,21 @@ msShouldDoubleShadow(ScrnInfoPtr pScrn, modesettingPtr ms)
 {
     Bool ret = FALSE, asked;
     int from;
-    drmVersionPtr v = drmGetVersion(ms->fd);
+    drmVersionPtr v;
 
     if (!ms->drmmode.shadow_enable)
         return FALSE;
 
-    if (!strcmp(v->name, "mgag200") ||
-        !strcmp(v->name, "ast")) /* XXX || rn50 */
-        ret = TRUE;
+    if ((v = drmGetVersion(ms->fd))) {
+        if (!strcmp(v->name, "mgag200") ||
+            !strcmp(v->name, "ast")) /* XXX || rn50 */
+            ret = TRUE;
 
-    drmFreeVersion(v);
+        drmFreeVersion(v);
+    }
+    else
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                   "Failed to query DRM version.\n");
 
     asked = xf86GetOptValBool(ms->drmmode.Options, OPTION_DOUBLE_SHADOW, &ret);
 
