@@ -43,6 +43,7 @@
 #include "xwayland-glx.h"
 #include "xwayland-screen.h"
 #include "xwayland-window.h"
+#include "xwayland-window-buffers.h"
 
 #include <sys/mman.h>
 
@@ -757,6 +758,11 @@ xwl_window_dmabuf_feedback_done(void *data,
     DebugF("XWAYLAND: Window 0x%x can%s get implicit scanout support\n",
             xwl_window->window->drawable.id,
             xwl_window->has_implicit_scanout_support ? "" : "not");
+
+    /* If the linux-dmabuf v4 per-surface feedback changed, recycle the
+     * window buffers so that they get re-created with appropriate parameters.
+     */
+    xwl_window_buffers_recycle(xwl_window);
 }
 
 static void
