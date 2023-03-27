@@ -660,24 +660,6 @@ static const struct zwp_linux_dmabuf_feedback_v1_listener xwl_dmabuf_feedback_li
 };
 
 Bool
-xwl_dmabuf_setup_feedback_for_window(struct xwl_window *xwl_window)
-{
-    struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
-
-    xwl_window->feedback.dmabuf_feedback =
-        zwp_linux_dmabuf_v1_get_surface_feedback(xwl_screen->dmabuf, xwl_window->surface);
-
-    if (!xwl_window->feedback.dmabuf_feedback)
-        return FALSE;
-
-    zwp_linux_dmabuf_feedback_v1_add_listener(xwl_window->feedback.dmabuf_feedback,
-                                              &xwl_dmabuf_feedback_listener,
-                                              &xwl_window->feedback);
-
-    return TRUE;
-}
-
-Bool
 xwl_screen_set_dmabuf_interface(struct xwl_screen *xwl_screen,
                                 uint32_t id, uint32_t version)
 {
@@ -703,6 +685,102 @@ xwl_screen_set_dmabuf_interface(struct xwl_screen *xwl_screen,
                                                   &xwl_dmabuf_feedback_listener,
                                                   &xwl_screen->default_feedback);
     }
+
+    return TRUE;
+}
+
+static void
+xwl_window_dmabuf_feedback_main_device(void *data,
+                                       struct zwp_linux_dmabuf_feedback_v1 *dmabuf_feedback,
+                                       struct wl_array *dev)
+{
+    struct xwl_window *xwl_window = data;
+
+    xwl_dmabuf_feedback_main_device(&xwl_window->feedback, dmabuf_feedback, dev);
+}
+
+static void
+xwl_window_dmabuf_feedback_tranche_target_device(void *data,
+                                                 struct zwp_linux_dmabuf_feedback_v1 *dmabuf_feedback,
+                                                 struct wl_array *dev)
+{
+    struct xwl_window *xwl_window = data;
+
+    xwl_dmabuf_feedback_tranche_target_device(&xwl_window->feedback, dmabuf_feedback, dev);
+}
+
+static void
+xwl_window_dmabuf_feedback_tranche_flags(void *data,
+                                         struct zwp_linux_dmabuf_feedback_v1 *dmabuf_feedback,
+                                         uint32_t flags)
+{
+    struct xwl_window *xwl_window = data;
+
+    xwl_dmabuf_feedback_tranche_flags(&xwl_window->feedback, dmabuf_feedback, flags);
+}
+
+static void
+xwl_window_dmabuf_feedback_tranche_formats(void *data,
+                                           struct zwp_linux_dmabuf_feedback_v1 *dmabuf_feedback,
+                                           struct wl_array *indices)
+{
+    struct xwl_window *xwl_window = data;
+
+    xwl_dmabuf_feedback_tranche_formats(&xwl_window->feedback, dmabuf_feedback, indices);
+}
+
+static void
+xwl_window_dmabuf_feedback_tranche_done(void *data,
+                                        struct zwp_linux_dmabuf_feedback_v1 *dmabuf_feedback)
+{
+    struct xwl_window *xwl_window = data;
+
+    xwl_dmabuf_feedback_tranche_done(&xwl_window->feedback, dmabuf_feedback);
+}
+
+static void
+xwl_window_dmabuf_feedback_done(void *data,
+                                struct zwp_linux_dmabuf_feedback_v1 *dmabuf_feedback)
+{
+    struct xwl_window *xwl_window = data;
+
+    xwl_dmabuf_feedback_done(&xwl_window->feedback, dmabuf_feedback);
+}
+
+static void
+xwl_window_dmabuf_feedback_format_table(void *data,
+                                        struct zwp_linux_dmabuf_feedback_v1 *dmabuf_feedback,
+                                        int32_t fd, uint32_t size)
+{
+    struct xwl_window *xwl_window = data;
+
+    xwl_dmabuf_feedback_format_table(&xwl_window->feedback, dmabuf_feedback, fd, size);
+}
+
+static const struct zwp_linux_dmabuf_feedback_v1_listener xwl_window_dmabuf_feedback_listener = {
+    .done = xwl_window_dmabuf_feedback_done,
+    .format_table = xwl_window_dmabuf_feedback_format_table,
+    .main_device = xwl_window_dmabuf_feedback_main_device,
+    .tranche_done = xwl_window_dmabuf_feedback_tranche_done,
+    .tranche_target_device = xwl_window_dmabuf_feedback_tranche_target_device,
+    .tranche_formats = xwl_window_dmabuf_feedback_tranche_formats,
+    .tranche_flags = xwl_window_dmabuf_feedback_tranche_flags,
+};
+
+Bool
+xwl_dmabuf_setup_feedback_for_window(struct xwl_window *xwl_window)
+{
+    struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
+
+    xwl_window->feedback.dmabuf_feedback =
+        zwp_linux_dmabuf_v1_get_surface_feedback(xwl_screen->dmabuf, xwl_window->surface);
+
+    if (!xwl_window->feedback.dmabuf_feedback)
+        return FALSE;
+
+    zwp_linux_dmabuf_feedback_v1_add_listener(xwl_window->feedback.dmabuf_feedback,
+                                              &xwl_window_dmabuf_feedback_listener,
+                                              xwl_window);
 
     return TRUE;
 }
