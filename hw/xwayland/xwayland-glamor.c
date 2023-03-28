@@ -124,10 +124,14 @@ xwl_glamor_is_modifier_supported_in_formats(struct xwl_format *formats, int num_
 
 static Bool
 xwl_feedback_is_modifier_supported(struct xwl_dmabuf_feedback *xwl_feedback,
-                                   uint32_t format, uint64_t modifier)
+                                   uint32_t format, uint64_t modifier,
+                                   int supports_scanout)
 {
     for (int i = 0; i < xwl_feedback->dev_formats_len; i++) {
         struct xwl_device_formats *dev_formats = &xwl_feedback->dev_formats[i];
+
+        if (supports_scanout && !dev_formats->supports_scanout)
+            continue;
 
         if (xwl_glamor_is_modifier_supported_in_formats(dev_formats->formats,
                                                         dev_formats->num_formats,
@@ -157,11 +161,11 @@ xwl_glamor_is_modifier_supported(struct xwl_screen *xwl_screen,
                                                            format, modifier);
     }
 
-    if (xwl_feedback_is_modifier_supported(&xwl_screen->default_feedback, format, modifier))
+    if (xwl_feedback_is_modifier_supported(&xwl_screen->default_feedback, format, modifier, FALSE))
         return TRUE;
 
     xorg_list_for_each_entry(xwl_window, &xwl_screen->window_list, link_window) {
-        if (xwl_feedback_is_modifier_supported(&xwl_window->feedback, format, modifier))
+        if (xwl_feedback_is_modifier_supported(&xwl_window->feedback, format, modifier, FALSE))
             return TRUE;
     }
 
