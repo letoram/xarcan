@@ -119,6 +119,8 @@ struct xwl_window {
 #endif
     struct xwayland_surface_v1 *xwayland_surface;
     struct xwl_dmabuf_feedback feedback;
+    /* If TRUE, the window buffer format supports scanout with implicit modifier */
+    Bool has_implicit_scanout_support;
 };
 
 struct xwl_window *xwl_window_get(WindowPtr window);
