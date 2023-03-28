@@ -104,6 +104,9 @@ struct xwl_egl_backend {
      * is set up on.
      */
     drmDevice *(*get_main_device)(struct xwl_screen *xwl_screen);
+
+    /* Direct hook to create the backing pixmap for a window */
+    PixmapPtr (*create_pixmap_for_window)(struct xwl_window *xwl_window);
 };
 
 #ifdef XWL_HAS_GLAMOR
@@ -142,6 +145,7 @@ Bool xwl_glamor_get_modifiers(ScreenPtr screen, uint32_t format,
 Bool xwl_glamor_get_drawable_modifiers(DrawablePtr drawable, uint32_t format,
                                        uint32_t *num_modifiers, uint64_t **modifiers);
 Bool xwl_glamor_check_flip(PixmapPtr pixmap);
+PixmapPtr xwl_glamor_create_pixmap_for_window (struct xwl_window *xwl_window);
 
 #ifdef XV
 /* glamor Xv Adaptor */

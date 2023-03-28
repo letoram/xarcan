@@ -919,6 +919,20 @@ xwl_glamor_needs_n_buffering(struct xwl_screen *xwl_screen)
                 XWL_EGL_BACKEND_NEEDS_N_BUFFERING);
 }
 
+PixmapPtr
+xwl_glamor_create_pixmap_for_window(struct xwl_window *xwl_window)
+{
+    struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
+
+    if (!xwl_screen->glamor || !xwl_screen->egl_backend)
+        return NullPixmap;
+
+    if (xwl_screen->egl_backend->create_pixmap_for_window)
+        return xwl_screen->egl_backend->create_pixmap_for_window(xwl_window);
+    else
+        return NullPixmap;
+}
+
 void
 xwl_glamor_init_backends(struct xwl_screen *xwl_screen, Bool use_eglstream)
 {
