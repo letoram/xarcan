@@ -31,25 +31,24 @@ typedef struct _arcanPriv {
     int bytes_per_line;
 } arcanPriv;
 
-struct pixmap_ext {
-    struct gbm_bo *bo;
-    void *image;
-    unsigned int texture;
-};
-
-struct redirectMeta {
-    struct arcan_shmif_cont *C;
-    DamagePtr damage;
-    PixmapPtr pmap;
-    bool redirected, dirty;
-};
-
-typedef struct _arcanWndPriv {
-    struct redirectMeta *redirect;
-    bool pending;
-    XID pending_id;
+typedef struct _arcanWindowPriv {
     arcan_event ev;
-} arcanWndPriv;
+		DamagePtr damage;
+		struct arcan_shmif_cont *shmif;
+} arcanWindowPriv;
+
+typedef struct _arcanPixmapPriv {
+		int64_t id; /* screen shmif-context cache group / index */
+    struct gbm_bo *bo; /* tracking for shmifext- accelerated transfers */
+    void *image; /* EGLImage reference handle */
+    unsigned int texture; /* GL texture id reference */
+} arcanPixmapPriv;
+
+typedef struct _arcanShmifPriv {
+    PixmapPtr pixmap;
+		WindowPtr window;
+		bool bound;
+} arcanShmifPriv;
 
 struct gbm_bo;
 typedef struct _arcanScrPriv {
@@ -61,8 +60,9 @@ typedef struct _arcanScrPriv {
     Bool wmSynch;
     arcan_event cursor_event;
     Bool cursorRealized;
+		int clip_mode;
 
-    struct redirectMeta redirectSegments[64];
+    struct arcan_shmif_cont* pool[64];
     uint64_t redirectBitmap, dirtyBitmap;
     Bool defaultRootless;
 
@@ -91,6 +91,8 @@ typedef struct _arcanScrPriv {
         SetWindowPixmapProcPtr setWindowPixmap;
         GetWindowPixmapProcPtr getWindowPixmap;
         InterposeDrawableSrcDstProcPtr interposeDrawableSrcDst;
+				CreatePixmapProcPtr createPixmap;
+				DestroyPixmapProcPtr destroyPixmap;
     } hooks;
 
     HashTable proxyMap;

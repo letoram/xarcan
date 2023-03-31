@@ -130,16 +130,10 @@ InitInput(int argc, char **argv)
 
     KdInitInput();
 
-/*
- *     DEBUGGING - enable this help somewhat
-    LogInit("yeahlog", ".old");
-        LogSetParameter(XLOG_FILE_VERBOSITY, 100000);
- */
-
 /* Register won't work unless we're in init input state */
     con = arcan_shmif_primary(SHMIF_INPUT);
     if (con){
-			  InputThreadRegisterDev(con->epipe, (void*) arcanFlushEvents, con);
+        InputThreadRegisterDev(con->epipe, (void*) arcanFlushEvents, con);
     }
     else {
         ErrorF("kdrive:arcan - No Primary Segment during InitInput\n");
@@ -152,7 +146,7 @@ CloseInput(void)
     struct arcan_shmif_cont* con = arcan_shmif_primary(SHMIF_INPUT);
     trace("ArcanInit:CloseInput");
     if (con){
-			  InputThreadUnregisterDev(con->epipe);
+        InputThreadUnregisterDev(con->epipe);
     }
     KdCloseInput();
 }
@@ -172,11 +166,11 @@ ddxUseMsg(void)
     ErrorF("-nodynamic             Disable connection-controlled resize\n");
     ErrorF("-aident [str]          Set window dynamic identity\n");
     ErrorF("-atitle [str]          Set window static identity\n");
-		ErrorF("-wmexec path           Launch explicit WM when initialised\n");
-		ErrorF("-miniwm                Use instead of -wmexec\n");
+    ErrorF("-wmexec path           Launch explicit WM when initialised\n");
+    ErrorF("-miniwm                Use instead of -wmexec\n");
     ErrorF("-present               Enable PRESENT extension (experimental)\n");
     ErrorF("-softmouse             Force pre-composed non-accelerade mouse cursor\n");
-		ErrorF("-redirect              Default-redirect new toplevel windows\n");
+    ErrorF("-redirect              Default-redirect new toplevel windows\n");
 #ifdef GLAMOR
     ErrorF("-glamor                Enable glamor rendering\n");
 #endif
@@ -196,31 +190,31 @@ ddxProcessArgument(int argc, char **argv, int i)
         return 1;
     }
 #endif
-		if (strcmp(argv[i], "-miniwm") == 0){
-			if (arcanConfigPriv.wmexec){
-				FatalError("can't use -miniwm with -wmexec\n");
-			}
-			arcanConfigPriv.miniwm = true;
-			return 1;
-		}
-		if (strcmp(argv[i], "-wmexec") == 0){
-			if ((i+1) < argc){
-				arcanConfigPriv.wmexec = strdup(argv[i+1]);
-				return 2;
-			}
-			FatalError("-wmexec without path argument\n");
-			exit(1);
-		}
+    if (strcmp(argv[i], "-miniwm") == 0){
+        if (arcanConfigPriv.wmexec){
+            FatalError("can't use -miniwm with -wmexec\n");
+    }
+         arcanConfigPriv.miniwm = true;
+         return 1;
+    }
+    if (strcmp(argv[i], "-wmexec") == 0){
+        if ((i+1) < argc){
+        arcanConfigPriv.wmexec = strdup(argv[i+1]);
+        return 2;
+    }
+    FatalError("-wmexec without path argument\n");
+    exit(1);
+    }
     if (strcmp(argv[i], "-nodri3") == 0){
         arcanConfigPriv.no_dri3 = true;
         return 1;
     }
     else if (strcmp(argv[i], "-aident") == 0){
         if ((i+1) < argc){
-				    arcanConfigPriv.ident = strdup(argv[i+1]);
+            arcanConfigPriv.ident = strdup(argv[i+1]);
             return 2;
         }
-				FatalError("-aident without ident string\n");
+        FatalError("-aident without ident string\n");
         exit(1);
     }
     else if (strcmp(argv[i], "-atitle") == 0){
@@ -228,7 +222,7 @@ ddxProcessArgument(int argc, char **argv, int i)
             arcanConfigPriv.title = strdup(argv[i+1]);
             return 2;
         }
-				FatalError("-atitle without title argument\n");
+        FatalError("-atitle without title argument\n");
         exit(1);
     }
     else if (strcmp(argv[i], "-nodynamic") == 0){
@@ -242,16 +236,16 @@ ddxProcessArgument(int argc, char **argv, int i)
     }
     else if (strcmp(argv[i], "-present") == 0){
         arcanConfigPriv.present = true;
-				return 1;
+        return 1;
     }
     else if (strcmp(argv[i], "-softmouse") == 0){
         arcanConfigPriv.soft_mouse = true;
-				return 1;
+        return 1;
     }
-		else if (strcmp(argv[i], "-redirect") == 0){
-		    arcanConfigPriv.redirect = true;
-				return 1;
-		}
+    else if (strcmp(argv[i], "-redirect") == 0){
+        arcanConfigPriv.redirect = true;
+        return 1;
+    }
     return KdProcessArgument(argc, argv, i);
 }
 
