@@ -1003,6 +1003,7 @@ _glamor_fds_from_pixmap(ScreenPtr screen, PixmapPtr pixmap, int *fds,
                         uint32_t *strides, uint32_t *offsets,
                         CARD32 *size, uint64_t *modifier)
 {
+#ifdef GLAMOR_HAS_GBM
     glamor_pixmap_private *pixmap_priv = glamor_get_pixmap_private(pixmap);
     glamor_screen_private *glamor_priv =
         glamor_get_screen_private(pixmap->drawable.pScreen);
@@ -1030,6 +1031,7 @@ _glamor_fds_from_pixmap(ScreenPtr screen, PixmapPtr pixmap, int *fds,
     default:
         break;
     }
+#endif /* GLAMOR_HAS_GBM */
     return 0;
 }
 
