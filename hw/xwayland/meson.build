@@ -97,7 +97,10 @@ if build_glamor
         srcs += 'xwayland-glx.c'
     endif
     if gbm_dep.found()
-        srcs += 'xwayland-glamor-gbm.c'
+        srcs += [
+                  'xwayland-glamor-gbm.c',
+                  'xwayland-present.c'
+                ]
     endif
     if build_eglstream
         eglstream_protodir = eglstream_dep.get_pkgconfig_variable('pkgdatadir')
@@ -111,7 +114,6 @@ if build_glamor
 
         srcs += 'xwayland-glamor-eglstream.c'
     endif
-    srcs += 'xwayland-present.c'
     if build_xv
         srcs += 'xwayland-glamor-xv.c'
     endif
