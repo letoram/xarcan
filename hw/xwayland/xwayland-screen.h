@@ -38,16 +38,11 @@
 #include "xwayland-output.h"
 #include "xwayland-glamor.h"
 #include "xwayland-drm-lease.h"
+#include "xwayland-dmabuf.h"
 
 #ifdef XWL_HAS_LIBDECOR
 #include <libdecor.h>
 #endif
-
-struct xwl_format {
-    uint32_t format;
-    int num_modifiers;
-    uint64_t *modifiers;
-};
 
 struct xwl_screen {
     int width;

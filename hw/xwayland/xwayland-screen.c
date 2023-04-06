@@ -219,9 +219,9 @@ xwl_close_screen(ScreenPtr screen)
     struct xwl_output *xwl_output, *next_xwl_output;
     struct xwl_seat *xwl_seat, *next_xwl_seat;
     struct xwl_wl_surface *xwl_wl_surface, *xwl_wl_surface_next;
-
+#ifdef XWL_HAS_GLAMOR
     xwl_dmabuf_feedback_destroy(&xwl_screen->default_feedback);
-
+#endif
     DeleteCallback(&PropertyStateCallback, xwl_property_callback, screen);
     XaceDeleteCallback(XACE_PROPERTY_ACCESS, xwl_access_property_callback, screen);
 

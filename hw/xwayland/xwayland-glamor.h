@@ -126,9 +126,6 @@ Bool xwl_glamor_init(struct xwl_screen *xwl_screen);
 
 Bool xwl_screen_set_drm_interface(struct xwl_screen *xwl_screen,
                                   uint32_t id, uint32_t version);
-Bool xwl_dmabuf_setup_feedback_for_window(struct xwl_window *xwl_window);
-Bool xwl_screen_set_dmabuf_interface(struct xwl_screen *xwl_screen,
-                                     uint32_t id, uint32_t version);
 struct wl_buffer *xwl_glamor_pixmap_get_wl_buffer(PixmapPtr pixmap);
 void xwl_glamor_init_wl_registry(struct xwl_screen *xwl_screen,
                                  struct wl_registry *registry,
@@ -142,20 +139,6 @@ Bool xwl_glamor_allow_commits(struct xwl_window *xwl_window);
 void xwl_glamor_egl_make_current(struct xwl_screen *xwl_screen);
 Bool xwl_glamor_needs_buffer_flush(struct xwl_screen *xwl_screen);
 Bool xwl_glamor_needs_n_buffering(struct xwl_screen *xwl_screen);
-Bool xwl_glamor_is_modifier_supported(struct xwl_screen *xwl_screen,
-                                      uint32_t format, uint64_t modifier);
-uint32_t wl_drm_format_for_depth(int depth);
-Bool xwl_glamor_get_formats(ScreenPtr screen,
-                            CARD32 *num_formats, CARD32 **formats);
-Bool xwl_glamor_get_modifiers(ScreenPtr screen, uint32_t format,
-                              uint32_t *num_modifiers, uint64_t **modifiers);
-Bool xwl_glamor_get_drawable_modifiers_and_scanout(DrawablePtr drawable,
-                                                   uint32_t format,
-                                                   uint32_t *num_modifiers,
-                                                   uint64_t **modifiers,
-                                                   Bool *supports_scanout);
-Bool xwl_glamor_get_drawable_modifiers(DrawablePtr drawable, uint32_t format,
-                                       uint32_t *num_modifiers, uint64_t **modifiers);
 Bool xwl_glamor_check_flip(WindowPtr present_window, PixmapPtr pixmap);
 PixmapPtr xwl_glamor_create_pixmap_for_window (struct xwl_window *xwl_window);
 
