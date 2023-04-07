@@ -296,10 +296,14 @@ xwl_glamor_gbm_create_pixmap_internal(struct xwl_screen *xwl_screen,
         if (xwl_gbm->dmabuf_capable) {
             uint32_t num_modifiers = 0;
             uint64_t *modifiers = NULL;
+            Bool supports_scanout = FALSE;
 
             if (drawable) {
-                xwl_glamor_get_drawable_modifiers(drawable, format,
-                                                  &num_modifiers, &modifiers);
+                xwl_glamor_get_drawable_modifiers_and_scanout(drawable,
+                                                              format,
+                                                              &num_modifiers,
+                                                              &modifiers,
+                                                              &supports_scanout);
             }
 
             if (num_modifiers == 0) {
@@ -309,9 +313,12 @@ xwl_glamor_gbm_create_pixmap_internal(struct xwl_screen *xwl_screen,
 
             if (num_modifiers > 0) {
 #ifdef GBM_BO_WITH_MODIFIERS2
+                uint32_t usage = GBM_BO_USE_RENDERING;
+                if (supports_scanout)
+                    usage |= GBM_BO_USE_SCANOUT;
                 bo = gbm_bo_create_with_modifiers2(xwl_gbm->gbm, width, height,
                                                    format, modifiers, num_modifiers,
-                                                   GBM_BO_USE_RENDERING);
+                                                   usage);
 #else
                 bo = gbm_bo_create_with_modifiers(xwl_gbm->gbm, width, height,
                                                   format, modifiers, num_modifiers);
