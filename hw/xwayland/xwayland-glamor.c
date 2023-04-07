@@ -327,7 +327,8 @@ xwl_get_modifiers_for_format(struct xwl_format *format_array, int num_formats,
 static Bool
 xwl_get_modifiers_for_device(struct xwl_dmabuf_feedback *feedback, drmDevice *device,
                              uint32_t format, uint32_t *num_modifiers,
-                             uint64_t **modifiers)
+                             uint64_t **modifiers,
+                             Bool *supports_scanout)
 {
     /* Now try to find a matching set of tranches for the window's device */
     for (int i = 0; i < feedback->dev_formats_len; i++) {
@@ -335,8 +336,11 @@ xwl_get_modifiers_for_device(struct xwl_dmabuf_feedback *feedback, drmDevice *de
 
         if (drmDevicesEqual(dev_formats->drm_dev, device) &&
             xwl_get_modifiers_for_format(dev_formats->formats, dev_formats->num_formats,
-                                         format, num_modifiers, modifiers))
+                                         format, num_modifiers, modifiers)) {
+            if (supports_scanout)
+                *supports_scanout = !!dev_formats->supports_scanout;
             return TRUE;
+        }
     }
 
     return FALSE;
@@ -360,7 +364,8 @@ xwl_glamor_get_modifiers(ScreenPtr screen, uint32_t format,
         main_dev = xwl_screen_get_main_dev(xwl_screen);
 
         return xwl_get_modifiers_for_device(&xwl_screen->default_feedback, main_dev,
-                                            format, num_modifiers, modifiers);
+                                            format, num_modifiers, modifiers,
+                                            NULL);
     } else {
         return xwl_get_modifiers_for_format(xwl_screen->formats, xwl_screen->num_formats,
                                             format, num_modifiers, modifiers);
@@ -368,8 +373,11 @@ xwl_glamor_get_modifiers(ScreenPtr screen, uint32_t format,
 }
 
 Bool
-xwl_glamor_get_drawable_modifiers(DrawablePtr drawable, uint32_t format,
-                                  uint32_t *num_modifiers, uint64_t **modifiers)
+xwl_glamor_get_drawable_modifiers_and_scanout(DrawablePtr drawable,
+                                              uint32_t format,
+                                              uint32_t *num_modifiers,
+                                              uint64_t **modifiers,
+                                              Bool *supports_scanout)
 {
     struct xwl_screen *xwl_screen = xwl_screen_get(drawable->pScreen);
     struct xwl_window *xwl_window;
@@ -377,6 +385,8 @@ xwl_glamor_get_drawable_modifiers(DrawablePtr drawable, uint32_t format,
 
     *num_modifiers = 0;
     *modifiers = NULL;
+    if (supports_scanout)
+        *supports_scanout = FALSE;
 
     /* We can only return per-drawable modifiers if the compositor supports feedback */
     if (xwl_screen->dmabuf_protocol_version < 4)
@@ -394,7 +404,18 @@ xwl_glamor_get_drawable_modifiers(DrawablePtr drawable, uint32_t format,
     main_dev = xwl_screen_get_main_dev(xwl_screen);
 
     return xwl_get_modifiers_for_device(&xwl_window->feedback, main_dev,
-                                        format, num_modifiers, modifiers);
+                                        format, num_modifiers, modifiers,
+                                        supports_scanout);
+
+}
+
+Bool
+xwl_glamor_get_drawable_modifiers(DrawablePtr drawable, uint32_t format,
+                                  uint32_t *num_modifiers, uint64_t **modifiers)
+{
+    return xwl_glamor_get_drawable_modifiers_and_scanout(drawable,
+                                                         format, num_modifiers,
+                                                         modifiers, NULL);
 
 }
 

@@ -142,6 +142,11 @@ Bool xwl_glamor_get_formats(ScreenPtr screen,
                             CARD32 *num_formats, CARD32 **formats);
 Bool xwl_glamor_get_modifiers(ScreenPtr screen, uint32_t format,
                               uint32_t *num_modifiers, uint64_t **modifiers);
+Bool xwl_glamor_get_drawable_modifiers_and_scanout(DrawablePtr drawable,
+                                                   uint32_t format,
+                                                   uint32_t *num_modifiers,
+                                                   uint64_t **modifiers,
+                                                   Bool *supports_scanout);
 Bool xwl_glamor_get_drawable_modifiers(DrawablePtr drawable, uint32_t format,
                                        uint32_t *num_modifiers, uint64_t **modifiers);
 Bool xwl_glamor_check_flip(PixmapPtr pixmap);
