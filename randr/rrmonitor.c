@@ -489,17 +489,6 @@ RRMonitorAdd(ClientPtr client, ScreenPtr screen, RRMonitorPtr monitor)
         }
     }
 
-    /* 'name' must not match the name of any Monitor on the screen, or
-     * a Value error results.
-     */
-
-    for (m = 0; m < pScrPriv->numMonitors; m++) {
-        if (pScrPriv->monitors[m]->name == monitor->name) {
-            client->errorValue = monitor->name;
-            return BadValue;
-        }
-    }
-
     /* Allocate space for the new pointer. This is done before
      * removing matching monitors as it may fail, and the request
      * needs to not have any side-effects on failure
