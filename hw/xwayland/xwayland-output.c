@@ -1086,10 +1086,7 @@ xwl_randr_add_modes_fixed(struct xwl_output *xwl_output,
 {
     RRModePtr *modes = NULL;
     RRModePtr mode;
-    xRRModeInfo mode_info = { 0, };
-    char mode_name[128];
     int i, nmodes, current;
-
 
     modes = xallocarray(ARRAY_SIZE(xwl_output_fake_modes) + 1, sizeof(RRModePtr));
     if (!modes) {
@@ -1115,21 +1112,11 @@ xwl_randr_add_modes_fixed(struct xwl_output *xwl_output,
     }
 
     if (!current) {
-        /* Add the current mode as it's not part of the fake modes.
-         * Not using libcvt as the size is set from the command line and
-         * may not be a valid CVT mode.
-         */
-        mode_info.width = current_width;
-        mode_info.height = current_height;
-        mode_info.hTotal = current_width;
-        mode_info.vTotal = current_height;
-        mode_info.dotClock = 60 * 1000 * 1000;
+        /* Add the current mode as it's not part of the fake modes. */
+        mode = xwayland_cvt(current_width, current_height, 60, 0, 0);
 
-        snprintf(mode_name, sizeof(mode_name), "%dx%d",
-                 current_width, current_height);
-        mode_info.nameLength = strlen(mode_name);
-
-        modes[nmodes++] = RRModeGet(&mode_info, mode_name);
+        if (mode)
+            modes[nmodes++] = mode;
     }
 
     qsort(modes, nmodes, sizeof(RRModePtr), mode_sort);
