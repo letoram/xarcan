@@ -1,4 +1,4 @@
-/***********************************************************
+/**********************************************************
 
 Copyright 1987, 1998  The Open Group
 
@@ -127,7 +127,7 @@ extern _X_EXPORT int WriteToClient(ClientPtr /*who */ , int /*count */ ,
 
 extern _X_EXPORT void ResetOsBuffers(void);
 
-extern _X_EXPORT void NotifyParentProcess(void);
+extern _X_EXPORT void (*NotifyParentProcess)(void);
 
 extern _X_EXPORT void CreateWellKnownSockets(void);
 

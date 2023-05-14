@@ -192,8 +192,8 @@ InitParentProcess(void)
 #endif
 }
 
-void
-NotifyParentProcess(void)
+static void
+DefaultNotify(void)
 {
 #if !defined(WIN32)
     if (displayfd >= 0) {
@@ -218,6 +218,8 @@ NotifyParentProcess(void)
 #endif
 #endif
 }
+
+void (*NotifyParentProcess)(void) = DefaultNotify;
 
 static Bool
 TryCreateSocket(int num, int *partial)
