@@ -166,8 +166,7 @@ ddxUseMsg(void)
     ErrorF("-nodynamic             Disable connection-controlled resize\n");
     ErrorF("-aident [str]          Set window dynamic identity\n");
     ErrorF("-atitle [str]          Set window static identity\n");
-    ErrorF("-wmexec path           Launch explicit WM when initialised\n");
-    ErrorF("-miniwm                Use instead of -wmexec\n");
+    ErrorF("-exec path             Launch explicit client after initialisation\n");
     ErrorF("-present               Enable PRESENT extension (experimental)\n");
     ErrorF("-softmouse             Force pre-composed non-accelerade mouse cursor\n");
     ErrorF("-redirect              Default-redirect new toplevel windows\n");
@@ -190,19 +189,13 @@ ddxProcessArgument(int argc, char **argv, int i)
         return 1;
     }
 #endif
-    if (strcmp(argv[i], "-miniwm") == 0){
-        if (arcanConfigPriv.wmexec){
-            FatalError("can't use -miniwm with -wmexec\n");
-    }
-         arcanConfigPriv.miniwm = true;
-         return 1;
-    }
-    if (strcmp(argv[i], "-wmexec") == 0){
+    if (strcmp(argv[i], "-exec") == 0){
+			  NotifyParentProcess = arcanNotifyReady;
         if ((i+1) < argc){
-        arcanConfigPriv.wmexec = strdup(argv[i+1]);
+        arcanConfigPriv.exec = strdup(argv[i+1]);
         return 2;
     }
-    FatalError("-wmexec without path argument\n");
+    FatalError("-exec without path argument\n");
     exit(1);
     }
     if (strcmp(argv[i], "-nodri3") == 0){
@@ -246,6 +239,7 @@ ddxProcessArgument(int argc, char **argv, int i)
         arcanConfigPriv.redirect = true;
         return 1;
     }
+
     return KdProcessArgument(argc, argv, i);
 }
 

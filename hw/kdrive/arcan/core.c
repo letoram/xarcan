@@ -8,6 +8,9 @@
  *     an XIM and use that to provide the actual text.
  *
  *  - present clients only partially handled
+ *    - when no present and redirect, try to DAG- flush based on
+ *      no more data on the inbound client socket (assuming that
+ *      draws typically come in bursts).
  *
  *  - an exec for the miniwm + redirect combination to get single
  *    client management analogous to arcan-wayland -exec-x11
@@ -451,6 +454,7 @@ static int64_t sendSegmentToPool(arcanScrPriv *S, struct arcan_shmif_cont *C)
 
 static void dumpPool(const char* tag, arcanScrPriv *S)
 {
+    printf("Pool(%s):\n", tag);
     for (size_t i = 0; i < 64; i++){
         if (!S->pool[i])
             continue;
@@ -578,7 +582,8 @@ static Bool arcanRealizeWindow(WindowPtr wnd)
 
 /* compRedirect will create a pixmap and we do that out of a fitting per-toplevel
  * shmif segment (or request one if there is nothing in the reuse pool) */
-    compRedirectWindow(serverClient, wnd, CompositeRedirectAutomatic);
+    trace("redirect:window=%"PRIxPTR, wnd);
+    compRedirectWindow(serverClient, wnd, CompositeRedirectManual);
     ext->damage = DamageCreate(NULL, NULL,
                                DamageReportNone, TRUE, ascr->screen, NULL);
     DamageRegister(&wnd->drawable, ext->damage);
@@ -616,6 +621,8 @@ static Bool arcanUnrealizeWindow(WindowPtr wnd)
         free(apriv);
         dixSetPrivate(&wnd->devPrivates, &windowPriv, NULL);
     }
+    else
+        trace("unrealize:unknown:id=%zu", (size_t)wnd->drawable.id);
 
     if (ascr->hooks.unrealizeWindow){
         ascr->screen->UnrealizeWindow = ascr->hooks.unrealizeWindow;
@@ -849,7 +856,7 @@ static int convertMouseButton(int btn)
 }
 
 static void
-TranslateInput(struct arcan_shmif_cont* con, arcan_event* oev)
+TranslateInput(struct arcan_shmif_cont* con, arcan_event* oev, int dx, int dy)
 {
     int x = 0, y = 0;
     arcan_ioevent *ev = &oev->io;
@@ -1106,34 +1113,8 @@ cmdCreateProxyWindow(
     pthread_create(&pth, &pthattr, (void*)(void*)arcanProxyWindowDispatch, proxy);
 }
 
-static
-void
-cmdSpawnBuiltinWM(void)
+void arcanForkExec(void)
 {
-    if (!arcanConfigPriv.miniwm && !arcanConfigPriv.wmexec)
-        return;
-
-    if (arcanConfigPriv.miniwm)
-    {
-        int pair[2];
-        socketpair(AF_UNIX, SOCK_STREAM, AF_UNIX, pair);
-
-        struct proxyWindowData *proxy = malloc(sizeof(struct proxyWindowData));
-        *proxy = (struct proxyWindowData){
-            .socket = pair[1]
-     };
-
-        pthread_attr_t pthattr;
-        pthread_attr_init(&pthattr);
-        pthread_attr_setdetachstate(&pthattr, PTHREAD_CREATE_DETACHED);
-
-        AddClientOnOpenFD(pair[0]);
-
-        pthread_t pth;
-        pthread_create(&pth, &pthattr, (void*)(void*)arcanMiniWMDispatch, proxy);
-        return;
-    }
-
 /* This one is quite annoying as neither xcb nor xlib permits is to specify a
  * process-inherited descriptor to the socket which would really be the proper
  * thing to do. */
@@ -1144,7 +1125,7 @@ cmdSpawnBuiltinWM(void)
     }
 
     if (0 == pid){
-        char* const argv[] = {(char*)arcanConfigPriv.wmexec, NULL};
+        char* const argv[] = {(char*)arcanConfigPriv.exec, NULL};
         char buf[16];
         snprintf(buf, 16, ":%s", display);
         setenv("DISPLAY", buf, 1);
@@ -1153,9 +1134,15 @@ cmdSpawnBuiltinWM(void)
         signal(SIGHUP, SIG_IGN);
         signal(SIGINT, SIG_IGN);
 
-        execvp(arcanConfigPriv.wmexec, argv);
+        execvp(arcanConfigPriv.exec, argv);
         exit(EXIT_FAILURE);
     }
+}
+
+void
+arcanNotifyReady(void)
+{
+	arcanForkExec();
 }
 
 static
@@ -1486,7 +1473,7 @@ handleNewSegment(struct arcan_shmif_cont *C, arcanScrPriv *S, int kind, bool out
         pxout->user = contpriv;
 
         sendSegmentToPool(S, pxout);
-        compRedirectWindow(serverClient, wnd, CompositeRedirectAutomatic);
+        compRedirectWindow(serverClient, wnd, CompositeRedirectManual);
     }
 }
 
@@ -1618,7 +1605,7 @@ static PixmapPtr arcanCompNewPixmap(WindowPtr pWin, int x, int y, int w, int h)
  * calls only update relevant areas */
     C = segmentIDtoContext(ascr, i);
     trace("new_pixmap:id=%d:slot=%zu:x=%d:y=%d:w=%d:h=%d:shmif_w=%d:shmif_h=%d",
-          (int) pWin->drawable.id, (size_t) i, w, h, x, y, C->w, C->h);
+          (int) pWin->drawable.id, (size_t) i, x, y, w, h, C->w, C->h);
 
 /* ensure the tracking structure for our window, pixmap and segment triple,
  * needed with the pixmapFromShmif allocation later */
@@ -1667,6 +1654,7 @@ static PixmapPtr arcanCompNewPixmap(WindowPtr pWin, int x, int y, int w, int h)
     shmif->window = pWin;
     shmif->bound = true;
     aWnd->shmif = C;
+    dumpPool("newPixmap", ascr);
 
     return pmap;
 }
@@ -1696,7 +1684,7 @@ arcanEventDispatch(struct arcan_shmif_cont* con, arcanScrPriv* ascr, arcan_event
 {
     struct arcan_event ev = *aev;
     if (ev.category == EVENT_IO){
-        TranslateInput(con, &ev);
+        TranslateInput(con, &ev, 0, 0);
         return 0;
     }
     else if (ev.category != EVENT_TARGET)
@@ -2817,6 +2805,56 @@ arcanSetWindowPixmap(WindowPtr wnd, PixmapPtr pixmap)
     }
 }
 
+static bool
+flushSecondaryShmifConnection(struct arcan_shmif_cont *C)
+{
+    arcanShmifPriv *P = C->user;
+    struct arcan_shmif_cont* primary = arcan_shmif_primary(SHMIF_INPUT);
+
+    arcan_event ev;
+    int rv;
+
+/* Right now just forward input to primary with a suggested origo offset based
+ * on the window position to go from relative to absolute. We can also go from
+ * io.dst -> XID and explicilty queue to client without going through the
+ * normal loop as a way of evading logging */
+    while ((rv = arcan_shmif_poll(C, &ev)) > 0){
+        if (ev.category == EVENT_IO){
+            TranslateInput(primary, &ev, P->window->drawable.x, P->window->drawable.y);
+            continue;
+        }
+
+        if (ev.category != EVENT_TARGET)
+            continue;
+
+        switch (ev.tgt.kind){
+        case TARGET_COMMAND_DISPLAYHINT:
+/* DISPLAYHINT:
+ *      ext_id, w, h, focus, ... -> configure */
+        break;
+        case TARGET_COMMAND_OUTPUTHINT:
+/* w/h ranges are interesting as there are IWWM hints to forward */
+         break;
+        case TARGET_COMMAND_RESET:
+/*
+ *      - doesn't really apply, parent should sweep, drop and re-allocate as needed
+ */
+        break;
+/*
+ *      case TARGET_COMMAND_ANCHORHINT:
+ *      - corresponds to a configure event that just moves the window around relative
+ *        to parent where the cookie is specified as a known ext_id (or segment cookie)
+ */
+        default:
+        break;
+        }
+    }
+
+/* displayhint, request as a configure, possibly set FOCUS */
+/* INPUT -> need to inject to parent and make sure the grab is on the window */
+  return true;
+}
+
 static void
 arcanScreenBlockHandler(ScreenPtr pScreen, void* timeout)
 {
@@ -2844,10 +2882,14 @@ arcanScreenBlockHandler(ScreenPtr pScreen, void* timeout)
             if (!P->bound || !P->window || !P->pixmap)
                 continue;
 
+
           if (P->window->unsynched){
               sendWndData(P->window, 0, 0, C);
               P->window->unsynched = 0;
           }
+
+          if (!flushSecondaryShmifConnection(C))
+              continue;
 
           arcanWindowPriv *awnd = dixLookupPrivate(&P->window->devPrivates, &windowPriv);
           if (awnd && awnd->damage){
@@ -3066,11 +3108,17 @@ arcanFinishInitScreen(ScreenPtr pScreen)
     screen->pScreen->DestroyPixmap = arcanDestroyPixmap;
 #endif
 
+/* hide the root window to indicate that we are 'rootless' */
     arcan_shmif_mousestate_setup(scrpriv->acon, false, arcanInputPriv.mstate);
-    if (arcanConfigPriv.redirect)
+    if (arcanConfigPriv.redirect){
         scrpriv->defaultRootless = true;
+        ARCAN_ENQUEUE(scrpriv->acon, &(struct arcan_event){
+             .category = EVENT_EXTERNAL,
+             .ext.kind = ARCAN_EVENT(VIEWPORT),
+             .ext.viewport.invisible = true
+        });
+    }
 
-    cmdSpawnBuiltinWM();
     return TRUE;
 }
 

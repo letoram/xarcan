@@ -610,6 +610,10 @@ void *arcanClipboardDispatch(struct proxyWindowData* inWnd)
  * like behavior we should take the selection back and retrieve it from who owns it, but
  * that is problematic when there are multiples .. */
              break;
+/* for -redirect with -exec to a non-wm target we kind of want to fill that hole */
+						 case XCB_MAP_REQUEST:
+                 xcb_map_window(xcon, ((xcb_map_request_event_t*)event)->window);
+						 break;
              case XCB_PROPERTY_NOTIFY:
                  propertyNotify(inWnd, (xcb_property_notify_event_t *) event);
              break;

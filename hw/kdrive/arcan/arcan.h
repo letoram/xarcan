@@ -120,8 +120,7 @@ typedef struct _arcanInput {
 typedef struct _arcanConfig {
     const char* title;
     const char* ident;
-    const char* wmexec;
-    Bool miniwm;
+    const char* exec;
     Bool no_dri3;
     Bool glamor;
     Bool present;
@@ -191,6 +190,12 @@ void *arcanWindowLinear(ScreenPtr pScreen,
                        CARD32 offset, int mode, CARD32 *size, void *closure);
 
 void
+ arcanNotifyReady(void);
+
+void
+ arcanForkExec(void);
+
+void
  arcanSetScreenSizes(ScreenPtr pScreen);
 
 Bool
@@ -211,7 +216,6 @@ void arcanGlamorFini(ScreenPtr screen);
 
 void* arcanProxyWindowDispatch(struct proxyWindowData*);
 void* arcanClipboardDispatch(struct proxyWindowData*);
-void* arcanMiniWMDispatch(struct proxyWindowData*);
 
 /*
  * With RandR enabled, we treat the DISPLAYHINT events from parent
