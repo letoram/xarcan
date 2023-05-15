@@ -30,9 +30,9 @@
 #include "xwayland-cvt.h"
 
 static void
-xwayland_modinfo_from_cvt(xRRModeInfo *modeinfo,
-                          int hdisplay, int vdisplay, float vrefresh,
-                          Bool reduced, Bool interlaced)
+xwayland_modeinfo_from_cvt(xRRModeInfo *modeinfo,
+                           int hdisplay, int vdisplay, float vrefresh,
+                           Bool reduced, Bool interlaced)
 {
     struct libxcvt_mode_info *libxcvt_mode_info;
 
@@ -54,8 +54,8 @@ xwayland_modinfo_from_cvt(xRRModeInfo *modeinfo,
 }
 
 static void
-xwayland_modinfo_from_values(xRRModeInfo *modeinfo,
-                             int hdisplay, int vdisplay, float vrefresh)
+xwayland_modeinfo_from_values(xRRModeInfo *modeinfo,
+                              int hdisplay, int vdisplay, float vrefresh)
 {
     modeinfo->width  = hdisplay;
     modeinfo->height = vdisplay;
@@ -71,8 +71,8 @@ xwayland_cvt(int hdisplay, int vdisplay, float vrefresh, Bool reduced,
     char name[128];
     xRRModeInfo modeinfo = { 0, };
 
-    xwayland_modinfo_from_cvt(&modeinfo,
-                              hdisplay, vdisplay, vrefresh, reduced, interlaced);
+    xwayland_modeinfo_from_cvt(&modeinfo,
+                               hdisplay, vdisplay, vrefresh, reduced, interlaced);
 
     /* Horizontal granularity in libxcvt is 8, so if our horizontal size is not
      * divisible by 8, libxcvt will round it down, and we will advertise a wrong
@@ -80,8 +80,8 @@ xwayland_cvt(int hdisplay, int vdisplay, float vrefresh, Bool reduced,
      */
     if (modeinfo.width != hdisplay || modeinfo.height != vdisplay) {
         memset(&modeinfo, 0, sizeof(xRRModeInfo));
-        xwayland_modinfo_from_values(&modeinfo,
-                                     hdisplay, vdisplay, vrefresh);
+        xwayland_modeinfo_from_values(&modeinfo,
+                                      hdisplay, vdisplay, vrefresh);
     }
 
     snprintf(name, sizeof name, "%dx%d",
