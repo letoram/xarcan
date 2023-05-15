@@ -53,17 +53,6 @@ xwayland_modeinfo_from_cvt(xRRModeInfo *modeinfo,
     free(libxcvt_mode_info);
 }
 
-static void
-xwayland_modeinfo_from_values(xRRModeInfo *modeinfo,
-                              int hdisplay, int vdisplay, float vrefresh)
-{
-    modeinfo->width  = hdisplay;
-    modeinfo->height = vdisplay;
-    modeinfo->hTotal = hdisplay;
-    modeinfo->vTotal = vdisplay;
-    modeinfo->dotClock = hdisplay * vdisplay * vrefresh;
-}
-
 RRModePtr
 xwayland_cvt(int hdisplay, int vdisplay, float vrefresh, Bool reduced,
              Bool interlaced)
@@ -75,14 +64,13 @@ xwayland_cvt(int hdisplay, int vdisplay, float vrefresh, Bool reduced,
                                hdisplay, vdisplay, vrefresh, reduced, interlaced);
 
     /* Horizontal granularity in libxcvt is 8, so if our horizontal size is not
-     * divisible by 8, libxcvt will round it down, and we will advertise a wrong
-     * size to our XRandR clients. Fallback to a simpler method in that case.
+     * divisible by 8, libxcvt will round it up, and we will advertise a wrong
+     * size to our XRandR clients.
+     * Force the width/height (i.e. simply increase blanking which should not
+     * hurt anything), keeping the rest of the CVT mode timings unchanged.
      */
-    if (modeinfo.width != hdisplay || modeinfo.height != vdisplay) {
-        memset(&modeinfo, 0, sizeof(xRRModeInfo));
-        xwayland_modeinfo_from_values(&modeinfo,
-                                      hdisplay, vdisplay, vrefresh);
-    }
+    modeinfo.width = hdisplay;
+    modeinfo.height = vdisplay;
 
     snprintf(name, sizeof name, "%dx%d",
              modeinfo.width, modeinfo.height);
