@@ -42,6 +42,7 @@ typedef struct _arcanPixmapPriv {
     struct gbm_bo *bo; /* tracking for shmifext- accelerated transfers */
     void *image; /* EGLImage reference handle */
     unsigned int texture; /* GL texture id reference */
+		char *tmpbuf;
 } arcanPixmapPriv;
 
 typedef struct _arcanShmifPriv {
@@ -162,7 +163,10 @@ int
  arcanEventDispatch(struct arcan_shmif_cont*, arcanScrPriv*, arcan_event* ev, int64_t);
 
 void
-arcanFlushEvents(int fd, void* tag);
+arcanFlushEvents(int fd, int, void* tag);
+
+void
+arcanFlushRedirectedEvents(int fd, int, void* tag);
 
 int
 arcanInit(void);

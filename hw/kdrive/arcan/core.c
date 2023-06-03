@@ -132,7 +132,7 @@ static struct {
 
 static void resolveAtoms(void)
 {
-#define make(N) MakeAtom(N, strlen(N), false)
+#define make(N) MakeAtom(N, strlen(N), true)
     wm_atoms._NET_WM_WINDOW_TYPE = make("_NET_WM_WINDOW_TYPE");
     wm_atoms._NET_WM_WINDOW_TYPE_DESKTOP = make("_NET_WM_WINDOW_TYPE_DESKTOP");
     wm_atoms._NET_WM_WINDOW_TYPE_DOCK = make("_NET_WM_WINDOW_TYPE_DOCK");
@@ -338,42 +338,82 @@ static uint8_t getOrder(WindowPtr wnd)
     return count - order;
 }
 
-static void sendWndData(WindowPtr wnd, int depth, int max_depth, void* tag)
+static PropertyPtr getWindowProperty(WindowPtr wnd, ATOM match)
 {
-    struct arcan_shmif_cont* acon = tag;
+    if(!wnd->optional || !wnd->optional->userProps)
+        return NULL;
+
+    PropertyPtr cur = wnd->optional->userProps;
+    while (cur){
+        if (cur->propertyName == match)
+            return cur;
+        cur = cur->next;
+    }
+
+    return NULL;
+}
+
+static void sendWndData(WindowPtr wnd, int depth, int max_depth, void *tag)
+{
+    struct arcan_shmif_cont *acon = tag;
     int bw = wnd->borderWidth;
+    WindowPtr anchorRel = wnd->parent;
 
     struct arcan_event out = (struct arcan_event)
     {
        .category = EVENT_EXTERNAL,
        .ext.kind = ARCAN_EVENT(VIEWPORT),
-       .ext.viewport.x = wnd->drawable.x - bw,
-       .ext.viewport.y = wnd->drawable.y - bw,
        .ext.viewport.w = wnd->drawable.width + bw + bw,
        .ext.viewport.h = wnd->drawable.height + bw + bw,
        .ext.viewport.border = {bw, bw, bw, bw},
        .ext.viewport.parent = wnd->parent ? wnd->parent->drawable.id : 0,
-       .ext.viewport.embedded = !(wnd->parent && !wnd->parent->parent),
+       .ext.viewport.embedded = wnd->overrideRedirect,
        .ext.viewport.ext_id = wnd->drawable.id,
        .ext.viewport.order = wnd->visibility == VisibilityUnobscured ? getOrder(wnd) : -1,
        .ext.viewport.invisible = !isWindowVisible(wnd),
-       .ext.viewport.focus = EnterLeaveWindowHasFocus(wnd)
+       .ext.viewport.focus = EnterLeaveWindowHasFocus(wnd),
+       .ext.viewport.anchor_edge = true,
+       .ext.viewport.edge = 1
     };
 
+/* hopefully this is OK enough to solve the override-Redirect + transient ones without
+ * adding any special cases so that more Arcan WMs just work without any considerations */
+    PropertyPtr transient = getWindowProperty(wnd, XA_WM_TRANSIENT_FOR);
+    if (transient){
+        WindowPtr twnd;
+        if (Success == dixLookupResourceByType((void**)&twnd,
+                                               *(XID*) transient->data,
+                                               RT_WINDOW, NULL, DixReadAccess)){
+            anchorRel = twnd;
+        }
+    }
+
+/* translate relative to anchor parent */
+    out.ext.viewport.x = wnd->drawable.x - bw - anchorRel->drawable.x;
+    out.ext.viewport.y = wnd->drawable.y - bw - anchorRel->drawable.y;
+
+#ifdef DEBUG
     if (wnd->optional && wnd->optional->userProps){
         PropertyPtr cur = wnd->optional->userProps;
+
+/* these need to resolve to a new IDENT string >if changed< */
         while (cur){
+            trace("window-property: %s", NameForAtom(cur->propertyName));
             if (cur->type == XA_STRING || cur->type == wm_atoms.UTF8_STRING){
-                if (cur->propertyName != XA_WM_NAME ||
-                    cur->propertyName == wm_atoms._NET_WM_NAME){
-                        break;
-                }
+                trace("window-string-property: %d, %.*s", cur->size, cur->data);
+            }
+            if (cur->type == XA_ATOM){
+                trace("window-atom: %s", NameForAtom(*(ATOM*)cur->data));
+            }
+            if (cur->propertyName == wm_atoms._NET_WM_WINDOW_TYPE){
+/* anything else to do with type information? MESSAGE is one option */
             }
 
             cur = cur->next;
             continue;
         }
-}
+    }
+#endif
 
 /* actually only send if the contents differ from what we sent last time */
     arcanWindowPriv *awnd = dixLookupPrivate(&wnd->devPrivates, &windowPriv);
@@ -449,6 +489,8 @@ static int64_t sendSegmentToPool(arcanScrPriv *S, struct arcan_shmif_cont *C)
     i--;
     S->redirectBitmap |= (uint64_t) 1 << i;
     S->pool[i] = C;
+    InputThreadRegisterDev(C->epipe, arcanFlushRedirectedEvents, C);
+
     return i;
 }
 
@@ -512,8 +554,19 @@ static int64_t findBestSegment(arcanScrPriv *S, int w, int h, WindowPtr pWin)
         struct arcan_shmif_cont *C = S->pool[i];
         arcanShmifPriv *P = C->user;
 
-/* expected a match */
-        if (pWin && P->window == pWin && !P->bound){
+/*
+ * This one is interesting, if we go for a segment preallocated for a window but
+ * not still in use there will be at least n_wnd+1 segments in flight, on the other
+ * hand the resize becomes de-facto asynch.
+ *
+ * This moves the problem of handling two segments mapped to the same window to
+ * the arcan-appl side and otherwise we introduce a resize like stall. The
+ * crutch is that the swapping behaviour is needed on arcan side regardless of
+ * pool reallocations. If we do return a bound surface here, another problem
+ * persists that would need handling and that is the CopyArea call that the
+ * COMPOSITE extension applies, as it smears out its own pixmap.
+ */
+        if (pWin && P->window == pWin /* && !P->bound */){
             return i;
         }
 /* otherwise aim for the shortest size distance, hoping that the delta
@@ -856,10 +909,23 @@ static int convertMouseButton(int btn)
 }
 
 static void
-TranslateInput(struct arcan_shmif_cont* con, arcan_event* oev, int dx, int dy)
+TranslateInput(
+    struct arcan_shmif_cont* con, arcan_event* oev, arcanShmifPriv *P)
 {
     int x = 0, y = 0;
     arcan_ioevent *ev = &oev->io;
+
+/* If P is provided the input is on a redirected segment, meaning that even the absolute
+ * coordinates are absolute in the space of the segment not some unknown global. Anchorhints
+ * will still have the windows configured at the right position,
+ */
+    int wnd_xofs = 0;
+    int wnd_yofs = 0;
+    if (P && P->window){
+        wnd_xofs = P->window->drawable.x;
+        wnd_yofs = P->window->drawable.y;
+    }
+
     if (ev->devkind == EVENT_IDEVKIND_MOUSE){
 /*
  * There's a trick here -
@@ -889,7 +955,7 @@ TranslateInput(struct arcan_shmif_cont* con, arcan_event* oev, int dx, int dy)
             }
             else if (arcan_shmif_mousestate(con, arcanInputPriv.mstate, oev, &x, &y)){
                 ValuatorMask mask;
-                int valuators[3] = {x, y, 0};
+                int valuators[3] = {x+wnd_xofs, y+wnd_yofs, 0};
                 valuator_mask_set_range(&mask, 0, 3, valuators);
                 QueuePointerEvents(arcanInputPriv.pi->dixdev,
                                    MotionNotify,
@@ -1007,10 +1073,9 @@ synchTreeDepth(arcanScrPriv* scrpriv, WindowPtr wnd,
 
 static
 void
-arcanSignal(struct arcan_shmif_cont* con, bool dirty)
+arcanSignal(struct arcan_shmif_cont* con)
 {
     arcanScrPriv *scrpriv = con->user;
-    scrpriv->dirty |= dirty;
 
     if (!scrpriv->dirty)
         return;
@@ -1142,7 +1207,7 @@ void arcanForkExec(void)
 void
 arcanNotifyReady(void)
 {
-	arcanForkExec();
+    arcanForkExec();
 }
 
 static
@@ -1291,16 +1356,25 @@ cmdReconfigureWindow(int32_t x, int32_t y, uint32_t w, uint32_t h, bool xy, XID 
         return;
     }
 
-/* Fake a message to ourselves, seems like there never was a real internal
- * way of moving/configuring a window - should perhaps add that instead of
- * these kinds of hacks. */
+    int mask = 0;
+    if (w && h){
+        int bw = res->borderWidth * 2;
+        w += bw;
+        h += bw;
+        mask |= CWWidth | CWHeight;
+    }
+
+/* Fake a message to ourselves, seems like there never was a real internal way
+ * of moving/configuring a window - should perhaps add that instead of these
+ * kinds of hacks. */
     if (xy){
         XID vlist[4] = {x, y, w, h};
-        ConfigureWindow(res, CWX | CWY | CWWidth | CWHeight, vlist, client);
+        mask |= CWX | CWY;
+        ConfigureWindow(res, mask, vlist, client);
     }
     else{
         XID vlist[2] = {w, h};
-        ConfigureWindow(res, CWWidth | CWHeight, vlist, client);
+        ConfigureWindow(res, mask, vlist, client);
      }
 }
 
@@ -1530,11 +1604,16 @@ static Bool arcanDestroyPixmap(PixmapPtr pixmap)
     if (ext){
 /*      dumpPool("destroyPixmap", ascr); */
         struct arcan_shmif_cont *C = segmentIDtoContext(ascr, ext->id);
-
+        if (ext->tmpbuf){
+            free(ext->tmpbuf);
+            ext->tmpbuf = NULL;
+        }
+        else
         if (C && C->user){
             arcanShmifPriv *contpriv = C->user;
             trace("destroyPixmap:backing=shmif:window=%"PRIxPTR, (uintptr_t) contpriv->window);
             contpriv->pixmap = NULL;
+            contpriv->bound = false;
         }
         else
             ErrorF("destroyPixmap:backing=no");
@@ -1554,9 +1633,7 @@ static Bool arcanDestroyPixmap(PixmapPtr pixmap)
  * screen based pixmap allocation will be used. The bigger caveat here is that
  * the invocation order comp->new->realize to comp->resize->new->destroy(old)
  * means that we will overallocate one and the window will have two shmif
- * pixmaps instead of the one + resize. If we can be certain there is no other
- * sharing and this pattern persists it would be safe to check pWin for a
- * shmif mapping and resize it then ignore the NewPixmap/DestroyPixmap pattern. */
+ * pixmaps instead of the one + resize.*/
 static PixmapPtr arcanCompNewPixmap(WindowPtr pWin, int x, int y, int w, int h)
 {
 /* First try and grab a segment intended for pWins drawable */
@@ -1613,6 +1690,24 @@ static PixmapPtr arcanCompNewPixmap(WindowPtr pWin, int x, int y, int w, int h)
         arcanShmifPriv *contpriv = malloc(sizeof(arcanShmifPriv));
         *contpriv = (arcanShmifPriv){.bound = false};
         C->user = contpriv;
+        trace("new_pixmap:bind_new");
+    }
+
+    arcanShmifPriv *shmif = C->user;
+
+/* If we are reusing a shmif context but binding it to a new pixmap, we need a
+ * safe copy so that when we return the pixmap to COMPOSITE there is no alias
+ * to the same memory or its own copy-during-resize code will corrupt. This
+ * copy is then checked for during DestroyPixmap */
+    if (shmif->bound){
+        trace("new_pixmap:backup_reuse");
+        size_t nb = C->stride * C->h;
+        arcanPixmapPriv *priv = dixLookupPrivate(
+                                               &shmif->pixmap->devPrivates,
+                                               &pixmapPriv);
+        priv->tmpbuf = malloc(nb);
+        memcpy(priv->tmpbuf, C->vidb, nb);
+        pWin->drawable.pScreen->ModifyPixmapHeader(shmif->pixmap, 0, 0, 0, 0, 0, priv->tmpbuf);
     }
 
 /* Make sure that the mode is correct, SUBREGION will be set through _dirty calls */
@@ -1624,39 +1719,34 @@ static PixmapPtr arcanCompNewPixmap(WindowPtr pWin, int x, int y, int w, int h)
                                      C, CREATE_PIXMAP_USAGE_BACKING_PIXMAP
                                     );
 
-    arcanShmifPriv *shmif = C->user;
     arcanPixmapPriv *aPix = malloc(sizeof(arcanPixmapPriv));
     *aPix = (arcanPixmapPriv){.id = i};
     dixSetPrivate(&pmap->devPrivates, &pixmapPriv, aPix);
 
-/* orphan the old pixmap - sending the invisible viewport should not strictly
- * be necessary as the server end already knows that we have a new segment req
- * for an existing external ID, so when the new frame is delivered on it a hide
- * on the old is in order. */
-    if (aWnd->shmif){
-        arcanShmifPriv *apriv = aWnd->shmif->user;
-        trace("newPixmap:id=%zu:shmif=yes:pixmap=%"PRIxPTR":window=%"PRIxPTR,
-              (uintptr_t) shmif->window, (uintptr_t) shmif->pixmap);
-
-        if (apriv->window == pWin){
-             ARCAN_ENQUEUE(aWnd->shmif, &(struct arcan_event){
-                 .category = EVENT_EXTERNAL,
-                 .ext.kind = ARCAN_EVENT(VIEWPORT),
-                 .ext.viewport.invisible = true,
-                 .ext.viewport.ext_id = apriv->window->drawable.id
-            });
-             apriv->window = NULL;
-             apriv->bound = false;
+/* get the property atom to tell what this one is supposed to be for,
+ * there is also the transient_for window property to consider */
+#ifdef DEBUG
+    if (pWin->optional){
+        PropertyPtr cp = pWin->optional->userProps;
+        while (cp){
+            if (cp->propertyName == wm_atoms._NET_WM_WINDOW_TYPE){
+              trace("newPixmap:window_type found");
+            }
+            cp = cp->next;
         }
     }
+#endif
 
-    shmif->pixmap = pmap;
-    shmif->window = pWin;
-    shmif->bound = true;
-    aWnd->shmif = C;
-    dumpPool("newPixmap", ascr);
+   shmif->pixmap = pmap;
+   shmif->window = pWin;
 
-    return pmap;
+/* cause a viewport to be emitted before the frame signal */
+   pWin->unsynched = true;
+   shmif->bound = true;
+   aWnd->shmif = C;
+   dumpPool("newPixmap", ascr);
+
+   return pmap;
 }
 
 /* property.x: PrintPropertys (#ifdef notdef)
@@ -1684,7 +1774,7 @@ arcanEventDispatch(struct arcan_shmif_cont* con, arcanScrPriv* ascr, arcan_event
 {
     struct arcan_event ev = *aev;
     if (ev.category == EVENT_IO){
-        TranslateInput(con, &ev, 0, 0);
+        TranslateInput(con, &ev, NULL);
         return 0;
     }
     else if (ev.category != EVENT_TARGET)
@@ -1707,8 +1797,10 @@ arcanEventDispatch(struct arcan_shmif_cont* con, arcanScrPriv* ascr, arcan_event
         break;
 /* swap-out monitored FD */
         case 3:
-            InputThreadUnregisterDev(con->epipe);
-            InputThreadRegisterDev(con->epipe, (void*) arcanFlushEvents, con);
+            input_unlock();
+               InputThreadUnregisterDev(con->epipe);
+               InputThreadRegisterDev(con->epipe, arcanFlushEvents, con);
+            input_lock();
             ascr->dirty = 1;
             return 1;
         break;
@@ -1740,15 +1832,17 @@ arcanEventDispatch(struct arcan_shmif_cont* con, arcanScrPriv* ascr, arcan_event
         if (uid > 0 && ev.tgt.ioevs[3].uiv == uid){
             return 2;
         }
-        else
+        else{
+            input_unlock();
             handleNewSegment(con,
                              con->user,
                              ev.tgt.ioevs[2].iv,
                              ev.tgt.ioevs[1].iv,
                              ev.tgt.ioevs[3].uiv);
+            input_lock();
+        }
     break;
     case TARGET_COMMAND_EXIT:
-        input_unlock();
         return -1;
     break;
     default:
@@ -1759,13 +1853,14 @@ arcanEventDispatch(struct arcan_shmif_cont* con, arcanScrPriv* ascr, arcan_event
 }
 
 void
-arcanFlushEvents(int fd, void* tag)
+arcanFlushEvents(int fd, int mask, void* tag)
 {
-    struct arcan_shmif_cont* con = arcan_shmif_primary(SHMIF_INPUT);
+    struct arcan_shmif_cont* con = tag;
     if (!con || !con->user)
         return;
 
     input_lock();
+
     arcanScrPriv* ascr = con->user;
     arcan_event ev;
     int rv, status = 0;
@@ -1784,7 +1879,7 @@ arcanFlushEvents(int fd, void* tag)
         arcanSynchCursor(ascr, false);
      }
     else if (status == 1)
-      arcanSignal(con, false);
+      arcanSignal(con);
 
     input_unlock();
 
@@ -1863,7 +1958,7 @@ static void arcanInternalDamageRedisplay(ScreenPtr pScreen)
 /* The segment might already be in a locked state, if so the next STEPFRAME
  * event will wake us up and synch, otherwise send it right away. */
     scrpriv->dirty = true;
-    arcanSignal(scrpriv->acon, false);
+    arcanSignal(scrpriv->acon);
 }
 
 static Bool arcanSetInternalDamage(ScreenPtr pScreen)
@@ -2805,11 +2900,11 @@ arcanSetWindowPixmap(WindowPtr wnd, PixmapPtr pixmap)
     }
 }
 
-static bool
-flushSecondaryShmifConnection(struct arcan_shmif_cont *C)
+void
+arcanFlushRedirectedEvents(int fd, int mask, void *tag)
 {
+    struct arcan_shmif_cont *C = tag;
     arcanShmifPriv *P = C->user;
-    struct arcan_shmif_cont* primary = arcan_shmif_primary(SHMIF_INPUT);
 
     arcan_event ev;
     int rv;
@@ -2818,9 +2913,14 @@ flushSecondaryShmifConnection(struct arcan_shmif_cont *C)
  * on the window position to go from relative to absolute. We can also go from
  * io.dst -> XID and explicilty queue to client without going through the
  * normal loop as a way of evading logging */
+    input_lock();
+
     while ((rv = arcan_shmif_poll(C, &ev)) > 0){
+        if (!P->window)
+            continue;
+
         if (ev.category == EVENT_IO){
-            TranslateInput(primary, &ev, P->window->drawable.x, P->window->drawable.y);
+            TranslateInput(C, &ev, P);
             continue;
         }
 
@@ -2828,31 +2928,55 @@ flushSecondaryShmifConnection(struct arcan_shmif_cont *C)
             continue;
 
         switch (ev.tgt.kind){
-        case TARGET_COMMAND_DISPLAYHINT:
+        case TARGET_COMMAND_DISPLAYHINT:{
+            int hw = ev.tgt.ioevs[0].iv;
+            int hh = ev.tgt.ioevs[1].iv;
+
+            if (hh && hw && (hw != C->w || hh != C->h)){
+                trace("segmentResized");
+                cmdReconfigureWindow(0, 0, hw, hh, false, P->window->drawable.id);
+                continue;
+            }
+            else {
+                trace("subseg-displaystate : %d", ev.tgt.ioevs[2].iv);
+/* state flags: 1, drag-resize, 2 invisible, 4 unfocused, 8 maximized, 16 fullscreen, 32 detachm
+ *              refuse focus state if overrideRedirect or it is an input window or a WM class wnd */
+                if (ev.tgt.ioevs[2].iv & 4){
+                   SetInputFocus(serverClient, arcanInputPriv.ki->dixdev,
+                                 None, RevertToParent, CurrentTime, TRUE);
+                }
+                else
+                   SetInputFocus(serverClient, arcanInputPriv.ki->dixdev,
+                                P->window->drawable.id, RevertToParent, CurrentTime, TRUE);
+            }
+        }
+        break;
+        case TARGET_COMMAND_EXIT:
+            trace("segmentDropped");
+        break;
 /* DISPLAYHINT:
- *      ext_id, w, h, focus, ... -> configure */
+ *      ext_id, w, h, focus, ... -> configure
+ *      there is also SetInputFocus(serverClient, keyboard, id, RevertToParent, CurrentTime, FALSE)*/
         break;
         case TARGET_COMMAND_OUTPUTHINT:
 /* w/h ranges are interesting as there are IWWM hints to forward */
          break;
         case TARGET_COMMAND_RESET:
-/*
- *      - doesn't really apply, parent should sweep, drop and re-allocate as needed
- */
+            trace("segmentReset");
         break;
-/*
- *      case TARGET_COMMAND_ANCHORHINT:
- *      - corresponds to a configure event that just moves the window around relative
- *        to parent where the cookie is specified as a known ext_id (or segment cookie)
- */
+        case TARGET_COMMAND_ANCHORHINT:
+            cmdReconfigureWindow(ev.tgt.ioevs[0].iv,
+                                 ev.tgt.ioevs[1].iv, 0, 0, true, P->window->drawable.id);
+            trace("configureRestack( %d, %d)", ev.tgt.ioevs[0].iv, ev.tgt.ioevs[1].iv);
+        break;
         default:
         break;
         }
     }
+    input_unlock();
 
 /* displayhint, request as a configure, possibly set FOCUS */
 /* INPUT -> need to inject to parent and make sure the grab is on the window */
-  return true;
 }
 
 static void
@@ -2882,14 +3006,10 @@ arcanScreenBlockHandler(ScreenPtr pScreen, void* timeout)
             if (!P->bound || !P->window || !P->pixmap)
                 continue;
 
-
           if (P->window->unsynched){
               sendWndData(P->window, 0, 0, C);
               P->window->unsynched = 0;
           }
-
-          if (!flushSecondaryShmifConnection(C))
-              continue;
 
           arcanWindowPriv *awnd = dixLookupPrivate(&P->window->devPrivates, &windowPriv);
           if (awnd && awnd->damage){
@@ -3041,10 +3161,9 @@ static present_screen_info_rec arcan_present_info = {
 #endif
 };
 
-static void setupRedirect(arcanScrPriv *ascr)
+static void setupRedirect(ScreenPtr screen, arcanScrPriv *ascr)
 {
     ascr->clip_mode = ROOT_CLIP_INPUT_ONLY;
-/*  change root pixmap to have null storage */
 }
 
 Bool
@@ -3056,7 +3175,7 @@ arcanFinishInitScreen(ScreenPtr pScreen)
 
     resolveAtoms();
     if (arcanConfigPriv.redirect){
-        setupRedirect(scrpriv);
+        setupRedirect(pScreen, scrpriv);
     }
 
     trace("arcanFinishInitScreen");
