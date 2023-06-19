@@ -237,7 +237,7 @@ xwl_glamor_gbm_create_pixmap_for_bo(ScreenPtr screen, struct gbm_bo *bo,
 #endif
     {
         xwl_pixmap->image = eglCreateImageKHR(xwl_screen->egl_display,
-                                              xwl_screen->egl_context,
+                                              EGL_NO_CONTEXT,
                                               EGL_NATIVE_PIXMAP_KHR,
                                               xwl_pixmap->bo, NULL);
     }
