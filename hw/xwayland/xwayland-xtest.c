@@ -47,8 +47,14 @@
 static struct xorg_list clients_for_reuse;
 
 static DevPrivateKeyRec xwl_ei_private_key;
+static DevPrivateKeyRec xwl_device_data_private_key;
+
+struct xwl_device_data {
+    DeviceSendEventsProc sendEventsProc;
+};
 
 struct xwl_emulated_event {
+    DeviceIntPtr dev;
     int type;
     int detail;
     int flags;
@@ -82,6 +88,13 @@ struct xwl_ei_client {
 };
 
 static void xwl_handle_ei_event(int fd, int ready, void *data);
+static bool xwl_dequeue_emulated_events(struct xwl_ei_client *xwl_ei_client);
+
+static struct xwl_device_data *
+xwl_device_data_get(DeviceIntPtr dev)
+{
+    return dixLookupPrivate(&dev->devPrivates, &xwl_device_data_private_key);
+}
 
 static struct xwl_ei_client *
 get_xwl_ei_client(ClientPtr client)
@@ -90,7 +103,7 @@ get_xwl_ei_client(ClientPtr client)
 }
 
 static void
-xwl_queue_emulated_event(struct xwl_ei_client *xwl_ei_client,
+xwl_queue_emulated_event(struct xwl_ei_client *xwl_ei_client, DeviceIntPtr dev,
                          int type, int detail, int flags, const ValuatorMask *mask)
 {
     struct xwl_emulated_event *xwl_emulated_event;
@@ -101,6 +114,7 @@ xwl_queue_emulated_event(struct xwl_ei_client *xwl_ei_client,
         return;
     }
 
+    xwl_emulated_event->dev = dev;
     xwl_emulated_event->type = type;
     xwl_emulated_event->detail = detail;
     xwl_emulated_event->flags = flags;
@@ -252,6 +266,7 @@ xwl_handle_oeffis_event(int fd, int ready, void *data)
             case OEFFIS_EVENT_DISCONNECTED:
                 debug_ei("OEFFIS disconnected: %s\n",
                     oeffis_get_error_message(oeffis));
+                xwl_dequeue_emulated_events(xwl_ei_client);
                 free_ei(xwl_ei_client);
                 done = true;
                 break;
@@ -605,6 +620,19 @@ reuse_client(ClientPtr client)
 }
 
 static void
+xwayland_xtest_fallback(DeviceIntPtr dev,
+                        int type, int detail, int flags, const ValuatorMask *mask)
+{
+    struct xwl_device_data *xwl_device_data = xwl_device_data_get(dev);
+
+    if (xwl_device_data->sendEventsProc != NULL) {
+        debug_ei("EI failed, using XTEST as fallback for sending events\n");
+        (xwl_device_data->sendEventsProc)(dev, type, detail, flags, mask);
+    }
+}
+
+
+static void
 xwayland_xtest_send_events(DeviceIntPtr dev,
                            int type, int detail, int flags, const ValuatorMask *mask)
 {
@@ -621,8 +649,10 @@ xwayland_xtest_send_events(DeviceIntPtr dev,
     }
 
     if (!xwl_ei_client) {
-        if (!(xwl_ei_client = setup_ei(client)))
+        if (!(xwl_ei_client = setup_ei(client))) {
+            xwayland_xtest_fallback(dev, type, detail, flags, mask);
             return;
+        }
     }
     dixSetPrivate(&client->devPrivates, &xwl_ei_private_key, xwl_ei_client);
 
@@ -650,7 +680,7 @@ xwayland_xtest_send_events(DeviceIntPtr dev,
     }
     else {
         debug_ei("Not yet connected to EIS, queueing events\n");
-        xwl_queue_emulated_event(xwl_ei_client, type, detail, flags, mask);
+        xwl_queue_emulated_event(xwl_ei_client, dev, type, detail, flags, mask);
     }
 
 }
@@ -659,14 +689,22 @@ static bool
 xwl_dequeue_emulated_events(struct xwl_ei_client *xwl_ei_client)
 {
     struct xwl_emulated_event *xwl_emulated_event, *next_xwl_emulated_event;
+    bool sent;
 
     xorg_list_for_each_entry_safe(xwl_emulated_event, next_xwl_emulated_event,
         &xwl_ei_client->pending_emulated_events, link) {
-        if (!xwl_send_event_to_ei(xwl_ei_client,
-                xwl_emulated_event->type,
-                xwl_emulated_event->detail,
-                xwl_emulated_event->flags, &xwl_emulated_event->mask))
-            return false;
+        sent = xwl_send_event_to_ei(xwl_ei_client,
+                                    xwl_emulated_event->type,
+                                    xwl_emulated_event->detail,
+                                    xwl_emulated_event->flags,
+                                    &xwl_emulated_event->mask);
+        if (!sent)
+            xwayland_xtest_fallback(xwl_emulated_event->dev,
+                                    xwl_emulated_event->type,
+                                    xwl_emulated_event->detail,
+                                    xwl_emulated_event->flags,
+                                    &xwl_emulated_event->mask);
+
         xorg_list_del(&xwl_emulated_event->link);
         free(xwl_emulated_event);
     }
@@ -825,7 +863,43 @@ xwayland_ei_init(void)
         return FALSE;
     }
 
+    if (!dixRegisterPrivateKey(&xwl_device_data_private_key, PRIVATE_DEVICE,
+                               sizeof(struct xwl_device_data))) {
+        ErrorF("Failed to register private key for XTEST override\n");
+        return FALSE;
+    }
+
     return TRUE;
+}
+
+static void
+xwayland_override_events_proc(DeviceIntPtr dev)
+{
+    struct xwl_device_data *xwl_device_data = xwl_device_data_get(dev);
+
+    if (xwl_device_data->sendEventsProc != NULL)
+        return;
+
+    /* Save original sendEventsProc handler in case */
+    xwl_device_data->sendEventsProc = dev->sendEventsProc;
+
+    /* Set up our own sendEventsProc to forward events to EI */
+    debug_ei("Overriding XTEST for %s\n", dev->name);
+    dev->sendEventsProc = xwayland_xtest_send_events;
+}
+
+static void
+xwayland_restore_events_proc(DeviceIntPtr dev)
+{
+    struct xwl_device_data *xwl_device_data = xwl_device_data_get(dev);
+
+    if (xwl_device_data->sendEventsProc == NULL)
+        return;
+
+    /* Restore original sendEventsProc handler */
+    debug_ei("Restoring XTEST for %s\n", dev->name);
+    dev->sendEventsProc = xwl_device_data->sendEventsProc;
+    xwl_device_data->sendEventsProc = NULL;
 }
 
 void
@@ -835,8 +909,19 @@ xwayland_override_xtest(void)
 
     nt_list_for_each_entry(d, inputInfo.devices, next) {
         if (IsXTestDevice(d, NULL)) {
-            debug_ei("Overriding XTest for %s\n", d->name);
-            d->sendEventsProc = xwayland_xtest_send_events;
+            xwayland_override_events_proc(d);
+        }
+    }
+}
+
+void
+xwayland_restore_xtest(void)
+{
+    DeviceIntPtr d;
+
+    nt_list_for_each_entry(d, inputInfo.devices, next) {
+        if (IsXTestDevice(d, NULL)) {
+            xwayland_restore_events_proc(d);
         }
     }
 }

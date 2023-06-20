@@ -3505,5 +3505,8 @@ InitInput(int argc, char *argv[])
 void
 CloseInput(void)
 {
+#ifdef XWL_HAS_EI
+    xwayland_restore_xtest();
+#endif
     mieqFini();
 }

@@ -30,5 +30,6 @@
 
 Bool xwayland_ei_init(void);
 void xwayland_override_xtest(void);
+void xwayland_restore_xtest(void);
 
 #endif
