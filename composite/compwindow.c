@@ -339,9 +339,9 @@ compIsAlternateVisual(ScreenPtr pScreen, XID visual)
     return FALSE;
 }
 
-static Bool
-compIsImplicitRedirectException(ScreenPtr pScreen,
-                                XID parentVisual, XID winVisual)
+Bool
+CompositeIsImplicitRedirectException(ScreenPtr pScreen,
+                                     XID parentVisual, XID winVisual)
 {
     CompScreenPtr cs = GetCompScreen(pScreen);
     int i;
@@ -362,7 +362,7 @@ compImplicitRedirect(WindowPtr pWin, WindowPtr pParent)
         XID winVisual = wVisual(pWin);
         XID parentVisual = wVisual(pParent);
 
-        if (compIsImplicitRedirectException(pScreen, parentVisual, winVisual))
+        if (CompositeIsImplicitRedirectException(pScreen, parentVisual, winVisual))
             return FALSE;
 
         if (winVisual != parentVisual &&
