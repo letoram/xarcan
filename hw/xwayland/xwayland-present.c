@@ -676,7 +676,7 @@ xwl_present_check_flip(RRCrtcPtr crtc,
     if (!RegionEqual(&present_window->clipList, &present_window->winSize))
         return FALSE;
 
-    if (!xwl_glamor_check_flip(pixmap))
+    if (!xwl_glamor_check_flip(present_window, pixmap))
         return FALSE;
 
     /* Can't flip if the window pixmap doesn't match the xwl_window parent

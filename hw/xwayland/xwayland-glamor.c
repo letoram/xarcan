@@ -85,9 +85,14 @@ glamor_egl_screen_init(ScreenPtr screen, struct glamor_context *glamor_ctx)
 }
 
 Bool
-xwl_glamor_check_flip(PixmapPtr pixmap)
+xwl_glamor_check_flip(WindowPtr present_window, PixmapPtr pixmap)
 {
-    struct xwl_screen *xwl_screen = xwl_screen_get(pixmap->drawable.pScreen);
+    ScreenPtr screen = pixmap->drawable.pScreen;
+    struct xwl_screen *xwl_screen = xwl_screen_get(screen);
+    PixmapPtr backing_pixmap = screen->GetWindowPixmap(present_window);
+
+    if (pixmap->drawable.depth != backing_pixmap->drawable.depth)
+        return FALSE;
 
     if (!xwl_glamor_pixmap_get_wl_buffer(pixmap))
         return FALSE;

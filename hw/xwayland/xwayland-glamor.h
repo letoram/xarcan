@@ -149,7 +149,7 @@ Bool xwl_glamor_get_drawable_modifiers_and_scanout(DrawablePtr drawable,
                                                    Bool *supports_scanout);
 Bool xwl_glamor_get_drawable_modifiers(DrawablePtr drawable, uint32_t format,
                                        uint32_t *num_modifiers, uint64_t **modifiers);
-Bool xwl_glamor_check_flip(PixmapPtr pixmap);
+Bool xwl_glamor_check_flip(WindowPtr present_window, PixmapPtr pixmap);
 PixmapPtr xwl_glamor_create_pixmap_for_window (struct xwl_window *xwl_window);
 
 #ifdef XV
