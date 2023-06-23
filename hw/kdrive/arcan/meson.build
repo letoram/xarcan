@@ -4,7 +4,8 @@ srcs = [
     'cvt.c',
     'proxywnd.c',
     'clipboard.c',
-    'cursor.c'
+    'cursor.c',
+    'present.c'
 ]
 
 arcan_dep = [

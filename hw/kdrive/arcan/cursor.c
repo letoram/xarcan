@@ -98,14 +98,14 @@ mouseSpriteSet(DeviceIntPtr dev, ScreenPtr scr, CursorPtr cursor, int cx, int cy
 
 /* converge to the largest cursor size over time and just pad */
     if (cursor->bits->width > ccon->w || cursor->bits->height > ccon->h){
-        trace("cursor-resize (%d, %d) -> (%d, %d)\n", ccon->w, ccon->h, cursor->bits->width, cursor->bits->height);
+        trace("cursor-resize (%d, %d) -> (%d, %d)", ccon->w, ccon->h, cursor->bits->width, cursor->bits->height);
         arcan_shmif_resize(ccon, cursor->bits->width, cursor->bits->height);
         memset(ccon->vidp, '\0', ccon->h * ccon->stride);
     }
 
 /* size to fit then blit and synch - trivial one */
     if (cursor->bits->argb){
-        trace("argb-cursor (%d, %d)\n", cursor->bits->width, cursor->bits->height);
+        trace("argb-cursor (%d, %d)", cursor->bits->width, cursor->bits->height);
         for (size_t y = 0; y < ccon->h; y++){
             for (size_t x = 0; x < ccon->w; x++){
                 shmif_pixel cc = SHMIF_RGBA(0, 0, 0, 0);

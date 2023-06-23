@@ -166,7 +166,7 @@ ddxUseMsg(void)
     ErrorF("-nodynamic             Disable connection-controlled resize\n");
     ErrorF("-aident [str]          Set window dynamic identity\n");
     ErrorF("-atitle [str]          Set window static identity\n");
-    ErrorF("-exec path             Launch explicit client after initialisation\n");
+    ErrorF("-exec path             Launch explicit client after initialisation (adds -noreset)\n");
     ErrorF("-present               Enable PRESENT extension (experimental)\n");
     ErrorF("-softmouse             Force pre-composed non-accelerade mouse cursor\n");
     ErrorF("-redirect              Default-redirect new toplevel windows\n");
@@ -190,7 +190,8 @@ ddxProcessArgument(int argc, char **argv, int i)
     }
 #endif
     if (strcmp(argv[i], "-exec") == 0){
-			  NotifyParentProcess = arcanNotifyReady;
+        NotifyParentProcess = arcanNotifyReady;
+        dispatchExceptionAtReset = 0;
         if ((i+1) < argc){
         arcanConfigPriv.exec = strdup(argv[i+1]);
         return 2;
@@ -275,5 +276,5 @@ KdCardFuncs arcanFuncs = {
 
     arcanGetColors,              /* getColors */
     arcanPutColors,              /* putColors */
-    arcanCloseScreen             /* close Screen */
+    0,                           /* close Screen */
 };

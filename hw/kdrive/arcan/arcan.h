@@ -19,7 +19,7 @@ struct proxyWindowData {
     ssize_t x, y;
     uint32_t arcan_vid;
     bool paste;
-    struct arcan_shmif_cont* cont;
+    struct arcan_shmif_cont *cont;
 };
 
 struct proxyMapEntry {
@@ -33,22 +33,23 @@ typedef struct _arcanPriv {
 
 typedef struct _arcanWindowPriv {
     arcan_event ev;
-		DamagePtr damage;
-		struct arcan_shmif_cont *shmif;
+    DamagePtr damage;
+    uint8_t mstate[ASHMIF_MSTATE_SZ];
+    struct arcan_shmif_cont *shmif;
 } arcanWindowPriv;
 
 typedef struct _arcanPixmapPriv {
-		int64_t id; /* screen shmif-context cache group / index */
-    struct gbm_bo *bo; /* tracking for shmifext- accelerated transfers */
-    void *image; /* EGLImage reference handle */
+    int64_t id;           /* screen shmif-context cache group / index */
+    struct gbm_bo *bo;    /* tracking for shmifext- accelerated transfers */
+    void *image;          /* EGLImage reference handle */
     unsigned int texture; /* GL texture id reference */
-		char *tmpbuf;
+    char *tmpbuf;
 } arcanPixmapPriv;
 
 typedef struct _arcanShmifPriv {
     PixmapPtr pixmap;
-		WindowPtr window;
-		bool bound;
+    WindowPtr window;
+    bool bound;
 } arcanShmifPriv;
 
 struct gbm_bo;
@@ -61,11 +62,13 @@ typedef struct _arcanScrPriv {
     Bool wmSynch;
     arcan_event cursor_event;
     Bool cursorRealized;
-		int clip_mode;
+    int clip_mode;
 
     struct arcan_shmif_cont* pool[64];
     uint64_t redirectBitmap, dirtyBitmap;
     Bool defaultRootless;
+
+    struct xorg_list vblank_triggers;
 
 #ifdef RANDR
     RROutputPtr randrOutput;
@@ -73,9 +76,6 @@ typedef struct _arcanScrPriv {
     struct ramp_block block;
 #endif
     Rotation randr;
-    ScreenBlockHandlerProcPtr BlockHandler;
-    CreateScreenResourcesProcPtr CreateScreenResources;
-    CloseScreenProcPtr CloseHandler;
 
     struct {
         PositionWindowProcPtr positionWindow;
@@ -92,8 +92,12 @@ typedef struct _arcanScrPriv {
         SetWindowPixmapProcPtr setWindowPixmap;
         GetWindowPixmapProcPtr getWindowPixmap;
         InterposeDrawableSrcDstProcPtr interposeDrawableSrcDst;
-				CreatePixmapProcPtr createPixmap;
-				DestroyPixmapProcPtr destroyPixmap;
+        CreatePixmapProcPtr createPixmap;
+        DestroyPixmapProcPtr destroyPixmap;
+
+        ScreenBlockHandlerProcPtr screenBlockHandler;
+        CreateScreenResourcesProcPtr createScreenResources;
+        CloseScreenProcPtr closeScreen;
     } hooks;
 
     HashTable proxyMap;
@@ -113,7 +117,6 @@ typedef struct _arcanScrPriv {
 typedef struct _arcanInput {
     KdKeyboardInfo * ki;
     KdPointerInfo * pi;
-    uint8_t mstate[ASHMIF_MSTATE_SZ];
     int wx, wy;
     uint64_t bmask;
 } arcanInput;
@@ -121,16 +124,19 @@ typedef struct _arcanInput {
 typedef struct _arcanConfig {
     const char* title;
     const char* ident;
-    const char* exec;
     Bool no_dri3;
     Bool glamor;
     Bool present;
     Bool no_dynamic_resize;
     Bool soft_mouse;
     Bool redirect;
-} arcanConfig;
 
-extern int arcanGlamor;
+/* tracking for -exec */
+    const char* exec;
+    int timeout;
+    int clientShutdownBound;
+    OsTimerPtr shutdownTimer;
+} arcanConfig;
 
 extern arcanInput arcanInputPriv;
 
@@ -158,6 +164,8 @@ Bool
 
 Bool
  arcanCreateResources(ScreenPtr pScreen);
+
+arcanWindowPriv *ensureArcanWndPrivate(WindowPtr wnd);
 
 int
  arcanEventDispatch(struct arcan_shmif_cont*, arcanScrPriv*, arcan_event* ev, int64_t);
@@ -242,9 +250,6 @@ Bool
 #endif
 
 void arcanSynchCursor(arcanScrPriv *scr, Bool softUpdate);
-
-void
- arcanCloseScreen(ScreenPtr pScreen);
 
 extern KdPointerDriver arcanPointerDriver;
 
