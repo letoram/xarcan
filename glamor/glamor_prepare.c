@@ -143,9 +143,10 @@ glamor_prep_pixmap_box(PixmapPtr pixmap, glamor_access_t access, BoxPtr box)
  * if we were writing to it and then unbind it to release the memory
  */
 
-static void
-glamor_fini_pixmap(PixmapPtr pixmap)
+void
+glamor_finish_access(DrawablePtr drawable)
 {
+    PixmapPtr pixmap = glamor_get_drawable_pixmap(drawable);
     glamor_pixmap_private       *priv = glamor_get_pixmap_private(pixmap);
 
     if (!GLAMOR_PIXMAP_PRIV_HAS_FBO(priv))
@@ -161,7 +162,7 @@ glamor_fini_pixmap(PixmapPtr pixmap)
     }
 
     if (priv->map_access == GLAMOR_ACCESS_RW) {
-        glamor_upload_boxes(&pixmap->drawable,
+        glamor_upload_boxes(drawable,
                             RegionRects(&priv->prepare_region),
                             RegionNumRects(&priv->prepare_region),
                             0, 0, 0, 0, pixmap->devPrivate.ptr, pixmap->devKind);
@@ -211,12 +212,6 @@ glamor_prepare_access_box(DrawablePtr drawable, glamor_access_t access,
     box.y1 = drawable->y + y + off_y;
     box.y2 = box.y1 + h;
     return glamor_prep_pixmap_box(pixmap, access, &box);
-}
-
-void
-glamor_finish_access(DrawablePtr drawable)
-{
-    glamor_fini_pixmap(glamor_get_drawable_pixmap(drawable));
 }
 
 /*
