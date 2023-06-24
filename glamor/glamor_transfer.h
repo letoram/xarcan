@@ -35,18 +35,9 @@ glamor_upload_region(PixmapPtr pixmap, RegionPtr region,
                      uint8_t *bits, uint32_t byte_stride);
 
 void
-glamor_upload_pixmap(PixmapPtr pixmap);
-
-void
 glamor_download_boxes(PixmapPtr pixmap, BoxPtr in_boxes, int in_nbox,
                       int dx_src, int dy_src,
                       int dx_dst, int dy_dst,
                       uint8_t *bits, uint32_t byte_stride);
-
-void
-glamor_download_rect(PixmapPtr pixmap, int x, int y, int w, int h, uint8_t *bits);
-
-void
-glamor_download_pixmap(PixmapPtr pixmap);
 
 #endif /* _GLAMOR_TRANSFER_H_ */

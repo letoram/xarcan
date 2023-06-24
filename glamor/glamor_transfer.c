@@ -108,22 +108,6 @@ glamor_upload_region(PixmapPtr pixmap, RegionPtr region,
 }
 
 /*
- * Take the data in the pixmap and stuff it back into the FBO
- */
-void
-glamor_upload_pixmap(PixmapPtr pixmap)
-{
-    BoxRec box;
-
-    box.x1 = 0;
-    box.x2 = pixmap->drawable.width;
-    box.y1 = 0;
-    box.y2 = pixmap->drawable.height;
-    glamor_upload_boxes(pixmap, &box, 1, 0, 0, 0, 0,
-                        pixmap->devPrivate.ptr, pixmap->devKind);
-}
-
-/*
  * Read stuff from the pixmap FBOs and write to memory
  */
 void
@@ -181,38 +165,4 @@ glamor_download_boxes(PixmapPtr pixmap, BoxPtr in_boxes, int in_nbox,
     }
     if (glamor_priv->has_pack_subimage)
         glPixelStorei(GL_PACK_ROW_LENGTH, 0);
-}
-
-/*
- * Read data from the pixmap FBO
- */
-void
-glamor_download_rect(PixmapPtr pixmap, int x, int y, int w, int h, uint8_t *bits)
-{
-    BoxRec      box;
-
-    box.x1 = x;
-    box.x2 = x + w;
-    box.y1 = y;
-    box.y2 = y + h;
-
-    glamor_download_boxes(pixmap, &box, 1, 0, 0, -x, -y,
-                          bits, PixmapBytePad(w, pixmap->drawable.depth));
-}
-
-/*
- * Pull the data from the FBO down to the pixmap
- */
-void
-glamor_download_pixmap(PixmapPtr pixmap)
-{
-    BoxRec      box;
-
-    box.x1 = 0;
-    box.x2 = pixmap->drawable.width;
-    box.y1 = 0;
-    box.y2 = pixmap->drawable.height;
-
-    glamor_download_boxes(pixmap, &box, 1, 0, 0, 0, 0,
-                          pixmap->devPrivate.ptr, pixmap->devKind);
 }
