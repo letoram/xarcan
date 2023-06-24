@@ -255,7 +255,7 @@ glamor_copy_cpu_fbo(DrawablePtr src,
             fbCopy1toN(src, &tmp_pix->drawable, gc, box, nbox, dx, dy,
                        reverse, upsidedown, bitplane, closure);
 
-        glamor_upload_boxes(dst_pixmap, box, nbox, tmp_xoff, tmp_yoff,
+        glamor_upload_boxes(dst, box, nbox, tmp_xoff, tmp_yoff,
                             dst_xoff, dst_yoff, (uint8_t *) tmp_bits,
                             tmp_stride * sizeof(FbBits));
         fbDestroyPixmap(tmp_pix);
@@ -266,7 +266,7 @@ glamor_copy_cpu_fbo(DrawablePtr src,
         int src_xoff, src_yoff;
 
         fbGetDrawable(src, src_bits, src_stride, src_bpp, src_xoff, src_yoff);
-        glamor_upload_boxes(dst_pixmap, box, nbox, src_xoff + dx, src_yoff + dy,
+        glamor_upload_boxes(dst, box, nbox, src_xoff + dx, src_yoff + dy,
                             dst_xoff, dst_yoff,
                             (uint8_t *) src_bits, src_stride * sizeof (FbBits));
     }
@@ -319,7 +319,7 @@ glamor_copy_fbo_cpu(DrawablePtr src,
 
     fbGetDrawable(dst, dst_bits, dst_stride, dst_bpp, dst_xoff, dst_yoff);
 
-    glamor_download_boxes(src_pixmap, box, nbox, src_xoff + dx, src_yoff + dy,
+    glamor_download_boxes(src, box, nbox, src_xoff + dx, src_yoff + dy,
                           dst_xoff, dst_yoff,
                           (uint8_t *) dst_bits, dst_stride * sizeof (FbBits));
     glamor_finish_access(dst);

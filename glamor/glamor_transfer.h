@@ -24,18 +24,18 @@
 #define _GLAMOR_TRANSFER_H_
 
 void
-glamor_upload_boxes(PixmapPtr pixmap, BoxPtr in_boxes, int in_nbox,
+glamor_upload_boxes(DrawablePtr drawable, BoxPtr in_boxes, int in_nbox,
                     int dx_src, int dy_src,
                     int dx_dst, int dy_dst,
                     uint8_t *bits, uint32_t byte_stride);
 
 void
-glamor_upload_region(PixmapPtr pixmap, RegionPtr region,
+glamor_upload_region(DrawablePtr drawable, RegionPtr region,
                      int region_x, int region_y,
                      uint8_t *bits, uint32_t byte_stride);
 
 void
-glamor_download_boxes(PixmapPtr pixmap, BoxPtr in_boxes, int in_nbox,
+glamor_download_boxes(DrawablePtr drawable, BoxPtr in_boxes, int in_nbox,
                       int dx_src, int dy_src,
                       int dx_dst, int dy_dst,
                       uint8_t *bits, uint32_t byte_stride);

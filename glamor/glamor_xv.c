@@ -584,15 +584,15 @@ glamor_xv_put_image(glamor_port_private *port_priv,
         half_box.x2 = width >> 1;
         half_box.y2 = (nlines + 1) >> 1;
 
-        glamor_upload_boxes(port_priv->src_pix[0], &full_box, 1,
+        glamor_upload_boxes(&port_priv->src_pix[0]->drawable, &full_box, 1,
                             0, 0, 0, 0,
                             buf + (top * srcPitch), srcPitch);
 
-        glamor_upload_boxes(port_priv->src_pix[1], &half_box, 1,
+        glamor_upload_boxes(&port_priv->src_pix[1]->drawable, &half_box, 1,
                             0, 0, 0, 0,
                             buf + s2offset, srcPitch2);
 
-        glamor_upload_boxes(port_priv->src_pix[2], &half_box, 1,
+        glamor_upload_boxes(&port_priv->src_pix[2]->drawable, &half_box, 1,
                             0, 0, 0, 0,
                             buf + s3offset, srcPitch2);
         break;
@@ -611,11 +611,11 @@ glamor_xv_put_image(glamor_port_private *port_priv,
         half_box.x2 = width;
         half_box.y2 = (nlines + 1) >> 1;
 
-        glamor_upload_boxes(port_priv->src_pix[0], &full_box, 1,
+        glamor_upload_boxes(&port_priv->src_pix[0]->drawable, &full_box, 1,
                             0, 0, 0, 0,
                             buf + (top * srcPitch), srcPitch);
 
-        glamor_upload_boxes(port_priv->src_pix[1], &half_box, 1,
+        glamor_upload_boxes(&port_priv->src_pix[1]->drawable, &half_box, 1,
                             0, 0, 0, 0,
                             buf + s2offset, srcPitch);
         break;

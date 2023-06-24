@@ -119,7 +119,7 @@ glamor_prep_pixmap_box(PixmapPtr pixmap, glamor_access_t access, BoxPtr box)
         priv->map_access = access;
     }
 
-    glamor_download_boxes(pixmap, RegionRects(&region), RegionNumRects(&region),
+    glamor_download_boxes(&pixmap->drawable, RegionRects(&region), RegionNumRects(&region),
                           0, 0, 0, 0, pixmap->devPrivate.ptr, pixmap->devKind);
 
     RegionUninit(&region);
@@ -161,7 +161,7 @@ glamor_fini_pixmap(PixmapPtr pixmap)
     }
 
     if (priv->map_access == GLAMOR_ACCESS_RW) {
-        glamor_upload_boxes(pixmap,
+        glamor_upload_boxes(&pixmap->drawable,
                             RegionRects(&priv->prepare_region),
                             RegionNumRects(&priv->prepare_region),
                             0, 0, 0, 0, pixmap->devPrivate.ptr, pixmap->devKind);

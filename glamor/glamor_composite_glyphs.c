@@ -107,7 +107,7 @@ glamor_copy_glyph(PixmapPtr     glyph_pixmap,
                                       glyph_draw->height,
                                       0, 0, 0x1);
     }
-    glamor_upload_boxes((PixmapPtr) atlas_draw,
+    glamor_upload_boxes(atlas_draw,
                         &box, 1,
                         0, 0,
                         x, y,

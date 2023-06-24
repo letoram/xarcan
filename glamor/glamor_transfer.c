@@ -24,19 +24,20 @@
 #include "glamor_transfer.h"
 
 /*
- * Write a region of bits into a pixmap
+ * Write a region of bits into a drawable's backing pixmap
  */
 void
-glamor_upload_boxes(PixmapPtr pixmap, BoxPtr in_boxes, int in_nbox,
+glamor_upload_boxes(DrawablePtr drawable, BoxPtr in_boxes, int in_nbox,
                     int dx_src, int dy_src,
                     int dx_dst, int dy_dst,
                     uint8_t *bits, uint32_t byte_stride)
 {
-    ScreenPtr                   screen = pixmap->drawable.pScreen;
+    ScreenPtr                   screen = drawable->pScreen;
     glamor_screen_private       *glamor_priv = glamor_get_screen_private(screen);
+    PixmapPtr                   pixmap = glamor_get_drawable_pixmap(drawable);
     glamor_pixmap_private       *priv = glamor_get_pixmap_private(pixmap);
     int                         box_index;
-    int                         bytes_per_pixel = pixmap->drawable.bitsPerPixel >> 3;
+    int                         bytes_per_pixel = drawable->bitsPerPixel >> 3;
     const struct glamor_format *f = glamor_format_for_pixmap(pixmap);
 
     glamor_make_current(glamor_priv);
@@ -97,30 +98,31 @@ glamor_upload_boxes(PixmapPtr pixmap, BoxPtr in_boxes, int in_nbox,
  */
 
 void
-glamor_upload_region(PixmapPtr pixmap, RegionPtr region,
+glamor_upload_region(DrawablePtr drawable, RegionPtr region,
                      int region_x, int region_y,
                      uint8_t *bits, uint32_t byte_stride)
 {
-    glamor_upload_boxes(pixmap, RegionRects(region), RegionNumRects(region),
+    glamor_upload_boxes(drawable, RegionRects(region), RegionNumRects(region),
                         -region_x, -region_y,
                         0, 0,
                         bits, byte_stride);
 }
 
 /*
- * Read stuff from the pixmap FBOs and write to memory
+ * Read stuff from the drawable's backing pixmap FBOs and write to memory
  */
 void
-glamor_download_boxes(PixmapPtr pixmap, BoxPtr in_boxes, int in_nbox,
+glamor_download_boxes(DrawablePtr drawable, BoxPtr in_boxes, int in_nbox,
                       int dx_src, int dy_src,
                       int dx_dst, int dy_dst,
                       uint8_t *bits, uint32_t byte_stride)
 {
-    ScreenPtr screen = pixmap->drawable.pScreen;
+    ScreenPtr screen = drawable->pScreen;
     glamor_screen_private *glamor_priv = glamor_get_screen_private(screen);
+    PixmapPtr pixmap = glamor_get_drawable_pixmap(drawable);
     glamor_pixmap_private *priv = glamor_get_pixmap_private(pixmap);
     int box_index;
-    int bytes_per_pixel = pixmap->drawable.bitsPerPixel >> 3;
+    int bytes_per_pixel = drawable->bitsPerPixel >> 3;
     const struct glamor_format *f = glamor_format_for_pixmap(pixmap);
 
     glamor_make_current(glamor_priv);
