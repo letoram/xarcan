@@ -26,7 +26,7 @@
 #include "glamor_transform.h"
 
 struct copy_args {
-    PixmapPtr           src_pixmap;
+    DrawablePtr         src_drawable;
     glamor_pixmap_fbo   *src;
     uint32_t            bitplane;
     int                 dx, dy;
@@ -77,7 +77,7 @@ use_copyplane(DrawablePtr drawable, GCPtr gc, glamor_program *prog, void *arg)
     glamor_set_color(drawable, gc->bgPixel, prog->bg_uniform);
 
     /* XXX handle 2 10 10 10 and 1555 formats; presumably the pixmap private knows this? */
-    switch (args->src_pixmap->drawable.depth) {
+    switch (args->src_drawable->depth) {
     case 30:
         glUniform4ui(prog->bitplane_uniform,
                      (args->bitplane >> 20) & 0x3ff,
@@ -401,7 +401,7 @@ glamor_copy_fbo_fbo_draw(DrawablePtr src,
             goto bail_ctx;
     }
 
-    args.src_pixmap = src_pixmap;
+    args.src_drawable = src;
     args.bitplane = bitplane;
 
     /* Set up the vertex buffers for the points */
