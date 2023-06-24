@@ -65,7 +65,7 @@ glamor_fill_spans_gl(DrawablePtr drawable,
     glamor_make_current(glamor_priv);
 
     if (glamor_glsl_has_ints(glamor_priv)) {
-        prog = glamor_use_program_fill(pixmap, gc, &glamor_priv->fill_spans_program,
+        prog = glamor_use_program_fill(drawable, gc, &glamor_priv->fill_spans_program,
                                        &glamor_facet_fillspans_130);
 
         if (!prog)
@@ -90,7 +90,7 @@ glamor_fill_spans_gl(DrawablePtr drawable,
 
         glamor_put_vbo_space(screen);
     } else {
-        prog = glamor_use_program_fill(pixmap, gc, &glamor_priv->fill_spans_program,
+        prog = glamor_use_program_fill(drawable, gc, &glamor_priv->fill_spans_program,
                                        &glamor_facet_fillspans_120);
 
         if (!prog)

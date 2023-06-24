@@ -50,7 +50,7 @@ typedef enum {
 
 typedef struct _glamor_program glamor_program;
 
-typedef Bool (*glamor_use) (PixmapPtr pixmap, GCPtr gc, glamor_program *prog, void *arg);
+typedef Bool (*glamor_use) (DrawablePtr drawable, GCPtr gc, glamor_program *prog, void *arg);
 
 typedef Bool (*glamor_use_render) (CARD8 op, PicturePtr src, PicturePtr dst, glamor_program *prog);
 
@@ -108,13 +108,13 @@ glamor_build_program(ScreenPtr          screen,
                      const char         *defines);
 
 Bool
-glamor_use_program(PixmapPtr            pixmap,
+glamor_use_program(DrawablePtr          drawable,
                    GCPtr                gc,
                    glamor_program       *prog,
                    void                 *arg);
 
 glamor_program *
-glamor_use_program_fill(PixmapPtr               pixmap,
+glamor_use_program_fill(DrawablePtr             drawable,
                         GCPtr                   gc,
                         glamor_program_fill     *program_fill,
                         const glamor_facet      *prim);

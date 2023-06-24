@@ -288,7 +288,7 @@ glamor_poly_text(DrawablePtr drawable, GCPtr gc,
 
     glamor_make_current(glamor_priv);
 
-    prog = glamor_use_program_fill(pixmap, gc, &glamor_priv->poly_text_progs, &glamor_facet_poly_text);
+    prog = glamor_use_program_fill(drawable, gc, &glamor_priv->poly_text_progs, &glamor_facet_poly_text);
 
     if (!prog)
         goto bail;
@@ -346,9 +346,9 @@ static const glamor_facet glamor_facet_image_text = {
 };
 
 static Bool
-use_image_solid(PixmapPtr pixmap, GCPtr gc, glamor_program *prog, void *arg)
+use_image_solid(DrawablePtr drawable, GCPtr gc, glamor_program *prog, void *arg)
 {
-    return glamor_set_solid(pixmap, gc, FALSE, prog->fg_uniform);
+    return glamor_set_solid(drawable, gc, FALSE, prog->fg_uniform);
 }
 
 static const glamor_facet glamor_facet_image_fill = {
@@ -359,11 +359,11 @@ static const glamor_facet glamor_facet_image_fill = {
 };
 
 static Bool
-glamor_te_text_use(PixmapPtr pixmap, GCPtr gc, glamor_program *prog, void *arg)
+glamor_te_text_use(DrawablePtr drawable, GCPtr gc, glamor_program *prog, void *arg)
 {
-    if (!glamor_set_solid(pixmap, gc, FALSE, prog->fg_uniform))
+    if (!glamor_set_solid(drawable, gc, FALSE, prog->fg_uniform))
         return FALSE;
-    glamor_set_color(pixmap, gc->bgPixel, prog->bg_uniform);
+    glamor_set_color(drawable, gc->bgPixel, prog->bg_uniform);
     return TRUE;
 }
 
@@ -461,7 +461,7 @@ glamor_image_text(DrawablePtr drawable, GCPtr gc,
         RegionUninit(&region);
     }
 
-    if (!glamor_use_program(pixmap, gc, prog, NULL))
+    if (!glamor_use_program(drawable, gc, prog, NULL))
         goto bail;
 
     (void) glamor_text(drawable, gc, glamor_font, prog,

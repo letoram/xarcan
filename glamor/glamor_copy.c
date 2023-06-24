@@ -33,12 +33,12 @@ struct copy_args {
 };
 
 static Bool
-use_copyarea(PixmapPtr dst, GCPtr gc, glamor_program *prog, void *arg)
+use_copyarea(DrawablePtr drawable, GCPtr gc, glamor_program *prog, void *arg)
 {
     struct copy_args *args = arg;
     glamor_pixmap_fbo *src = args->src;
 
-    glamor_bind_texture(glamor_get_screen_private(dst->drawable.pScreen),
+    glamor_bind_texture(glamor_get_screen_private(drawable->pScreen),
                         GL_TEXTURE0, src, TRUE);
 
     glUniform2f(prog->fill_offset_uniform, args->dx, args->dy);
@@ -62,19 +62,19 @@ static const glamor_facet glamor_facet_copyarea = {
  */
 
 static Bool
-use_copyplane(PixmapPtr dst, GCPtr gc, glamor_program *prog, void *arg)
+use_copyplane(DrawablePtr drawable, GCPtr gc, glamor_program *prog, void *arg)
 {
     struct copy_args *args = arg;
     glamor_pixmap_fbo *src = args->src;
 
-    glamor_bind_texture(glamor_get_screen_private(dst->drawable.pScreen),
+    glamor_bind_texture(glamor_get_screen_private(drawable->pScreen),
                         GL_TEXTURE0, src, TRUE);
 
     glUniform2f(prog->fill_offset_uniform, args->dx, args->dy);
     glUniform2f(prog->fill_size_inv_uniform, 1.0f/src->width, 1.0f/src->height);
 
-    glamor_set_color(dst, gc->fgPixel, prog->fg_uniform);
-    glamor_set_color(dst, gc->bgPixel, prog->bg_uniform);
+    glamor_set_color(drawable, gc->fgPixel, prog->fg_uniform);
+    glamor_set_color(drawable, gc->bgPixel, prog->bg_uniform);
 
     /* XXX handle 2 10 10 10 and 1555 formats; presumably the pixmap private knows this? */
     switch (args->src_pixmap->drawable.depth) {
@@ -453,7 +453,7 @@ glamor_copy_fbo_fbo_draw(DrawablePtr src,
         args.dy = dy + src_off_y - src_box->y1;
         args.src = glamor_pixmap_fbo_at(src_priv, src_box_index);
 
-        if (!glamor_use_program(dst_pixmap, gc, prog, &args))
+        if (!glamor_use_program(dst, gc, prog, &args))
             goto bail_ctx;
 
         glamor_pixmap_loop(dst_priv, dst_box_index) {

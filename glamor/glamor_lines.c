@@ -61,7 +61,7 @@ glamor_poly_lines_solid_gl(DrawablePtr drawable, GCPtr gc,
 
     glamor_make_current(glamor_priv);
 
-    prog = glamor_use_program_fill(pixmap, gc,
+    prog = glamor_use_program_fill(drawable, gc,
                                    &glamor_priv->poly_line_program,
                                    &glamor_facet_poly_lines);
 

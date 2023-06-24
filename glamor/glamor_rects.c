@@ -70,7 +70,7 @@ glamor_poly_fill_rect_gl(DrawablePtr drawable,
     }
 
     if (glamor_glsl_has_ints(glamor_priv)) {
-        prog = glamor_use_program_fill(pixmap, gc,
+        prog = glamor_use_program_fill(drawable, gc,
                                        &glamor_priv->poly_fill_rect_program,
                                        &glamor_facet_polyfillrect_130);
 
@@ -97,7 +97,7 @@ glamor_poly_fill_rect_gl(DrawablePtr drawable,
     } else {
         int n;
 
-        prog = glamor_use_program_fill(pixmap, gc,
+        prog = glamor_use_program_fill(drawable, gc,
                                        &glamor_priv->poly_fill_rect_program,
                                        &glamor_facet_polyfillrect_120);
 

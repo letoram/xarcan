@@ -66,7 +66,7 @@ glamor_poly_point_gl(DrawablePtr drawable, GCPtr gc, int mode, int npt, DDXPoint
             goto bail;
     }
 
-    if (!glamor_use_program(pixmap, gc, prog, NULL))
+    if (!glamor_use_program(drawable, gc, prog, NULL))
         goto bail;
 
     vbo_ppt = glamor_get_vbo_space(screen, npt * (2 * sizeof (INT16)), &vbo_offset);
