@@ -3175,6 +3175,12 @@ arcanFlushRedirectedEvents(int fd, int mask, void *tag)
             DeliverEvents(P->window, &xev, 1, NullWindow);
         }
         break;
+        case TARGET_COMMAND_BCHUNK_IN:{
+            if (strcmp(ev.tgt.message, "xkb") == 0){
+                loadKeymapFromTextFile(ev.tgt.ioevs[0].iv);
+            }
+        }
+    break;
         case TARGET_COMMAND_ANCHORHINT:
             cmdReconfigureWindow(ev.tgt.ioevs[0].iv,
                                  ev.tgt.ioevs[1].iv, 0, 0, true, P->window->drawable.id);
