@@ -39,6 +39,10 @@ glamor_upload_boxes(DrawablePtr drawable, BoxPtr in_boxes, int in_nbox,
     int                         box_index;
     int                         bytes_per_pixel = drawable->bitsPerPixel >> 3;
     const struct glamor_format *f = glamor_format_for_pixmap(pixmap);
+    char *tmp_bits = NULL;
+
+    if (drawable->depth == 24 && pixmap->drawable.depth == 32)
+        tmp_bits = xnfalloc(byte_stride * pixmap->drawable.height);
 
     glamor_make_current(glamor_priv);
 
@@ -63,6 +67,7 @@ glamor_upload_boxes(DrawablePtr drawable, BoxPtr in_boxes, int in_nbox,
             int y1 = MAX(boxes->y1 + dy_dst, box->y1);
             int y2 = MIN(boxes->y2 + dy_dst, box->y2);
 
+            uint32_t *src_line;
             size_t ofs = (y1 - dy_dst + dy_src) * byte_stride;
             ofs += (x1 - dx_dst + dx_src) * bytes_per_pixel;
 
@@ -71,23 +76,41 @@ glamor_upload_boxes(DrawablePtr drawable, BoxPtr in_boxes, int in_nbox,
             if (x2 <= x1 || y2 <= y1)
                 continue;
 
+            src_line = (uint32_t *)(bits + ofs);
+
+            if (tmp_bits) {
+                uint32_t *tmp_line = (uint32_t *)(tmp_bits + ofs);
+                int x, y;
+
+                /* Make sure any sampling of the alpha channel will return 1.0 */
+                for (y = y1; y < y2;
+                     y++, src_line += byte_stride / 4, tmp_line += byte_stride / 4) {
+                    for (x = 0; x < x2 - x1; x++)
+                        tmp_line[x] = src_line[x] | 0xff000000;
+                }
+
+                src_line = (uint32_t *)(tmp_bits + ofs);
+            }
+
             if (glamor_priv->has_unpack_subimage ||
                 x2 - x1 == byte_stride / bytes_per_pixel) {
                 glTexSubImage2D(GL_TEXTURE_2D, 0,
                                 x1 - box->x1, y1 - box->y1,
                                 x2 - x1, y2 - y1,
                                 f->format, f->type,
-                                bits + ofs);
+                                src_line);
             } else {
-                for (; y1 < y2; y1++, ofs += byte_stride)
+                for (; y1 < y2; y1++, src_line += byte_stride / bytes_per_pixel)
                     glTexSubImage2D(GL_TEXTURE_2D, 0,
                                     x1 - box->x1, y1 - box->y1,
                                     x2 - x1, 1,
                                     f->format, f->type,
-                                    bits + ofs);
+                                    src_line);
             }
         }
     }
+
+    free(tmp_bits);
 
     if (glamor_priv->has_unpack_subimage)
         glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
