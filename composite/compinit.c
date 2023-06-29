@@ -59,6 +59,7 @@ compCloseScreen(ScreenPtr pScreen)
     Bool ret;
 
     free(cs->alternateVisuals);
+    free(cs->implicitRedirectExceptions);
 
     pScreen->CloseScreen = cs->CloseScreen;
     pScreen->InstallColormap = cs->InstallColormap;
