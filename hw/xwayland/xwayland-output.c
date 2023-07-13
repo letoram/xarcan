@@ -1080,7 +1080,7 @@ mode_sort(const void *left, const void *right)
     return (*mode_b)->mode.width - (*mode_a)->mode.width;
 }
 
-static Bool
+Bool
 xwl_randr_add_modes_fixed(struct xwl_output *xwl_output,
                           int current_width, int current_height)
 {
