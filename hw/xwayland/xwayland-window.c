@@ -621,21 +621,27 @@ handle_libdecor_configure(struct libdecor_frame *frame,
 {
     struct xwl_window *xwl_window = data;
     struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
+    struct xwl_output *xwl_output;
     struct libdecor_state *state;
+    RRModePtr mode;
+    int width, height;
 
-    state = libdecor_state_new(xwl_screen->width, xwl_screen->height);
+    if (!libdecor_configuration_get_content_size(configuration, frame, &width, &height)) {
+        width = xwl_screen->width;
+        height = xwl_screen->height;
+    }
+
+    if (xwl_screen->width != width || xwl_screen->height != height) {
+        xwl_output = xwl_screen_get_fixed_or_first_output(xwl_screen);
+        if (xwl_randr_add_modes_fixed(xwl_output, width, height)) {
+            mode = xwl_output_find_mode(xwl_output, width, height);
+            xwl_output_set_mode_fixed(xwl_output, mode);
+        }
+    }
+
+    state = libdecor_state_new(width, height);
     libdecor_frame_commit(frame, state, configuration);
     libdecor_state_free(state);
-
-    if (libdecor_frame_has_capability(frame, LIBDECOR_ACTION_RESIZE))
-        libdecor_frame_unset_capabilities(frame, LIBDECOR_ACTION_RESIZE);
-    if (libdecor_frame_has_capability(frame, LIBDECOR_ACTION_FULLSCREEN))
-        libdecor_frame_unset_capabilities(frame, LIBDECOR_ACTION_FULLSCREEN);
-
-    /* FIXME:
-     * We're not xdg-shell compliant here, we are supposed to adjust to
-     * the given configure size.
-     */
 
     wl_surface_commit(xwl_window->surface);
 }
