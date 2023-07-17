@@ -107,7 +107,7 @@ ddxUseMsg(void)
     ErrorF("-noTouchPointerEmulation  disable touch pointer emulation\n");
     ErrorF("-force-xrandr-emulation   force non-native modes to be exposed when viewporter is not exposed by the compositor\n");
 #ifdef XWL_HAS_LIBDECOR
-    ErrorF("-decorate              add decorations to Xwayland when rootful (experimental)\n");
+    ErrorF("-decorate              add decorations to Xwayland when rootful\n");
 #endif
 }
 
