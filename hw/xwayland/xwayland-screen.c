@@ -723,8 +723,8 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
     struct xwl_screen *xwl_screen;
     Pixel red_mask, blue_mask, green_mask;
     int ret, bpc, green_bpc, i;
-    unsigned int xwl_width = 0;
-    unsigned int xwl_height = 0;
+    unsigned int xwl_width = 640;
+    unsigned int xwl_height = 480;
 #ifdef XWL_HAS_GLAMOR
     Bool use_eglstreams = FALSE;
 #endif
@@ -808,6 +808,7 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
         else if (strcmp(argv[i], "-decorate") == 0) {
 #ifdef XWL_HAS_LIBDECOR
             xwl_screen->decorate = 1;
+            use_fixed_size = 1;
 #else
             ErrorF("This build does not have libdecor support\n");
 #endif
