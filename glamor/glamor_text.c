@@ -432,7 +432,6 @@ glamor_image_text(DrawablePtr drawable, GCPtr gc,
         int c;
         RegionRec region;
         BoxRec box;
-        int off_x, off_y;
 
         /* Check planemask before drawing background to
          * bail early if it's not OK
@@ -442,8 +441,6 @@ glamor_image_text(DrawablePtr drawable, GCPtr gc,
         for (c = 0; c < count; c++)
             if (charinfo[c])
                 width += charinfo[c]->metrics.characterWidth;
-
-        glamor_get_drawable_deltas(drawable, pixmap, &off_x, &off_y);
 
         if (width >= 0) {
             box.x1 = drawable->x + x;
@@ -456,8 +453,8 @@ glamor_image_text(DrawablePtr drawable, GCPtr gc,
         box.y2 = drawable->y + y + gc->font->info.fontDescent;
         RegionInit(&region, &box, 1);
         RegionIntersect(&region, &region, gc->pCompositeClip);
-        RegionTranslate(&region, off_x, off_y);
-        glamor_solid_boxes(pixmap, RegionRects(&region), RegionNumRects(&region), gc->bgPixel);
+        RegionTranslate(&region, -drawable->x, -drawable->y);
+        glamor_solid_boxes(drawable, RegionRects(&region), RegionNumRects(&region), gc->bgPixel);
         RegionUninit(&region);
     }
 

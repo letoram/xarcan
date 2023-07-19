@@ -895,7 +895,7 @@ glamor_solid(PixmapPtr pixmap, int x, int y, int width, int height,
              unsigned long fg_pixel);
 
 void
-glamor_solid_boxes(PixmapPtr pixmap,
+glamor_solid_boxes(DrawablePtr drawable,
                    BoxPtr box, int nbox, unsigned long fg_pixel);
 
 
