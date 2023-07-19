@@ -405,6 +405,9 @@ miPaintWindow(WindowPtr pWin, RegionPtr prgn, int what)
     BoxPtr pbox;
     xRectangle *prect;
     int numRects, regionnumrects;
+#ifdef COMPOSITE
+    WindowPtr orig_pWin = pWin;
+#endif
 
     /*
      * Distance from screen to destination drawable, use this
@@ -488,6 +491,27 @@ miPaintWindow(WindowPtr pWin, RegionPtr prgn, int what)
         gcval[1].val =
             fill.pixel | RootlessAlphaMask(pWin->drawable.bitsPerPixel);
 #else
+#ifdef COMPOSITE
+        /* Make sure alpha will sample as 1.0 for opaque windows */
+        if (drawable->depth == 32) {
+            int effective_depth = orig_pWin->drawable.depth;
+
+            if (effective_depth == 32) {
+                orig_pWin = orig_pWin->parent;
+                while (orig_pWin && orig_pWin->parent) {
+                    if (orig_pWin->drawable.depth == 24) {
+                        effective_depth = 24;
+                        break;
+                    }
+
+                    orig_pWin = orig_pWin->parent;
+                }
+            }
+
+            if (effective_depth == 24)
+                fill.pixel |= 0xff000000;
+        }
+#endif
         gcval[1].val = fill.pixel;
 #endif
         gcval[2].val = FillSolid;
