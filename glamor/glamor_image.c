@@ -129,7 +129,7 @@ glamor_get_image_gl(DrawablePtr drawable, int x, int y, int w, int h,
                           -x, -y,
                           (uint8_t *) d, byte_stride);
 
-    if (!glamor_pm_is_solid(drawable->depth, plane_mask)) {
+    if (!glamor_pm_is_solid(glamor_drawable_effective_depth(drawable), plane_mask)) {
         FbStip pm = fbReplicatePixel(plane_mask, drawable->bitsPerPixel);
         FbStip *dst = (void *)d;
         uint32_t dstStride = byte_stride / sizeof(FbStip);

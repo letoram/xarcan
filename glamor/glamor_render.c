@@ -806,7 +806,7 @@ glamor_render_format_is_supported(PicturePtr picture)
         return TRUE;
 
     glamor_priv = glamor_get_screen_private(picture->pDrawable->pScreen);
-    f = &glamor_priv->formats[picture->pDrawable->depth];
+    f = &glamor_priv->formats[glamor_drawable_effective_depth(picture->pDrawable)];
 
     if (!f->rendering_supported)
         return FALSE;

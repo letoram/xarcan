@@ -41,7 +41,7 @@ glamor_upload_boxes(DrawablePtr drawable, BoxPtr in_boxes, int in_nbox,
     const struct glamor_format *f = glamor_format_for_pixmap(pixmap);
     char *tmp_bits = NULL;
 
-    if (drawable->depth == 24 && pixmap->drawable.depth == 32)
+    if (glamor_drawable_effective_depth(drawable) == 24 && pixmap->drawable.depth == 32)
         tmp_bits = xnfalloc(byte_stride * pixmap->drawable.height);
 
     glamor_make_current(glamor_priv);

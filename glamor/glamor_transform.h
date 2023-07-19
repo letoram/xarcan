@@ -44,7 +44,8 @@ glamor_set_color(DrawablePtr    drawable,
                  GLint          uniform)
 {
     glamor_set_color_depth(drawable->pScreen,
-                           drawable->depth, pixel, uniform);
+                           glamor_drawable_effective_depth(drawable),
+                           pixel, uniform);
 }
 
 Bool

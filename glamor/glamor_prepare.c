@@ -163,7 +163,7 @@ glamor_finish_access(DrawablePtr drawable)
         return;
 
     if (priv->pbo &&
-        !(drawable->depth == 24 && pixmap->drawable.depth == 32)) {
+        !(glamor_drawable_effective_depth(drawable) == 24 && pixmap->drawable.depth == 32)) {
         glBindBuffer(GL_PIXEL_UNPACK_BUFFER, priv->pbo);
         glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER);
         pixmap->devPrivate.ptr = NULL;
@@ -179,7 +179,7 @@ glamor_finish_access(DrawablePtr drawable)
     RegionUninit(&priv->prepare_region);
 
     if (priv->pbo) {
-        if (drawable->depth == 24 && pixmap->drawable.depth == 32)
+        if (glamor_drawable_effective_depth(drawable) == 24 && pixmap->drawable.depth == 32)
             pixmap->devPrivate.ptr = NULL;
         else
             glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);

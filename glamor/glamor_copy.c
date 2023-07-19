@@ -77,7 +77,7 @@ use_copyplane(DrawablePtr drawable, GCPtr gc, glamor_program *prog, void *arg)
     glamor_set_color(drawable, gc->bgPixel, prog->bg_uniform);
 
     /* XXX handle 2 10 10 10 and 1555 formats; presumably the pixmap private knows this? */
-    switch (args->src_drawable->depth) {
+    switch (glamor_drawable_effective_depth(args->src_drawable)) {
     case 30:
         glUniform4ui(prog->bitplane_uniform,
                      (args->bitplane >> 20) & 0x3ff,
@@ -235,7 +235,7 @@ glamor_copy_cpu_fbo(DrawablePtr src,
 
         PixmapPtr tmp_pix = fbCreatePixmap(screen, dst_pixmap->drawable.width,
                                            dst_pixmap->drawable.height,
-                                           dst->depth, 0);
+                                           glamor_drawable_effective_depth(dst), 0);
 
         if (!tmp_pix) {
             glamor_finish_access(src);
@@ -547,7 +547,7 @@ glamor_copy_fbo_fbo_temp(DrawablePtr src,
     tmp_pixmap = glamor_create_pixmap(screen,
                                       bounds.x2 - bounds.x1,
                                       bounds.y2 - bounds.y1,
-                                      src->depth, 0);
+                                      glamor_drawable_effective_depth(src), 0);
     if (!tmp_pixmap)
         goto bail;
 
@@ -757,7 +757,7 @@ glamor_copy_plane(DrawablePtr src, DrawablePtr dst, GCPtr gc,
                   int srcx, int srcy, int width, int height, int dstx, int dsty,
                   unsigned long bitplane)
 {
-    if ((bitplane & FbFullMask(src->depth)) == 0)
+    if ((bitplane & FbFullMask(glamor_drawable_effective_depth(src))) == 0)
         return miHandleExposures(src, dst, gc,
                                  srcx, srcy, width, height, dstx, dsty);
     return miDoCopy(src, dst, gc,
