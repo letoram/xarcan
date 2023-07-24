@@ -53,6 +53,11 @@
 
 #define DELAYED_WL_SURFACE_DESTROY 1000 /* ms */
 
+#define MAX_ROOTFUL_WIDTH 32767
+#define MAX_ROOTFUL_HEIGHT 32767
+#define MIN_ROOTFUL_WIDTH 320
+#define MIN_ROOTFUL_HEIGHT 200
+
 static DevPrivateKeyRec xwl_window_private_key;
 static DevPrivateKeyRec xwl_damage_private_key;
 static const char *xwl_surface_tag = "xwl-surface";
@@ -605,6 +610,15 @@ xwl_window_rootful_set_app_id(struct xwl_window *xwl_window)
 
 #ifdef XWL_HAS_LIBDECOR
 static void
+xwl_window_libdecor_set_size_limits(struct xwl_window *xwl_window)
+{
+    libdecor_frame_set_min_content_size(xwl_window->libdecor_frame,
+                                        MIN_ROOTFUL_WIDTH, MIN_ROOTFUL_HEIGHT);
+    libdecor_frame_set_max_content_size(xwl_window->libdecor_frame,
+                                        MAX_ROOTFUL_WIDTH, MAX_ROOTFUL_HEIGHT);
+}
+
+static void
 xwl_window_update_libdecor_size(struct xwl_window *xwl_window,
                                 struct libdecor_configuration *configuration /* nullable */,
                                 int width, int height)
@@ -649,6 +663,9 @@ handle_libdecor_configure(struct libdecor_frame *frame,
         width = xwl_screen->width;
         height = xwl_screen->height;
     }
+    /* Clamp the size */
+    width = min(max(width, MIN_ROOTFUL_WIDTH), MAX_ROOTFUL_WIDTH);
+    height = min(max(height, MIN_ROOTFUL_HEIGHT), MAX_ROOTFUL_HEIGHT) ;
 
     if (xwl_screen->width != width || xwl_screen->height != height)
         xwl_window_libdecor_resize(xwl_window, width, height);
@@ -776,6 +793,7 @@ xwl_create_root_surface(struct xwl_window *xwl_window)
                               xwl_window->surface,
                               &libdecor_frame_iface,
                               xwl_window);
+        xwl_window_libdecor_set_size_limits(xwl_window);
         libdecor_frame_map(xwl_window->libdecor_frame);
     }
     else
@@ -808,7 +826,6 @@ xwl_create_root_surface(struct xwl_window *xwl_window)
 
     xwl_window_rootful_update_title(xwl_window);
     xwl_window_rootful_set_app_id(xwl_window);
-
     wl_surface_commit(xwl_window->surface);
 
     region = wl_compositor_create_region(xwl_screen->compositor);
