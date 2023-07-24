@@ -57,6 +57,8 @@ static DevPrivateKeyRec xwl_window_private_key;
 static DevPrivateKeyRec xwl_damage_private_key;
 static const char *xwl_surface_tag = "xwl-surface";
 
+static Bool xwl_window_attach_buffer(struct xwl_window *);
+
 struct xwl_window *
 xwl_window_get(WindowPtr window)
 {
@@ -1312,8 +1314,8 @@ xwl_destroy_window(WindowPtr window)
     return ret;
 }
 
-void
-xwl_window_post_damage(struct xwl_window *xwl_window)
+static Bool
+xwl_window_attach_buffer(struct xwl_window *xwl_window)
 {
     struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
     RegionPtr region;
@@ -1321,8 +1323,6 @@ xwl_window_post_damage(struct xwl_window *xwl_window)
     struct wl_buffer *buffer;
     PixmapPtr pixmap;
     int i;
-
-    assert(!xwl_window->frame_callback);
 
     region = DamageRegion(window_get_damage(xwl_window->window));
     pixmap = xwl_window_buffers_get_pixmap(xwl_window, region);
@@ -1336,14 +1336,14 @@ xwl_window_post_damage(struct xwl_window *xwl_window)
 
     if (!buffer) {
         ErrorF("Error getting buffer\n");
-        return;
+        return FALSE;
     }
 
 #ifdef XWL_HAS_GLAMOR
     if (xwl_screen->glamor) {
         if (!xwl_glamor_post_damage(xwl_window, pixmap, region)) {
             ErrorF("glamor: Failed to post damage\n");
-            return;
+            return FALSE;
         }
     }
 #endif
@@ -1369,6 +1369,17 @@ xwl_window_post_damage(struct xwl_window *xwl_window)
                                box->x2 - box->x1, box->y2 - box->y1);
         }
     }
+
+    return TRUE;
+}
+
+void
+xwl_window_post_damage(struct xwl_window *xwl_window)
+{
+    assert(!xwl_window->frame_callback);
+
+    if (!xwl_window_attach_buffer(xwl_window))
+        return;
 
     xwl_window_create_frame_callback(xwl_window);
     DamageEmpty(window_get_damage(xwl_window->window));
