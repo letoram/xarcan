@@ -629,6 +629,9 @@ xwl_window_libdecor_resize(struct xwl_window *xwl_window, int width, int height)
 
     mode = xwl_output_find_mode(xwl_output, width, height);
     xwl_output_set_mode_fixed(xwl_output, mode);
+
+    xwl_window_attach_buffer(xwl_window);
+    wl_surface_commit(xwl_window->surface);
 }
 
 static void
@@ -652,8 +655,6 @@ handle_libdecor_configure(struct libdecor_frame *frame,
     state = libdecor_state_new(xwl_screen->width, xwl_screen->height);
     libdecor_frame_commit(frame, state, configuration);
     libdecor_state_free(state);
-
-    wl_surface_commit(xwl_window->surface);
 }
 
 static void
