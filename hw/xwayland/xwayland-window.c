@@ -617,15 +617,28 @@ xwl_window_update_libdecor_size(struct xwl_window *xwl_window, int width, int he
 }
 
 static void
+xwl_window_libdecor_resize(struct xwl_window *xwl_window, int width, int height)
+{
+    struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
+    struct xwl_output *xwl_output;
+    RRModePtr mode;
+
+    xwl_output = xwl_screen_get_fixed_or_first_output(xwl_screen);
+    if (!xwl_randr_add_modes_fixed(xwl_output, width, height))
+        return;
+
+    mode = xwl_output_find_mode(xwl_output, width, height);
+    xwl_output_set_mode_fixed(xwl_output, mode);
+}
+
+static void
 handle_libdecor_configure(struct libdecor_frame *frame,
                           struct libdecor_configuration *configuration,
                           void *data)
 {
     struct xwl_window *xwl_window = data;
     struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
-    struct xwl_output *xwl_output;
     struct libdecor_state *state;
-    RRModePtr mode;
     int width, height;
 
     if (!libdecor_configuration_get_content_size(configuration, frame, &width, &height)) {
@@ -633,13 +646,8 @@ handle_libdecor_configure(struct libdecor_frame *frame,
         height = xwl_screen->height;
     }
 
-    if (xwl_screen->width != width || xwl_screen->height != height) {
-        xwl_output = xwl_screen_get_fixed_or_first_output(xwl_screen);
-        if (xwl_randr_add_modes_fixed(xwl_output, width, height)) {
-            mode = xwl_output_find_mode(xwl_output, width, height);
-            xwl_output_set_mode_fixed(xwl_output, mode);
-        }
-    }
+    if (xwl_screen->width != width || xwl_screen->height != height)
+        xwl_window_libdecor_resize(xwl_window, width, height);
 
     state = libdecor_state_new(xwl_screen->width, xwl_screen->height);
     libdecor_frame_commit(frame, state, configuration);
