@@ -643,7 +643,6 @@ handle_libdecor_configure(struct libdecor_frame *frame,
 {
     struct xwl_window *xwl_window = data;
     struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
-    struct libdecor_state *state;
     int width, height;
 
     if (!libdecor_configuration_get_content_size(configuration, frame, &width, &height)) {
@@ -654,9 +653,8 @@ handle_libdecor_configure(struct libdecor_frame *frame,
     if (xwl_screen->width != width || xwl_screen->height != height)
         xwl_window_libdecor_resize(xwl_window, width, height);
 
-    state = libdecor_state_new(xwl_screen->width, xwl_screen->height);
-    libdecor_frame_commit(frame, state, configuration);
-    libdecor_state_free(state);
+    xwl_window_update_libdecor_size(xwl_window, configuration,
+                                    xwl_screen->width, xwl_screen->height);
 }
 
 static void
