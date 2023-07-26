@@ -605,13 +605,15 @@ xwl_window_rootful_set_app_id(struct xwl_window *xwl_window)
 
 #ifdef XWL_HAS_LIBDECOR
 static void
-xwl_window_update_libdecor_size(struct xwl_window *xwl_window, int width, int height)
+xwl_window_update_libdecor_size(struct xwl_window *xwl_window,
+                                struct libdecor_configuration *configuration /* nullable */,
+                                int width, int height)
 {
     struct libdecor_state *state;
 
     if (xwl_window->libdecor_frame) {
 	state = libdecor_state_new(width, height);
-	libdecor_frame_commit(xwl_window->libdecor_frame, state, NULL);
+	libdecor_frame_commit(xwl_window->libdecor_frame, state, configuration);
 	libdecor_state_free(state);
     }
 }
@@ -1226,7 +1228,7 @@ xwl_resize_window(WindowPtr window,
             xwl_window_check_resolution_change_emulation(xwl_window);
 #ifdef XWL_HAS_LIBDECOR
         if (window == screen->root)
-            xwl_window_update_libdecor_size(xwl_window, width, height);
+            xwl_window_update_libdecor_size(xwl_window, NULL, width, height);
 #endif
     }
 }
