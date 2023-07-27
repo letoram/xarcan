@@ -641,7 +641,7 @@ handle_libdecor_configure(struct libdecor_frame *frame,
         }
     }
 
-    state = libdecor_state_new(width, height);
+    state = libdecor_state_new(xwl_screen->width, xwl_screen->height);
     libdecor_frame_commit(frame, state, configuration);
     libdecor_state_free(state);
 
