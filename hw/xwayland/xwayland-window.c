@@ -765,6 +765,14 @@ xdg_toplevel_handle_configure(void *data,
                               int32_t height,
                               struct wl_array *states)
 {
+    struct xwl_window *xwl_window = data;
+
+    /* Maintain our current size if no dimensions are requested */
+    if (width == 0 && height == 0)
+        return;
+
+    /* This will be committed by the xdg_surface.configure handler */
+    xwl_window_maybe_resize(xwl_window, width, height);
 }
 
 static void
@@ -823,7 +831,7 @@ xwl_create_root_surface(struct xwl_window *xwl_window)
 
         xdg_toplevel_add_listener(xwl_window->xdg_toplevel,
                                   &xdg_toplevel_listener,
-                                  NULL);
+                                  xwl_window);
     }
 
     xwl_window_rootful_update_title(xwl_window);
