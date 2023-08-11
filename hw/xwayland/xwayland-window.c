@@ -608,6 +608,30 @@ xwl_window_rootful_set_app_id(struct xwl_window *xwl_window)
         xdg_toplevel_set_app_id(xwl_window->xdg_toplevel, app_id);
 }
 
+static void
+xwl_window_maybe_resize(struct xwl_window *xwl_window, int width, int height)
+{
+    struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
+    struct xwl_output *xwl_output;
+    RRModePtr mode;
+
+    /* Clamp the size */
+    width = min(max(width, MIN_ROOTFUL_WIDTH), MAX_ROOTFUL_WIDTH);
+    height = min(max(height, MIN_ROOTFUL_HEIGHT), MAX_ROOTFUL_HEIGHT);
+
+    if (width == xwl_screen->width && height == xwl_screen->height)
+        return;
+
+    xwl_output = xwl_screen_get_fixed_or_first_output(xwl_screen);
+    if (!xwl_randr_add_modes_fixed(xwl_output, width, height))
+        return;
+
+    mode = xwl_output_find_mode(xwl_output, width, height);
+    xwl_output_set_mode_fixed(xwl_output, mode);
+
+    xwl_window_attach_buffer(xwl_window);
+}
+
 #ifdef XWL_HAS_LIBDECOR
 static void
 xwl_window_libdecor_set_size_limits(struct xwl_window *xwl_window)
@@ -633,23 +657,6 @@ xwl_window_update_libdecor_size(struct xwl_window *xwl_window,
 }
 
 static void
-xwl_window_libdecor_resize(struct xwl_window *xwl_window, int width, int height)
-{
-    struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
-    struct xwl_output *xwl_output;
-    RRModePtr mode;
-
-    xwl_output = xwl_screen_get_fixed_or_first_output(xwl_screen);
-    if (!xwl_randr_add_modes_fixed(xwl_output, width, height))
-        return;
-
-    mode = xwl_output_find_mode(xwl_output, width, height);
-    xwl_output_set_mode_fixed(xwl_output, mode);
-
-    xwl_window_attach_buffer(xwl_window);
-}
-
-static void
 handle_libdecor_configure(struct libdecor_frame *frame,
                           struct libdecor_configuration *configuration,
                           void *data)
@@ -662,13 +669,8 @@ handle_libdecor_configure(struct libdecor_frame *frame,
         width = xwl_screen->width;
         height = xwl_screen->height;
     }
-    /* Clamp the size */
-    width = min(max(width, MIN_ROOTFUL_WIDTH), MAX_ROOTFUL_WIDTH);
-    height = min(max(height, MIN_ROOTFUL_HEIGHT), MAX_ROOTFUL_HEIGHT) ;
 
-    if (xwl_screen->width != width || xwl_screen->height != height)
-        xwl_window_libdecor_resize(xwl_window, width, height);
-
+    xwl_window_maybe_resize(xwl_window, width, height);
     xwl_window_update_libdecor_size(xwl_window, configuration,
                                     xwl_screen->width, xwl_screen->height);
     wl_surface_commit(xwl_window->surface);
