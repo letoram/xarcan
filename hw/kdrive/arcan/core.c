@@ -19,8 +19,6 @@
  *
  *  - output segment to pixmap substitution incomplete
  *
- *  - xkb: use message and bchunkhint to dynamically update layout
- *
  */
 #ifdef HAVE_DIX_CONFIG_H
 #include <dix-config.h>
@@ -130,9 +128,11 @@ static struct {
     Atom _NET_WM_WINDOW_TYPE_NOTIFICATION;
     Atom _NET_WM_WINDOW_TYPE_NORMAL;
     Atom _NET_WM_NAME;
+    Atom _NET_ACTIVE_WINDOW;
     Atom UTF8_STRING;
     Atom WM_PROTOCOLS;
     Atom WM_DELETE_WINDOW;
+    Atom WM_TAKE_FOCUS;
 } wm_atoms;
 
 static void resolveAtoms(void)
@@ -153,10 +153,12 @@ static void resolveAtoms(void)
     wm_atoms._NET_WM_WINDOW_TYPE_TOOLTIP = make("_NET_WM_WINDOW_TYPE_TOOLTIP");
     wm_atoms._NET_WM_WINDOW_TYPE_NOTIFICATION = make("_NET_WM_WINDOW_TYPE_NOTIFICATION");
     wm_atoms._NET_WM_WINDOW_TYPE_NORMAL = make("_NET_WM_WINDOW_TYPE_NORMAL");
+    wm_atoms._NET_ACTIVE_WINDOW = make("_NET_ACTIVE_WINDOW");
     wm_atoms._NET_WM_NAME = make("_NET_WM_NAME");
     wm_atoms.UTF8_STRING = make("UTF8_STRING");
     wm_atoms.WM_PROTOCOLS = make("WM_PROTOCOLS");
     wm_atoms.WM_DELETE_WINDOW = make("WM_DELETE_WINDOW");
+    wm_atoms.WM_TAKE_FOCUS = make("WM_TAKE_FOCUS");
 #undef make
 }
 
@@ -358,6 +360,45 @@ static PropertyPtr getWindowProperty(WindowPtr wnd, ATOM match)
     return NULL;
 }
 
+static void dumpWindowProperties(WindowPtr wnd)
+{
+    if (!wnd->optional || !wnd->optional->userProps){
+        trace("window(%d) - no properties", (int) wnd->drawable.id);
+        trace("----------");
+        return;
+    }
+
+    PropertyPtr cur = wnd->optional->userProps;
+
+    trace("window(%d):", (int) wnd->drawable.id);
+    while (cur){
+        trace("\t%s : ", NameForAtom(cur->propertyName));
+        if (cur->type == XA_STRING || cur->type == wm_atoms.UTF8_STRING){
+            trace("\t\tstring(%d): %.*s", cur->size, cur->size, cur->data);
+        }
+        if (cur->type == XA_ATOM){
+            trace("\tatom: %s, size: %d", NameForAtom(*(ATOM*)cur->data), (int) cur->size);
+        }
+        cur = cur->next;
+        continue;
+    }
+
+    trace("----------");
+}
+
+static bool windowSupportsProtocol(WindowPtr wnd, Atom protocol)
+{
+    if (!wnd->optional || !wnd->optional->userProps){
+        return false;
+    }
+
+    PropertyPtr proto = getWindowProperty(wnd, wm_atoms.WM_PROTOCOLS);
+    if (!proto || proto->type != XA_ATOM)
+        return false;
+
+    return true;
+}
+
 static int getWindowFullWidth(WindowPtr wnd)
 {
     return wnd->drawable.width + wnd->borderWidth + wnd->borderWidth;
@@ -368,7 +409,7 @@ static int getWindowFullHeight(WindowPtr wnd)
     return wnd->drawable.height + wnd->borderWidth + wnd->borderWidth;
 }
 
-static void sendWndData(WindowPtr wnd, int depth, int max_depth, void *tag)
+static void sendWndData(WindowPtr wnd, int depth, int max_depth, bool redir, void *tag)
 {
     struct arcan_shmif_cont *acon = tag;
     int bw = wnd->borderWidth;
@@ -415,28 +456,16 @@ static void sendWndData(WindowPtr wnd, int depth, int max_depth, void *tag)
         out.ext.viewport.parent = anchorRel->drawable.id;
     }
 
-#if 0
-    if (wnd->optional && wnd->optional->userProps){
-        PropertyPtr cur = wnd->optional->userProps;
-
-/* these need to resolve to a new IDENT string >if changed< */
-        while (cur){
-            trace("window-property: %s", NameForAtom(cur->propertyName));
-            if (cur->type == XA_STRING || cur->type == wm_atoms.UTF8_STRING){
-                trace("window-string-property: %d, %.*s", cur->size, cur->data);
-            }
-            if (cur->type == XA_ATOM){
-                trace("window-atom: %s", NameForAtom(*(ATOM*)cur->data));
-            }
-            if (cur->propertyName == wm_atoms._NET_WM_WINDOW_TYPE){
-/* anything else to do with type information? MESSAGE is one option */
-            }
-
-            cur = cur->next;
-            continue;
+/* ensure 'correct' alpha flag, this might take another roundtrip to get right,
+ * so a better tactic for these toggles should really be used */
+    if (redir){
+        if (out.ext.viewport.embedded){
+            acon->hints &= ~SHMIF_RHINT_IGNORE_ALPHA;
         }
+        else
+            acon->hints |= SHMIF_RHINT_IGNORE_ALPHA;
+        arcan_shmif_resize(acon, acon->w, acon->h);
     }
-#endif
 
 /* actually only send if the contents differ from what we sent last time */
     arcanWindowPriv *awnd = dixLookupPrivate(&wnd->devPrivates, &windowPriv);
@@ -694,7 +723,7 @@ static Bool arcanUnrealizeWindow(WindowPtr wnd)
     if (apriv){
         if (apriv->shmif){
             arcanShmifPriv *shmif = apriv->shmif->user;
-            sendWndData(wnd, 0, 0, apriv->shmif);
+            sendWndData(wnd, 0, 0, true, apriv->shmif);
             shmif->window = NULL;
             trace("unrealize:id=%zu:shmif=yes:pixmap=%"PRIxPTR":window=%"PRIxPTR,
                   wnd->drawable.id, (uintptr_t) shmif->pixmap,
@@ -873,16 +902,7 @@ arcanResizeWindow(WindowPtr wnd, int x, int y, unsigned w, unsigned h, WindowPtr
         ascr->screen->ResizeWindow = arcanResizeWindow;
     }
 
-/* note: changeWindowAttributes tell us (SubstructureRedirectMask | ResizeRedirectMask)
- *       if the client is a window manager or not, and if the direct parent of a window
- *       is the window manager, or we have manually marked the window as having its own
- *       segment
- */
-     if (ht_find(ascr->proxyMap, &wnd->drawable.id)){
-         synchTreeDepth(ascr, ascr->screen->root, sendWndData, true, ascr->acon);
-    }
-    else
-        flagUnsynched(wnd);
+    flagUnsynched(wnd);
 }
 
 Bool
@@ -1141,6 +1161,12 @@ shutdownTimerCheck(OsTimerPtr timer, CARD32 time, void *arg)
 }
 
 static
+void wmSendMeta(WindowPtr wnd, int depth, int max_depth, void *tag)
+{
+    sendWndData(wnd, depth, max_depth, false, tag);
+}
+
+static
 void
 arcanSignal(struct arcan_shmif_cont* con)
 {
@@ -1156,8 +1182,8 @@ arcanSignal(struct arcan_shmif_cont* con)
     if (arcan_shmif_signalstatus(con))
         return;
 
-     if (scrpriv->wmSynch)
-         synchTreeDepth(scrpriv, scrpriv->screen->root, sendWndData, false, con);
+    if (scrpriv->wmSynch)
+        synchTreeDepth(scrpriv, scrpriv->screen->root, wmSendMeta, true, con);
 
     RegionPtr region;
     bool in_glamor = false;
@@ -1443,6 +1469,26 @@ dumpTree(arcanScrPriv *ascr, int fd, const char* message)
       TraverseTree(ascr->screen->root, dumpTreeRelations, fout);
     fprintf(fout, "}\n");
     fclose(fout);
+}
+
+static void
+cmdRaiseWindow(XID id)
+{
+   WindowPtr res;
+   if (Success != dixLookupResourceByType((void**) &res,
+                                           id, RT_WINDOW,
+                                           NULL, DixWriteAccess)){
+        return;
+    }
+
+    ClientPtr client;
+    if (Success != dixLookupClient(&client, id, NULL, DixWriteAccess)){
+        return;
+    }
+
+  int mask = CWStackMode;
+  XID vlist[2] = {Above};
+  ConfigureWindow(res, mask, vlist, client);
 }
 
 static void
@@ -1848,9 +1894,16 @@ static PixmapPtr arcanCompNewPixmap(WindowPtr pWin, int x, int y, int w, int h)
         pWin->drawable.pScreen->ModifyPixmapHeader(shmif->pixmap, 0, 0, 0, 0, 0, priv->tmpbuf);
     }
 
-/* Make sure that the mode is correct, SUBREGION will be set through _dirty calls */
-    C->hints = SHMIF_RHINT_ORIGO_UL | SHMIF_RHINT_CSPACE_SRGB /* | SHMIF_RHINT_IGNORE_ALPHA */;
+/* Default hints mode is this, then for overrideRedirect and similar surfaces
+ * we do re-enable alpha. The basis for this is that alpha channel is a bit of
+ * a free-for-all in X11 and with it enabled, firefox subsurfaces etc. would
+ * appear black rather than have a blended shadow, but xterm/xeyes etc. would
+ * not have any visible background. */
+    C->hints = SHMIF_RHINT_ORIGO_UL | SHMIF_RHINT_SUBREGION |
+               SHMIF_RHINT_CSPACE_SRGB | SHMIF_RHINT_IGNORE_ALPHA;
     arcan_shmif_resize(C, w, h);
+    arcan_shmif_dirty(C, 0, 0, w, h, 0);
+    shmif->dying = 0;
 
     PixmapPtr pmap = pixmapFromShmif(
                                      pWin->drawable.pScreen,
@@ -1932,13 +1985,13 @@ arcanEventDispatch(struct arcan_shmif_cont* con, arcanScrPriv* ascr, arcan_event
             return 1;
         break;
         }
-/* all the window metadata need to be resent as create, and the ones that
+/* all the window metadata need to be present as create, and the ones that
  * are paired to a vid needs to have the corresponding pair being sent */
         if (ascr->wmSynch){
             synchTreeDepth(con->user, ascr->screen->root, resetWndData, true, con);
         }
         return 1;
-        break;
+    break;
     case TARGET_COMMAND_DISPLAYHINT:
         arcanDisplayHint(con,
                          ev.tgt.ioevs[0].iv, ev.tgt.ioevs[1].iv,
@@ -1959,6 +2012,7 @@ arcanEventDispatch(struct arcan_shmif_cont* con, arcanScrPriv* ascr, arcan_event
                 );
     break;
     case TARGET_COMMAND_REQFAIL:
+        trace("segment-request rejected");
         return -2;
     break;
     case TARGET_COMMAND_NEWSEGMENT:
@@ -3067,6 +3121,21 @@ struct XWMHints *getHintsForWindow(WindowPtr wnd)
     return NULL;
 }
 
+static void traceFocus(DeviceIntPtr dev, const char* prefix)
+{
+    FocusClassPtr focus = dev->focus;
+    if (!focus)
+        trace("%s : no-Focus",prefix);
+    else if (focus->win == PointerRootWin)
+        trace("%s : special(PointerRoot)", prefix);
+    else if (focus->win == FollowKeyboardWin)
+        trace("%s : special(FollowKeyboardWin)", prefix);
+    else if (focus->win == NoneWin)
+        trace("%s : special(None)", prefix);
+    else
+        trace("%s : window(%d)", prefix, (int) focus->win->drawable.id);
+}
+
 /*
  * Some rules and ICCM nuances to this -
  *
@@ -3082,35 +3151,79 @@ static
 void
 updateWindowFocus(WindowPtr wnd, bool focus)
 {
-    DeviceIntPtr dev = arcanInputPriv.ki->dixdev;
-    bool inputHint = false;
     struct XWMHints *hints = getHintsForWindow(wnd);
+
+    DeviceIntPtr kdev = arcanInputPriv.ki->dixdev;
+    kdev = GetMaster(kdev, MASTER_KEYBOARD);
+    DeviceIntPtr pdev = arcanInputPriv.pi->dixdev;
+
+    if (!focus){
+        traceFocus(kdev, "releaseFocus:keyboard:");
+        traceFocus(pdev, "releaseFocus:pointer:");
+
+        if (arcanInputPriv.ki->dixdev->focus->win == wnd){
+            SetInputFocus(
+                         serverClient,
+                         kdev,
+                         None,
+                         RevertToParent,
+                         CurrentTime,
+                         TRUE
+                        );
+        }
+        return;
+    }
+
+    traceFocus(kdev, "setFocus:old_keyboard:");
+    traceFocus(pdev, "setFocus:old_pointer:");
+
     if (hints){
-        inputHint = hints->input;
+        if (hints->input){
+            xEvent xev = (xEvent){
+                .u.u.type = ClientMessage,
+                .u.u.detail = 32,
+                .u.clientMessage.window = wnd->drawable.id,
+                .u.clientMessage.u.l.type = wm_atoms.WM_PROTOCOLS,
+                .u.clientMessage.u.l.longs0 = wm_atoms.WM_TAKE_FOCUS,
+                .u.clientMessage.u.l.longs1 = CurrentTime
+            };
+            DeliverEventsToWindow(
+                PickPointer(serverClient),
+                wnd, /* ascr->screen->root, */
+                &xev, 1, SubstructureRedirectMask, NullGrab);
+
+            cmdRaiseWindow(wnd->drawable.id);
+            trace("sendingTakeFocus(%d)", wnd->drawable.id);
+            return;
+        }
     }
 
-    if (focus){
-        SetInputFocus(
-                      serverClient,
-                      dev,
-                      wnd->drawable.pScreen->root->drawable.id,
-                      RevertToParent,
-                      CurrentTime,
-                      FALSE
-                    );
-    }
-    else {
-        SetInputFocus(
-            serverClient,
-            dev,
-            wnd->drawable.id,
-            RevertToParent,
-            CurrentTime,
-            FALSE
-        );
-    }
+    arcanScrPriv *ascr = getArcanScreen(wnd);
 
-    if (inputHint);
+    trace("takeRealFocus");
+    SetInputFocus(
+                  serverClient,
+                  kdev,
+                  wnd->drawable.id,
+                  RevertToParent,
+                  CurrentTime,
+                  TRUE
+                 );
+    cmdRaiseWindow(wnd->drawable.id);
+    traceFocus(kdev, "setFocus, new keyboard:");
+    traceFocus(pdev, "setFocus, new mouse:");
+
+    dixChangeWindowProperty(
+        serverClient,
+        ascr->screen->root,
+        wm_atoms._NET_ACTIVE_WINDOW,
+        XA_WINDOW,
+        32,
+        PropModeReplace,
+        1,
+        &wnd->drawable.id,
+        TRUE
+    );
 }
 
 void
@@ -3152,9 +3265,6 @@ arcanFlushRedirectedEvents(int fd, int mask, void *tag)
             }
         }
         break;
-        case TARGET_COMMAND_EXIT:
-            trace("segmentDropped");
-        break;
         case TARGET_COMMAND_OUTPUTHINT:
 /* w/h ranges are interesting as there are IWWM hints to forward */
          break;
@@ -3162,17 +3272,34 @@ arcanFlushRedirectedEvents(int fd, int mask, void *tag)
  * not always available, need to check WM_PROTOCOLS for the appropriate atom.
  * Then mark that the window is intended to be deleted so that we don't get a
  * frame delivered on it until later. */
+         break;
+
+/* Treat exit and reset as basically the same for now */
+        case TARGET_COMMAND_EXIT:
+            trace("segmentDropped");
         case TARGET_COMMAND_RESET:{
             trace("segmentReset");
-            xEvent xev = (xEvent){
-                .u.u.type = ClientMessage,
-                .u.u.detail = 32,
-                .u.clientMessage.window = P->window->drawable.id,
-                .u.clientMessage.u.l.type = wm_atoms.WM_PROTOCOLS,
-                .u.clientMessage.u.l.longs0 = wm_atoms.WM_DELETE_WINDOW,
-                .u.clientMessage.u.l.longs1 = CurrentTime
-            };
-            DeliverEvents(P->window, &xev, 1, NullWindow);
+
+            if (windowSupportsProtocol(P->window, wm_atoms.WM_DELETE_WINDOW)){
+#ifdef DEBUG
+                arcanScrPriv *ascr = getArcanScreen(P->window);
+                dumpWindowProperties(ascr->screen->root);
+                dumpWindowProperties(P->window);
+#endif
+                xEvent xev = (xEvent){
+                    .u.u.type = ClientMessage,
+                    .u.u.detail = 32,
+                    .u.clientMessage.window = P->window->drawable.id,
+                    .u.clientMessage.u.l.type = wm_atoms.WM_PROTOCOLS,
+                    .u.clientMessage.u.l.longs0 = wm_atoms.WM_DELETE_WINDOW,
+                    .u.clientMessage.u.l.longs1 = CurrentTime
+                };
+                DeliverEvents(P->window, &xev, 1, NullWindow);
+                P->dying = arcan_timemillis();
+           }
+/* mimic KillClient */
+           else {
+           }
         }
         break;
         case TARGET_COMMAND_BCHUNK_IN:{
@@ -3222,11 +3349,16 @@ arcanScreenBlockHandler(ScreenPtr pScreen, void* timeout)
             if (!P->bound || !P->window || !P->pixmap)
                 continue;
 
-          if (P->window->unsynched){
-              sendWndData(P->window, 0, 0, C);
-              P->window->unsynched = 0;
+/* dying yet the client hasn't acknowledged it? */
+          if (P->dying){
+              trace("signal on dying");
+              continue;
           }
 
+          if (P->window->unsynched){
+              sendWndData(P->window, 0, 0, true, C);
+              P->window->unsynched = 0;
+          }
 
 /* Support DRI3/Glamor rootless only through PRESENT for the time being.
  * Those segments are signalled out-of-block so we should not arrive here at all. */

@@ -50,6 +50,7 @@ typedef struct _arcanShmifPriv {
     PixmapPtr pixmap;
     WindowPtr window;
     bool bound;
+    unsigned long long dying;
 } arcanShmifPriv;
 
 struct gbm_bo;

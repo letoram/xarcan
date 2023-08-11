@@ -39,6 +39,9 @@ static inline void trace(const char* msg, ...)
     if (!logout){
         logout = fopen("clipboard.log", "w+");
     }
+    if (!logout)
+        return;
+
     va_list args;
     va_start( args, msg );
         vfprintf(logout, msg, args );
@@ -57,7 +60,6 @@ _Thread_local static struct
     char* buf;
 } clip_out;
 
-_Thread_local static bool incrState;
 _Thread_local static struct
 {
     size_t len;
@@ -199,7 +201,7 @@ static void xfixesSelectionNotify(
     xcb_get_selection_owner_reply_t *owner =
       xcb_get_selection_owner_reply(
           xcon,
-          xcb_get_selection_owner(xcon, atoms.clipboard),
+          xcb_get_selection_owner(xcon, event->selection),
           NULL
       );
 
@@ -214,9 +216,9 @@ static void xfixesSelectionNotify(
  * primary selection */
     free(owner);
     xcb_convert_selection(xcon, xwnd,
-      atoms.clipboard, /* selection */
+      event->selection,
       atoms.utf8,
-      atoms.selection_id,
+      event->selection,
       event->timestamp
     );
     xcb_flush(xcon);
@@ -332,9 +334,15 @@ static void forwardData(struct proxyWindowData *inWnd,
 /* should send onwards unless it comes from a bchunk, then it has already happened */
         if (clip_out.buf){
             if (logout){
-                fprintf(logout, "selection:\n");
                 fwrite(clip_out.buf, clip_out.len, 1, logout);
             }
+
+            arcan_shmif_pushutf8(inWnd->cont,
+                                 &(struct arcan_event){
+                                   .ext.kind = ARCAN_EVENT(MESSAGE)
+                                 }, clip_out.buf, clip_out.len
+                                );
+
             free(clip_out.buf);
             clip_out.buf = NULL;
         }
@@ -383,6 +391,7 @@ static void propertyNotify(
 {
     if (event->window == xwnd){
         trace("propertyNotify(selectionWnd)");
+
         if (event->state == XCB_PROPERTY_NEW_VALUE){
             trace("newValue");
             if (event->atom == atoms.selection_id){
@@ -394,7 +403,10 @@ static void propertyNotify(
                                           0,
                                           0x1fffffff);
 
-                xcb_get_property_reply(xcon, cookie, NULL);
+                xcb_get_property_reply_t *reply = xcb_get_property_reply(xcon, cookie, NULL);
+                if (!reply)
+                    return;
+                free(reply);
                 trace("gotSelectionData");
             }
         }
@@ -413,13 +425,13 @@ static void selectionNotify(
     trace("selectionNotify");
 
     if (event->selection == atoms.clipboard){
-        trace("selectionotify-clipboard");
+        trace("selection-clipboard");
     } else {
-        trace("notify-primary");
+        trace("selection-primary");
     }
 
-/* this is for the exposed set of targets, i.e. which types can the source of
- * the selection handle conversion to. */
+/* this is for the exposed set of targets,
+ * i.e. which types can the source of the selection handle conversion to. */
     if (event->target == atoms.targets){
         forwardTargets(inWnd, event);
         return;
@@ -427,10 +439,10 @@ static void selectionNotify(
 
     xcb_get_property_cookie_t cookie;
     cookie = xcb_get_property(xcon,
-                              TRUE, xwnd,
-                              atoms.selection_id,
-                              atoms.utf8,
-/*                              XCB_GET_PROPERTY_TYPE_ANY, */
+                              TRUE,
+                              xwnd,
+                              event->property,
+                              XCB_ATOM_ANY,
                               0,
                               0x1fffffff);
 
@@ -440,7 +452,7 @@ static void selectionNotify(
         return;
 
     if (reply->type == atoms.incr){
-        incrState = true;
+        trace("EFIX:incr");
         free(reply);
         return;
     }
@@ -475,10 +487,8 @@ void *arcanClipboardDispatch(struct proxyWindowData* inWnd)
             XCB_XFIXES_SELECTION_EVENT_MASK_SELECTION_WINDOW_DESTROY |
             XCB_XFIXES_SELECTION_EVENT_MASK_SELECTION_CLIENT_CLOSE
     );
-/*
- * this one is quite noisy, since many clients (e.g. chrome) simply update this
- * for each new selection step so we flood the event queues
- * xcb_xfixes_select_selection_input(
+
+        xcb_xfixes_select_selection_input(
             xcon,
             xwnd,
             XCB_ATOM_PRIMARY,
@@ -486,7 +496,6 @@ void *arcanClipboardDispatch(struct proxyWindowData* inWnd)
             XCB_XFIXES_SELECTION_EVENT_MASK_SELECTION_WINDOW_DESTROY |
             XCB_XFIXES_SELECTION_EVENT_MASK_SELECTION_CLIENT_CLOSE
             );
- */
      }
     else {
         xcb_void_cookie_t cookie =
@@ -523,7 +532,7 @@ void *arcanClipboardDispatch(struct proxyWindowData* inWnd)
         },
     };
 
-		int pv = 0;
+    int pv = 0;
     while (pv >= 0){
         xcb_flush(xcon);
         if (-1 == poll(pset, 2, -1)){
@@ -597,6 +606,15 @@ void *arcanClipboardDispatch(struct proxyWindowData* inWnd)
         }
 
         while ((event = xcb_poll_for_event(xcon))){
+            if (xfixes_id){
+                switch (event->response_type - xfixes_id->first_event){
+                case XCB_XFIXES_SELECTION_NOTIFY:
+                     xfixesSelectionNotify(inWnd, (xcb_xfixes_selection_notify_event_t *) event);
+                     continue;
+                break;
+                }
+            }
+
             switch (event->response_type & ~0x80){
              case XCB_SELECTION_REQUEST:
                  selectionRequest(inWnd, (xcb_selection_request_event_t *) event);
@@ -611,9 +629,9 @@ void *arcanClipboardDispatch(struct proxyWindowData* inWnd)
  * that is problematic when there are multiples .. */
              break;
 /* for -redirect with -exec to a non-wm target we kind of want to fill that hole */
-						 case XCB_MAP_REQUEST:
+             case XCB_MAP_REQUEST:
                  xcb_map_window(xcon, ((xcb_map_request_event_t*)event)->window);
-						 break;
+             break;
              case XCB_PROPERTY_NOTIFY:
                  propertyNotify(inWnd, (xcb_property_notify_event_t *) event);
              break;
@@ -621,15 +639,7 @@ void *arcanClipboardDispatch(struct proxyWindowData* inWnd)
                 trace("unhandled event: %d", (int) event->response_type);
              break;
             }
-
-            if (xfixes_id){
-                switch (event->response_type - xfixes_id->first_event){
-                case XCB_XFIXES_SELECTION_NOTIFY:
-                     xfixesSelectionNotify(inWnd, (xcb_xfixes_selection_notify_event_t *) event);
-                break;
-                }
-            }
-        }
+       }
     }
 
 out:
