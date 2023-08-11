@@ -816,14 +816,13 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
         }
     }
 
-    if (use_fixed_size) {
-        if (xwl_screen->rootless) {
-            ErrorF("error, cannot set a geometry when running rootless\n");
-            return FALSE;
-        } else {
-            xwl_screen->width = xwl_width;
-            xwl_screen->height = xwl_height;
-        }
+    if (!xwl_screen->rootless) {
+        use_fixed_size = 1;
+        xwl_screen->width = xwl_width;
+        xwl_screen->height = xwl_height;
+    } else if (use_fixed_size) {
+        ErrorF("error, cannot set a geometry when running rootless\n");
+        return FALSE;
     }
 
 #ifdef XWL_HAS_GLAMOR
