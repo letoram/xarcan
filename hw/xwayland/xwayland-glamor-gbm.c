@@ -55,6 +55,7 @@
 #include "xwayland-screen.h"
 
 #include "linux-dmabuf-unstable-v1-client-protocol.h"
+#include "linux-drm-syncobj-v1-client-protocol.h"
 
 struct xwl_gbm_private {
     drmDevice *device;
@@ -620,6 +621,8 @@ xwl_glamor_gbm_cleanup(struct xwl_screen *xwl_screen)
         wl_drm_destroy(xwl_gbm->drm);
     if (xwl_gbm->gbm)
         gbm_device_destroy(xwl_gbm->gbm);
+    if (xwl_screen->explicit_sync)
+        wp_linux_drm_syncobj_manager_v1_destroy(xwl_screen->explicit_sync);
 
     free(xwl_gbm);
 }
@@ -965,7 +968,37 @@ struct xwl_dri3_syncobj
 {
     struct dri3_syncobj base;
     uint32_t handle;
+    struct wp_linux_drm_syncobj_timeline_v1 *timeline;
 };
+
+void
+xwl_glamor_dri3_syncobj_passthrough(WindowPtr window,
+                                    struct dri3_syncobj *acquire_syncobj,
+                                    struct dri3_syncobj *release_syncobj,
+                                    uint64_t acquire_point,
+                                    uint64_t release_point)
+{
+    struct xwl_window *xwl_window = xwl_window_from_window(window);
+    struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
+    struct xwl_dri3_syncobj *xwl_acquire_syncobj = (struct xwl_dri3_syncobj *)acquire_syncobj;
+    struct xwl_dri3_syncobj *xwl_release_syncobj = (struct xwl_dri3_syncobj *)release_syncobj;
+    uint32_t acquire_hi = acquire_point >> 32;
+    uint32_t acquire_lo = acquire_point & 0xffffffff;
+    uint32_t release_hi = release_point >> 32;
+    uint32_t release_lo = release_point & 0xffffffff;
+
+    if (!xwl_window->surface_sync)
+        xwl_window->surface_sync =
+            wp_linux_drm_syncobj_manager_v1_get_surface(xwl_screen->explicit_sync,
+                                                        xwl_window->surface);
+
+    wp_linux_drm_syncobj_surface_v1_set_acquire_point(xwl_window->surface_sync,
+                                                      xwl_acquire_syncobj->timeline,
+                                                      acquire_hi, acquire_lo);
+    wp_linux_drm_syncobj_surface_v1_set_release_point(xwl_window->surface_sync,
+                                                      xwl_release_syncobj->timeline,
+                                                      release_hi, release_lo);
+}
 
 static Bool
 xwl_dri3_check_syncobj(struct dri3_syncobj *syncobj, uint64_t point, Bool check_avail)
@@ -1046,6 +1079,9 @@ xwl_dri3_free_syncobj(struct dri3_syncobj *syncobj)
     struct xwl_screen *xwl_screen = xwl_screen_get(syncobj->screen);
     struct xwl_gbm_private *xwl_gbm = xwl_gbm_get(xwl_screen);
 
+    if (xwl_syncobj->timeline)
+        wp_linux_drm_syncobj_timeline_v1_destroy(xwl_syncobj->timeline);
+
     if (xwl_syncobj->handle)
         drmSyncobjDestroy(xwl_gbm->drm_fd, xwl_syncobj->handle);
 
@@ -1082,9 +1118,27 @@ static struct dri3_syncobj *
 xwl_dri3_create_syncobj(struct xwl_screen *xwl_screen, uint32_t handle)
 {
     struct xwl_dri3_syncobj *syncobj = calloc(1, sizeof (*syncobj));
+    struct xwl_gbm_private *xwl_gbm = xwl_gbm_get(xwl_screen);
+    Bool create = !handle;
 
     if (!syncobj)
         return NULL;
+
+    if (create && drmSyncobjCreate(xwl_gbm->drm_fd, 0, &handle))
+        goto fail;
+
+    if (xwl_screen->explicit_sync) {
+        int syncobj_fd = -1;
+        if (drmSyncobjHandleToFD(xwl_gbm->drm_fd, handle, &syncobj_fd))
+            goto fail;
+
+        syncobj->timeline =
+            wp_linux_drm_syncobj_manager_v1_import_timeline(xwl_screen->explicit_sync,
+                                                            syncobj_fd);
+        close(syncobj_fd);
+        if (!syncobj->timeline)
+            goto fail;
+    }
 
     syncobj->handle = handle;
     syncobj->base.screen = xwl_screen->screen;
@@ -1099,6 +1153,18 @@ xwl_dri3_create_syncobj(struct xwl_screen *xwl_screen, uint32_t handle)
     syncobj->base.signaled_eventfd = xwl_dri3_syncobj_signaled_eventfd;
     syncobj->base.submitted_eventfd = xwl_dri3_syncobj_submitted_eventfd;
     return &syncobj->base;
+
+fail:
+    if (create && handle)
+        drmSyncobjDestroy(xwl_gbm->drm_fd, handle);
+    free(syncobj);
+    return NULL;
+}
+
+struct dri3_syncobj *
+xwl_glamor_dri3_syncobj_create(struct xwl_screen *xwl_screen)
+{
+    return xwl_dri3_create_syncobj(xwl_screen, 0 /* allocate new handle */);
 }
 
 static struct dri3_syncobj *
@@ -1298,6 +1364,17 @@ xwl_screen_set_drm_interface(struct xwl_screen *xwl_screen,
     wl_drm_add_listener(xwl_gbm->drm, &xwl_drm_listener, xwl_screen);
     xwl_screen->expecting_event++;
 
+    return TRUE;
+}
+
+Bool
+xwl_screen_set_syncobj_interface(struct xwl_screen *xwl_screen,
+                                 uint32_t id, uint32_t version)
+{
+    xwl_screen->explicit_sync =
+        wl_registry_bind(xwl_screen->registry, id,
+                         &wp_linux_drm_syncobj_manager_v1_interface,
+                         version);
     return TRUE;
 }
 
@@ -1544,6 +1621,12 @@ xwl_glamor_gbm_init_egl(struct xwl_screen *xwl_screen)
         epoxy_has_egl_extension(xwl_screen->egl_display,
                                 "ANDROID_native_fence_sync"))
         xwl_gbm->supports_syncobjs = TRUE;
+
+    if (!xwl_gbm->supports_syncobjs && xwl_screen->explicit_sync) {
+        /* explicit sync requires syncobj support */
+        wp_linux_drm_syncobj_manager_v1_destroy(xwl_screen->explicit_sync);
+        xwl_screen->explicit_sync = NULL;
+    }
 
     return TRUE;
 error:

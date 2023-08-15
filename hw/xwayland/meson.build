@@ -50,6 +50,7 @@ shortcuts_inhibit_xml = join_paths(protodir, 'unstable', 'keyboard-shortcuts-inh
 xwayland_shell_xml = join_paths(protodir, 'staging', 'xwayland-shell', 'xwayland-shell-v1.xml')
 tearing_xml = join_paths(protodir, 'staging', 'tearing-control', 'tearing-control-v1.xml')
 fractional_scale_xml = join_paths(protodir, 'staging', 'fractional-scale', 'fractional-scale-v1.xml')
+syncobj_xml = join_paths(protodir, 'staging', 'linux-drm-syncobj', 'linux-drm-syncobj-v1.xml')
 
 client_header = generator(scanner,
     output : '@BASENAME@-client-protocol.h',
@@ -80,6 +81,7 @@ srcs += client_header.process(shortcuts_inhibit_xml)
 srcs += client_header.process(xwayland_shell_xml)
 srcs += client_header.process(tearing_xml)
 srcs += client_header.process(fractional_scale_xml)
+srcs += client_header.process(syncobj_xml)
 srcs += code.process(relative_xml)
 srcs += code.process(pointer_xml)
 srcs += code.process(gestures_xml)
@@ -94,6 +96,7 @@ srcs += code.process(shortcuts_inhibit_xml)
 srcs += code.process(xwayland_shell_xml)
 srcs += code.process(tearing_xml)
 srcs += code.process(fractional_scale_xml)
+srcs += code.process(syncobj_xml)
 
 if build_ei
     xwayland_dep += libei_dep

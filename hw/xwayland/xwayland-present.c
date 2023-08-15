@@ -40,6 +40,7 @@
 #include "xwayland-pixmap.h"
 
 #include "tearing-control-v1-client-protocol.h"
+#include "linux-drm-syncobj-v1-client-protocol.h"
 
 #define XWL_PRESENT_CAPS PresentCapabilityAsync | PresentCapabilityAsyncMayTear
 
@@ -389,6 +390,7 @@ static void
 xwl_present_flip_notify_vblank(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
 {
     WindowPtr                   window = vblank->window;
+    struct xwl_screen *xwl_screen = xwl_screen_get(window->drawable.pScreen);
     struct xwl_present_window *xwl_present_window = xwl_present_window_priv(window);
     uint8_t mode = PresentCompleteModeFlip;
 
@@ -405,9 +407,14 @@ xwl_present_flip_notify_vblank(present_vblank_ptr vblank, uint64_t ust, uint64_t
         struct xwl_present_event *event =
             xwl_present_event_from_vblank(xwl_present_window->flip_active);
 
-        if (!event->pixmap)
+        if (!event->pixmap
+#ifdef DRI3
+            /* If this flip used explicit sync, we won't get a release event */
+            || (xwl_screen->explicit_sync && vblank->release_syncobj)
+#endif /* DRI3 */
+            ) {
             xwl_present_free_event(event);
-        else
+        } else
             /* Put the previous flip in the idle_queue and wait for further notice from
              * the Wayland compositor
              */
@@ -767,7 +774,8 @@ xwl_present_check_flip(RRCrtcPtr crtc,
         !xwl_glamor_check_flip(present_window, pixmap))
         return FALSE;
 
-    if (!xwl_glamor_supports_implicit_sync(xwl_window->xwl_screen))
+    if (!xwl_glamor_supports_implicit_sync(xwl_window->xwl_screen) &&
+        !xwl_window->xwl_screen->explicit_sync)
         return FALSE;
 #endif /* XWL_HAS_GLAMOR */
 
@@ -852,6 +860,7 @@ xwl_present_flip(present_vblank_ptr vblank, RegionPtr damage)
     BoxPtr                      damage_box;
     struct wl_buffer            *buffer;
     struct xwl_present_event    *event = xwl_present_event_from_vblank(vblank);
+    Bool                        implicit_sync = TRUE;
 
     if (!xwl_window)
         return FALSE;
@@ -868,7 +877,33 @@ xwl_present_flip(present_vblank_ptr vblank, RegionPtr damage)
 
     event->pixmap = pixmap;
 
-    xwl_pixmap_set_buffer_release_cb(pixmap, xwl_present_buffer_release, event);
+#ifdef XWL_HAS_GLAMOR
+    if (vblank->acquire_syncobj && vblank->release_syncobj) {
+        if (xwl_window->xwl_screen->explicit_sync) {
+            xwl_glamor_dri3_syncobj_passthrough(present_window,
+                                                vblank->acquire_syncobj,
+                                                vblank->release_syncobj,
+                                                vblank->acquire_point,
+                                                vblank->release_point);
+            implicit_sync = FALSE;
+        } else {
+            /* transfer from acquire syncobj to implicit fence */
+            int fence_fd =
+                vblank->acquire_syncobj->export_fence(vblank->acquire_syncobj,
+                                                      vblank->acquire_point);
+            xwl_glamor_dmabuf_import_sync_file(vblank->pixmap, fence_fd);
+        }
+    }
+#endif /* XWL_HAS_GLAMOR */
+
+    if (implicit_sync) {
+        xwl_pixmap_set_buffer_release_cb(pixmap, xwl_present_buffer_release, event);
+
+        if (xwl_window->surface_sync) {
+            wp_linux_drm_syncobj_surface_v1_destroy(xwl_window->surface_sync);
+            xwl_window->surface_sync = NULL;
+        }
+    }
 
     /* We can flip directly to the main surface (full screen window without clips) */
     wl_surface_attach(xwl_window->surface, buffer, 0, 0);
@@ -911,6 +946,42 @@ xwl_present_flip(present_vblank_ptr vblank, RegionPtr damage)
     return TRUE;
 }
 
+#ifdef XWL_HAS_GLAMOR
+static void
+xwl_present_acquire_fence_avail(int fd, int xevents, void *data)
+{
+    present_vblank_ptr vblank = data;
+
+    SetNotifyFd(fd, NULL, 0, NULL);
+    close(fd);
+    vblank->efd = -1;
+
+    xwl_present_re_execute(vblank);
+}
+#endif /* XWL_HAS_GLAMOR */
+
+static Bool
+xwl_present_wait_acquire_fence_avail(struct xwl_screen *xwl_screen,
+                                     present_vblank_ptr vblank)
+{
+#ifdef XWL_HAS_GLAMOR
+    /* If the compositor does not support explicit sync we need to wait for the
+     * acquire fence to be submitted before flipping. */
+    if (vblank->flip && !xwl_screen->explicit_sync &&
+        vblank->pixmap && vblank->acquire_syncobj &&
+        !vblank->acquire_syncobj->has_fence(vblank->acquire_syncobj,
+                                            vblank->acquire_point)) {
+        vblank->efd = eventfd(0, EFD_CLOEXEC);
+        SetNotifyFd(vblank->efd, xwl_present_acquire_fence_avail, X_NOTIFY_READ, vblank);
+        vblank->acquire_syncobj->submitted_eventfd(vblank->acquire_syncobj,
+                                                   vblank->acquire_point,
+                                                   vblank->efd);
+        return TRUE;
+    }
+#endif /* XWL_HAS_GLAMOR */
+    return FALSE;
+}
+
 /*
  * Once the required MSC has been reached, execute the pending request.
  *
@@ -927,11 +998,13 @@ xwl_present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
     struct xwl_present_window *xwl_present_window = xwl_present_window_get_priv(window);
     present_vblank_ptr flip_pending = xwl_present_get_pending_flip(xwl_present_window);
     struct xwl_present_event *event = xwl_present_event_from_vblank(vblank);
+    struct xwl_screen *xwl_screen = xwl_screen_get(window->drawable.pScreen);
 
     xorg_list_del(&vblank->event_queue);
 
 retry:
-    if (present_execute_wait(vblank, crtc_msc))
+    if (present_execute_wait(vblank, crtc_msc) ||
+        xwl_present_wait_acquire_fence_avail(xwl_screen, vblank))
         return;
 
     if (flip_pending && vblank->flip && vblank->pixmap && vblank->window) {
@@ -967,7 +1040,6 @@ retry:
             if (xwl_present_flip(vblank, damage)) {
                 WindowPtr toplvl_window = xwl_present_toplvl_pixmap_window(vblank->window);
                 struct xwl_window *xwl_window = xwl_window_from_window(window);
-                struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
                 PixmapPtr old_pixmap = screen->GetWindowPixmap(window);
 
                 /* Replace window pixmap with flip pixmap */

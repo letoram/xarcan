@@ -35,6 +35,7 @@
 
 #include "xwayland-types.h"
 #include "xwayland-glamor-gbm.h"
+#include "dri3.h"
 
 typedef enum _xwl_glamor_mode_flags{
     XWL_GLAMOR_NONE = 0,
@@ -49,6 +50,8 @@ Bool xwl_glamor_init(struct xwl_screen *xwl_screen);
 
 Bool xwl_screen_set_drm_interface(struct xwl_screen *xwl_screen,
                                   uint32_t id, uint32_t version);
+Bool xwl_screen_set_syncobj_interface(struct xwl_screen *xwl_screen,
+                                      uint32_t id, uint32_t version);
 struct wl_buffer *xwl_glamor_pixmap_get_wl_buffer(PixmapPtr pixmap);
 void xwl_glamor_init_wl_registry(struct xwl_screen *xwl_screen,
                                  struct wl_registry *registry,
@@ -62,6 +65,13 @@ void xwl_glamor_dmabuf_import_sync_file(PixmapPtr pixmap, int sync_file);
 int xwl_glamor_dmabuf_export_sync_file(PixmapPtr pixmap);
 Bool xwl_glamor_supports_syncobjs(struct xwl_screen *xwl_screen);
 int xwl_glamor_get_fence(struct xwl_screen *screen);
+void xwl_glamor_wait_fence(struct xwl_screen *xwl_screen, int fence);
+struct dri3_syncobj *xwl_glamor_dri3_syncobj_create(struct xwl_screen *xwl_screen);
+void xwl_glamor_dri3_syncobj_passthrough(WindowPtr window,
+                                         struct dri3_syncobj *acquire_syncobj,
+                                         struct dri3_syncobj *release_syncobj,
+                                         uint64_t acquire_point,
+                                         uint64_t release_point);
 
 #ifdef XV
 /* glamor Xv Adaptor */

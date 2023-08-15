@@ -84,6 +84,7 @@ struct xwl_window {
     struct wp_tearing_control_v1 *tearing_control;
     struct wp_fractional_scale_v1 *fractional_scale;
     int fractional_scale_numerator;
+    struct wp_linux_drm_syncobj_surface_v1 *surface_sync;
 };
 
 struct xwl_window *xwl_window_get(WindowPtr window);

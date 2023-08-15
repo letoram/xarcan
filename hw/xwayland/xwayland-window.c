@@ -55,6 +55,7 @@
 #include "xdg-shell-client-protocol.h"
 #include "xwayland-shell-v1-client-protocol.h"
 #include "fractional-scale-v1-client-protocol.h"
+#include "linux-drm-syncobj-v1-client-protocol.h"
 
 #define DELAYED_WL_SURFACE_DESTROY 1000 /* ms */
 
@@ -1495,6 +1496,9 @@ xwl_unrealize_window(WindowPtr window)
 
     if (xwl_window->fractional_scale)
         wp_fractional_scale_v1_destroy(xwl_window->fractional_scale);
+
+    if (xwl_window->surface_sync)
+        wp_linux_drm_syncobj_surface_v1_destroy(xwl_window->surface_sync);
 
     release_wl_surface_for_window(xwl_window);
     xorg_list_del(&xwl_window->link_damage);

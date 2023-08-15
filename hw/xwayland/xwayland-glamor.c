@@ -41,6 +41,7 @@
 
 #include "drm-client-protocol.h"
 #include "linux-dmabuf-unstable-v1-client-protocol.h"
+#include "linux-drm-syncobj-v1-client-protocol.h"
 
 #include "xwayland-dmabuf.h"
 #include "xwayland-glamor.h"
@@ -111,6 +112,8 @@ xwl_glamor_init_wl_registry(struct xwl_screen *xwl_screen,
         xwl_screen_set_drm_interface(xwl_screen, id, version);
     else if (strcmp(interface, zwp_linux_dmabuf_v1_interface.name) == 0)
         xwl_screen_set_dmabuf_interface(xwl_screen, id, version);
+    else if (strcmp(interface, wp_linux_drm_syncobj_manager_v1_interface.name) == 0)
+        xwl_screen_set_syncobj_interface(xwl_screen, id, version);
 }
 
 static Bool
@@ -291,6 +294,27 @@ xwl_glamor_get_fence(struct xwl_screen *xwl_screen)
     }
 
     return fence_fd;
+}
+
+void
+xwl_glamor_wait_fence(struct xwl_screen *xwl_screen, int fence_fd)
+{
+    EGLint attribs[3];
+    EGLSyncKHR sync;
+
+    if (!xwl_screen->glamor)
+        return;
+
+    xwl_glamor_egl_make_current(xwl_screen);
+
+    attribs[0] = EGL_SYNC_NATIVE_FENCE_FD_ANDROID;
+    attribs[1] = fence_fd;
+    attribs[2] = EGL_NONE;
+    sync = eglCreateSyncKHR(xwl_screen->egl_display, EGL_SYNC_NATIVE_FENCE_ANDROID, attribs);
+    if (sync != EGL_NO_SYNC_KHR) {
+        eglWaitSyncKHR(xwl_screen->egl_display, sync, 0);
+        eglDestroySyncKHR(xwl_screen->egl_display, sync);
+    }
 }
 
 Bool
