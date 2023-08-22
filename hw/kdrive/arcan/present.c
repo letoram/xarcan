@@ -45,17 +45,12 @@
 
 #define xa_present_CAPS PresentCapabilityAsync
 
-/*
- * When not flipping let Present copy with 60fps.
- * When flipping wait on frame_callback, otherwise
- * the surface is not visible, in this case update
- * with long interval.
- */
-/*
-static const int TIMER_LEN_COPY = 17; // ~60fps
-static const int TIMER_LEN_FLIP = 1000;  // 1fps
-*/
 static DevPrivateKeyRec xa_present_window_private_key;
+
+static CARD32
+xa_present_timer_callback(OsTimerPtr timer,
+                           CARD32 time,
+                           void *arg);
 
 struct xa_present_window *
 xa_present_window_priv(WindowPtr window)
@@ -78,7 +73,6 @@ xa_present_window_get_priv(WindowPtr window)
         xa_present_window->msc = 1;
         xa_present_window->ust = GetTimeInMicros();
 
-        xorg_list_init(&xa_present_window->frame_callback_list);
         xorg_list_init(&xa_present_window->wait_list);
         xorg_list_init(&xa_present_window->flip_queue);
         xorg_list_init(&xa_present_window->idle_queue);
@@ -134,46 +128,36 @@ xa_present_has_pending_events(struct xa_present_window *xa_present_window)
 void
 xa_present_reset_timer(struct xa_present_window *xa_present_window)
 {
-    if (xa_present_has_pending_events(xa_present_window)) {
-/*
- * struct xwl_window *xwl_window = xwl_window_from_window(xa_present_window->window);
-        CARD32 now = GetTimeInMillis();
-        CARD32 timeout;
+    if (!xa_present_has_pending_events(xa_present_window)) {
+        ErrorF("no_pending\n");
+        xa_present_free_timer(xa_present_window);
+        return;
+    }
 
-        if (xwl_window && xwl_window->frame_callback &&
-            !xorg_list_is_empty(&xa_present_window->frame_callback_list))
-            timeout = TIMER_LEN_FLIP;
-        else
-            timeout = TIMER_LEN_COPY;
-*/
+    CARD32 now = GetTimeInMillis();
+    CARD32 timeout = 17;
 
-        /* Make sure the timer callback runs if at least a second has passed
-         * since we first armed the timer. This can happen e.g. if the Wayland
-         * compositor doesn't send a pending frame event, e.g. because the
-         * Wayland surface isn't visible anywhere.
-         */
-
-/*
-        if (xa_present_window->timer_armed) {
-            if ((int)(now - xa_present_window->timer_armed) > 1000) {
-                xa_present_timer_callback(xa_present_window->frame_timer, now,
-                                           xa_present_window);
-                return;
-            }
-        } else {
+    if (xa_present_window->timer_armed) {
+        if ((int)(now - xa_present_window->timer_armed) > 1000) {
+            xa_present_timer_callback(
+                                      xa_present_window->frame_timer,
+                                      now,
+                                      xa_present_window);
+            return;
+        }
+        else {
             xa_present_window->timer_armed = now;
         }
 
         xa_present_window->frame_timer = TimerSet(xa_present_window->frame_timer,
                                                    0, timeout,
                                                    &xa_present_timer_callback,
-                                                   xa_present_window); */
-		}
-		else {
+                                                   xa_present_window);
+    }
+    else {
         xa_present_free_timer(xa_present_window);
     }
 }
-
 
 static void
 xa_present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc);
@@ -301,7 +285,7 @@ xa_present_flip_notify_vblank(present_vblank_ptr vblank, uint64_t ust, uint64_t 
     WindowPtr                   window = vblank->window;
     struct xa_present_window *xa_present_window = xa_present_window_priv(window);
 
-    DebugPresent(("\tn %" PRIu64 " %p %" PRIu64 " %" PRIu64 ": %08" PRIx32 " -> %08" PRIx32 "\n",
+    DebugPresent(("\tnotify %" PRIu64 " %p %" PRIu64 " %" PRIu64 ": %08" PRIx32 " -> %08" PRIx32 "\n",
                   vblank->event_id, vblank, vblank->exec_msc, vblank->target_msc,
                   vblank->pixmap ? vblank->pixmap->drawable.id : 0,
                   vblank->window ? vblank->window->drawable.id : 0));
@@ -366,8 +350,6 @@ xa_present_cleanup(WindowPtr window)
     if (!xa_present_window)
         return;
 
-    xorg_list_del(&xa_present_window->frame_callback_list);
-
     /* Clear remaining events */
     xorg_list_for_each_entry_safe(event, tmp, &window_priv->vblank, vblank.window_list)
         xa_present_free_event(event);
@@ -383,7 +365,6 @@ xa_present_cleanup(WindowPtr window)
     free(xa_present_window);
 }
 
-/*
 static void
 xa_present_buffer_release(void *data)
 {
@@ -404,7 +385,6 @@ xa_present_buffer_release(void *data)
     else
         xa_present_free_event(event);
 }
-*/
 
 static void
 xa_present_msc_bump(struct xa_present_window *xa_present_window)
@@ -414,7 +394,6 @@ xa_present_msc_bump(struct xa_present_window *xa_present_window)
     present_vblank_ptr vblank, tmp;
 
     xa_present_window->ust = GetTimeInMicros();
-
     xa_present_window->timer_armed = 0;
 
     if (flip_pending && flip_pending->sync_flip)
@@ -422,62 +401,33 @@ xa_present_msc_bump(struct xa_present_window *xa_present_window)
 
     xorg_list_for_each_entry_safe(vblank, tmp, &xa_present_window->wait_list, event_queue) {
         if (vblank->exec_msc <= msc) {
-            DebugPresent(("\te %" PRIu64 " ust %" PRIu64 " msc %" PRIu64 "\n",
+            DebugPresent(("\tmsc-reply %" PRIu64 " ust %" PRIu64 " msc %" PRIu64 "\n",
                           vblank->event_id, xa_present_window->ust, msc));
 
             xa_present_execute(vblank, xa_present_window->ust, msc);
+            xa_present_buffer_release(xa_present_event_from_id(vblank->event_id));
         }
     }
 }
 
-/*
 static CARD32
 xa_present_timer_callback(OsTimerPtr timer,
                            CARD32 time,
                            void *arg)
 {
     struct xa_present_window *xa_present_window = arg;
-*/
-    /* If we were expecting a frame callback for this window, it didn't arrive
-     * in a second. Stop listening to it to avoid double-bumping the MSC
-     */
- /*
-	* xorg_list_del(&xa_present_window->frame_callback_list);
-
     xa_present_msc_bump(xa_present_window);
     xa_present_reset_timer(xa_present_window);
 
     return 0;
 }
-*/
 
 void
 xa_present_frame_callback(struct xa_present_window *xa_present_window)
 {
     xorg_list_del(&xa_present_window->frame_callback_list);
-
     xa_present_msc_bump(xa_present_window);
-
-    /* we do not need the timer anymore for this frame,
-     * reset it for potentially the next one
-     */
-    xa_present_reset_timer(xa_present_window);
 }
-
-/*
-static void
-xa_present_sync_callback(void *data,
-               struct wl_callback *callback,
-               uint32_t time)
-{
-    present_vblank_ptr vblank = data;
-    struct xa_present_window *xa_present_window = xa_present_window_get_priv(vblank->window);
-
-    xa_present_window->sync_callback = NULL;
-
-    xa_present_flip_notify_vblank(vblank, xa_present_window->ust, xa_present_window->msc);
-}
-*/
 
 static RRCrtcPtr
 xa_present_get_crtc(present_screen_priv_ptr screen_priv,
@@ -509,7 +459,6 @@ xa_present_queue_vblank(ScreenPtr screen,
                          uint64_t msc)
 {
     struct xa_present_window *xa_present_window = xa_present_window_get_priv(present_window);
-/*    struct xwl_window *xwl_window = xwl_window_from_window(present_window); */
     struct xa_present_event *event = xa_present_event_from_id(event_id);
 
     event->vblank.exec_msc = msc;
@@ -517,18 +466,7 @@ xa_present_queue_vblank(ScreenPtr screen,
     xorg_list_del(&event->vblank.event_queue);
     xorg_list_append(&event->vblank.event_queue, &xa_present_window->wait_list);
 
-    /* Hook up to frame callback */
     if (
-/*				xwl_window && */
-        xorg_list_is_empty(&xa_present_window->frame_callback_list)) {
-/*
- * xorg_list_add(&xa_present_window->frame_callback_list,
-                      &xwl_window->frame_callback_list);
- */
-    }
-
-    if (
-/*				(xwl_window && xwl_window->frame_callback) || */
         !xa_present_window->frame_timer)
         xa_present_reset_timer(xa_present_window);
 
@@ -630,9 +568,9 @@ xa_present_check_flip(RRCrtcPtr crtc,
      * different sizes subsurfaces are presumably the way forward.
      */
 
-		/*if (!RegionEqual(&xwl_window->window->winSize, &present_window->winSize))
+    /*if (!RegionEqual(&xwl_window->window->winSize, &present_window->winSize))
         return FALSE;
-		*/
+    */
 
     return TRUE;
 }
@@ -698,8 +636,34 @@ xa_present_flip(WindowPtr present_window,
                  Bool sync_flip,
                  RegionPtr damage)
 {
+    arcanWindowPriv* awnd = arcanWindowFromWnd(present_window);
+    arcanPixmapPriv* apmap = arcanPixmapFromPixmap(pixmap);
+
+    if (!awnd || !apmap){
+        return FALSE;
+    }
+
+/* means we can skip the signalling from the other end */
+    awnd->usePresent = true;
+    if (apmap->texture){
+        arcan_shmifext_setup(awnd->shmif,
+                             (struct arcan_shmifext_setup){
+                                                           .no_context = 1,
+                                                           .shared_context = 0
+                             });
+
+        uintptr_t adisp, actx;
+        arcan_shmifext_egl_meta(awnd->shmif, &adisp, NULL, &actx);
+        arcan_shmifext_signal(awnd->shmif,
+                              adisp,
+                              SHMIF_SIGVID | SHMIF_SIGBLK_NONE,
+                              apmap->texture);
+    }
+    else {
+        fprintf(stderr, "missing, present on non-gl");
+    }
+
 /* this should extract the shmif- reference to the pixmap,
- * check its backing,
  * translate damage into dirty
  * signal the transfer */
     return TRUE;
@@ -727,7 +691,7 @@ xa_present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
         return;
 
     if (flip_pending && vblank->flip && vblank->pixmap && vblank->window) {
-        DebugPresent(("\tr %" PRIu64 " %p (pending %p)\n",
+        DebugPresent(("\tflip_ready %" PRIu64 " %p (pending %p)\n",
                       vblank->event_id, vblank, flip_pending));
         xorg_list_append(&vblank->event_queue, &xa_present_window->flip_queue);
         vblank->flip_ready = TRUE;
@@ -742,7 +706,7 @@ xa_present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
         if (vblank->flip) {
             RegionPtr damage;
 
-            DebugPresent(("\tf %" PRIu64 " %p %" PRIu64 ": %08" PRIx32 " -> %08" PRIx32 "\n",
+            DebugPresent(("\tflip %" PRIu64 " %p %" PRIu64 ": %08" PRIx32 " -> %08" PRIx32 "\n",
                           vblank->event_id, vblank, crtc_msc,
                           vblank->pixmap->drawable.id, vblank->window->drawable.id));
 
@@ -785,7 +749,8 @@ xa_present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
 
             vblank->flip = FALSE;
         }
-        DebugPresent(("\tc %p %" PRIu64 ": %08" PRIx32 " -> %08" PRIx32 "\n",
+
+        DebugPresent(("\tcomplete %p %" PRIu64 ": %08" PRIx32 " -> %08" PRIx32 "\n",
                       vblank, crtc_msc, vblank->pixmap->drawable.id, vblank->window->drawable.id));
 
         if (flip_pending)
@@ -914,11 +879,6 @@ xa_present_pixmap(WindowPtr window,
 void
 xa_present_unrealize_window(struct xa_present_window *xa_present_window)
 {
-    /* The pending frame callback may never be called, so drop it and shorten
-     * the frame timer interval.
-     */
-    xorg_list_del(&xa_present_window->frame_callback_list);
-
     /* Make sure the timer callback doesn't get called */
     xa_present_window->timer_armed = 0;
     xa_present_reset_timer(xa_present_window);

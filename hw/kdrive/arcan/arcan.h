@@ -36,6 +36,7 @@ typedef struct _arcanWindowPriv {
     DamagePtr damage;
     uint8_t mstate[ASHMIF_MSTATE_SZ];
     struct arcan_shmif_cont *shmif;
+    Bool usePresent;
 } arcanWindowPriv;
 
 typedef struct _arcanPixmapPriv {
@@ -167,6 +168,8 @@ Bool
  arcanCreateResources(ScreenPtr pScreen);
 
 arcanWindowPriv *ensureArcanWndPrivate(WindowPtr wnd);
+arcanWindowPriv *arcanWindowFromWnd(WindowPtr wnd);
+arcanPixmapPriv *arcanPixmapFromPixmap(PixmapPtr wnd);
 
 int
  arcanEventDispatch(struct arcan_shmif_cont*, arcanScrPriv*, arcan_event* ev, int64_t);

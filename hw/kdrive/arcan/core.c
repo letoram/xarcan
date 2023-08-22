@@ -89,6 +89,16 @@ static struct arcan_shmif_initial* arcan_init;
 static DevPrivateKeyRec pixmapPriv;
 static DevPrivateKeyRec windowPriv;
 
+arcanWindowPriv *arcanWindowFromWnd(WindowPtr wnd)
+{
+    return dixLookupPrivate(&wnd->devPrivates, &windowPriv);
+}
+
+arcanPixmapPriv *arcanPixmapFromPixmap(PixmapPtr pmap)
+{
+  return dixLookupPrivate(&pmap->devPrivates, &pixmapPriv);
+}
+
 static void
 synchTreeDepth(arcanScrPriv* scrpriv, WindowPtr wnd,
       void (*callback)(WindowPtr node, int depth, int max_depth, void* tag),
@@ -1683,6 +1693,15 @@ handleNewSegment(struct arcan_shmif_cont *C, arcanScrPriv *S, int kind, bool out
         *pxout = arcan_shmif_acquire(C, NULL, kind, SHMIF_DISABLE_GUARD);
         pxout->user = contpriv;
 
+/* With the present extension there might be client listeners that trigger on
+ * feedback about presentation, but also on 'idle' or vblank events. While possible
+ * to just hook a timer based on OUTPUTHINT, the better option is to request
+ * a dynamic event clock to latch our processing on. */
+        arcan_shmif_enqueue(C, &(struct arcan_event){
+            .ext.kind = ARCAN_EVENT(CLOCKREQ),
+            .ext.clock.dynamic = 1
+        });
+
         sendSegmentToPool(S, pxout);
         compRedirectWindow(serverClient, wnd, CompositeRedirectManual);
     }
@@ -1901,6 +1920,13 @@ static PixmapPtr arcanCompNewPixmap(WindowPtr pWin, int x, int y, int w, int h)
  * not have any visible background. */
     C->hints = SHMIF_RHINT_ORIGO_UL | SHMIF_RHINT_SUBREGION |
                SHMIF_RHINT_CSPACE_SRGB | SHMIF_RHINT_IGNORE_ALPHA;
+
+/* This gives us STEPFRAME events latched to frame delivery and combines with
+ * the CLOCKREQ events when the segment is added to the pool. Combined it gives
+ * us events with feedback on MSC and VBLANK to hook into present feedback. */
+    if (arcanConfigPriv.present)
+        C->hints |= SHMIF_RHINT_VSIGNAL_EV;
+
     arcan_shmif_resize(C, w, h);
     arcan_shmif_dirty(C, 0, 0, w, h, 0);
     shmif->dying = 0;
@@ -3226,6 +3252,16 @@ updateWindowFocus(WindowPtr wnd, bool focus)
     );
 }
 
+static void
+flushPendingPresent(WindowPtr wnd)
+{
+    if (!arcanConfigPriv.present)
+        return;
+
+    struct xa_present_window* pwnd = xa_present_window_priv(wnd);
+    xa_present_frame_callback(pwnd);
+}
+
 void
 arcanFlushRedirectedEvents(int fd, int mask, void *tag)
 {
@@ -3238,8 +3274,10 @@ arcanFlushRedirectedEvents(int fd, int mask, void *tag)
 /* Right now just forward input to primary with a suggested origo offset based
  * on the window position to go from relative to absolute. We can also go from
  * io.dst -> XID and explicilty queue to client without going through the
- * normal loop as a way of evading logging */
+ * normal loop as a way of evading logging. */
+
     input_lock();
+    flushPendingPresent(P->window);
 
     while ((rv = arcan_shmif_poll(C, &ev)) > 0){
         if (!P->window)
@@ -3262,9 +3300,17 @@ arcanFlushRedirectedEvents(int fd, int mask, void *tag)
             if (hh && hw && (hw != C->w || hh != C->h)){
                 trace("segmentResized(%d,%d)", hw, hh);
                 cmdReconfigureWindow(0, 0, hw, hh, false, P->window->drawable.id);
+                flushPendingPresent(P->window);
             }
         }
         break;
+
+/* Still incomplete as we need changes to upstream Arcan for the last, this
+ * blocks -redirect -present -glamor -exec from working completely. */
+        case TARGET_COMMAND_STEPFRAME:{
+            flushPendingPresent(P->window);
+        }
+
         case TARGET_COMMAND_OUTPUTHINT:
 /* w/h ranges are interesting as there are IWWM hints to forward */
          break;
