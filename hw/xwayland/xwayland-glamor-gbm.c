@@ -284,6 +284,8 @@ xwl_glamor_gbm_create_pixmap_internal(struct xwl_screen *xwl_screen,
     struct xwl_gbm_private *xwl_gbm = xwl_gbm_get(xwl_screen);
     struct gbm_bo *bo = NULL;
     PixmapPtr pixmap = NULL;
+    uint32_t num_modifiers = 0;
+    uint64_t *modifiers = NULL;
 
     if (width > 0 && height > 0 && depth >= 15 &&
         (hint == CREATE_PIXMAP_USAGE_BACKING_PIXMAP ||
@@ -294,8 +296,6 @@ xwl_glamor_gbm_create_pixmap_internal(struct xwl_screen *xwl_screen,
 
 #ifdef GBM_BO_WITH_MODIFIERS
         if (xwl_gbm->dmabuf_capable) {
-            uint32_t num_modifiers = 0;
-            uint64_t *modifiers = NULL;
             Bool supports_scanout = FALSE;
 
             if (drawable) {
@@ -324,7 +324,6 @@ xwl_glamor_gbm_create_pixmap_internal(struct xwl_screen *xwl_screen,
                                                   format, modifiers, num_modifiers);
 #endif
             }
-            free(modifiers);
         }
 #endif
         if (bo == NULL) {
@@ -332,6 +331,22 @@ xwl_glamor_gbm_create_pixmap_internal(struct xwl_screen *xwl_screen,
             implicit = TRUE;
             if (implicit_scanout)
                 usage |= GBM_BO_USE_SCANOUT;
+
+            if (num_modifiers > 0) {
+                Bool has_mod_invalid = FALSE, has_mod_linear = FALSE;
+                int i;
+
+                for (i = 0; i < num_modifiers; i++) {
+                    if (modifiers[i] == DRM_FORMAT_MOD_INVALID)
+                        has_mod_invalid = TRUE;
+                    else if (modifiers[i] == DRM_FORMAT_MOD_LINEAR)
+                        has_mod_linear = TRUE;
+                }
+
+                if (!has_mod_invalid && has_mod_linear)
+                    usage |= GBM_BO_USE_LINEAR;
+            }
+
             bo = gbm_bo_create(xwl_gbm->gbm, width, height, format, usage);
         }
 
@@ -350,6 +365,7 @@ xwl_glamor_gbm_create_pixmap_internal(struct xwl_screen *xwl_screen,
     if (!pixmap)
         pixmap = glamor_create_pixmap(xwl_screen->screen, width, height, depth, hint);
 
+    free(modifiers);
     return pixmap;
 }
 
