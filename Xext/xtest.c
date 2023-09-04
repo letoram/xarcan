@@ -437,7 +437,8 @@ ProcXTestFakeInput(ClientPtr client)
 
     valuator_mask_set_range(&mask, firstValuator, numValuators, valuators);
 
-    (*dev->sendEventsProc) (dev, type, ev->u.u.detail, flags, &mask);
+    if (dev->sendEventsProc)
+        (*dev->sendEventsProc) (dev, type, ev->u.u.detail, flags, &mask);
 
     if (need_ptr_update)
         miPointerUpdateSprite(dev);
