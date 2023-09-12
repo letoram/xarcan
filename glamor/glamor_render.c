@@ -197,6 +197,11 @@ glamor_create_composite_fs(glamor_screen_private *glamor_priv, struct shader_key
         "	float undef;\n"
         "	return vec4(color.a, undef, undef, undef);"
         "}";
+    const char *dest_swizzle_ignore_alpha =
+        "vec4 dest_swizzle(vec4 color)\n"
+        "{"
+        "	return vec4(color.xyz, 1.0);"
+        "}";
 
     const char *in_normal =
         "void main()\n"
@@ -285,6 +290,9 @@ glamor_create_composite_fs(glamor_screen_private *glamor_priv, struct shader_key
         break;
     case SHADER_DEST_SWIZZLE_ALPHA_TO_RED:
         dest_swizzle = dest_swizzle_alpha_to_red;
+        break;
+    case SHADER_DEST_SWIZZLE_IGNORE_ALPHA:
+        dest_swizzle = dest_swizzle_ignore_alpha;
         break;
     default:
         FatalError("Bad composite shader dest swizzle");
@@ -938,7 +946,11 @@ glamor_composite_choose_shader(CARD8 op,
         glamor_priv->formats[8].format == GL_RED) {
         key.dest_swizzle = SHADER_DEST_SWIZZLE_ALPHA_TO_RED;
     } else {
-        key.dest_swizzle = SHADER_DEST_SWIZZLE_DEFAULT;
+        if (dest_pixmap->drawable.depth == 32 &&
+            glamor_drawable_effective_depth(dest->pDrawable) == 24)
+            key.dest_swizzle = SHADER_DEST_SWIZZLE_IGNORE_ALPHA;
+        else
+            key.dest_swizzle = SHADER_DEST_SWIZZLE_DEFAULT;
     }
 
     if (source && source->alphaMap) {
