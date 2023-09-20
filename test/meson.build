@@ -54,23 +54,19 @@ rendercheck_blend = [
     ['blend/Src', '-t blend -o src'],
     ['blend/Over', '-t blend -o over'],
 ]
-#A8 test is fail on GLES 2.0 now
+#A8 test failing on GLES 2.0 llvmpipe before mesa 23.
 rendercheck_a8 = [
     ['ca composite/Some/a8', '-t cacomposite -f a8r8g8b8,a8' + some_ops],
 ]
 #Exclude 15bpp for now due to GLES limitation (see glamor.c:470)
 rendercheck_blend_gles2 = [
     ['blend/Clear', '-t blend -o clear' + gles2_working_formats],
-]
-#Test than should fail before !1158 merged
-rendercheck_tests_gles2_fail = [
     ['blend/Src', '-t blend -o src' + gles2_working_formats],
     ['blend/Over', '-t blend -o over' + gles2_working_formats],
-    ['ca composite/Some/a8', '-t cacomposite -f a8r8g8b8,a8' + some_ops],
 ]
 rendercheck_tests = rendercheck_blend + rendercheck_tests_noblend + rendercheck_a8
 rendercheck_tests_gles2_success = rendercheck_blend_gles2 + rendercheck_tests_noblend
-rendercheck_tests_gles3 = rendercheck_blend_gles2 + rendercheck_tests_noblend + rendercheck_tests_gles2_fail
+rendercheck_tests_gles3 = rendercheck_blend_gles2 + rendercheck_tests_noblend + rendercheck_a8
 rendercheck = find_program('rendercheck', required:false)
 
 if get_option('xvfb')
@@ -121,7 +117,7 @@ if get_option('xvfb')
         test_parameters = [
                 [rendercheck_tests, '', piglit_env, '', false], 
                 [rendercheck_tests_gles2_success, '_gles2', gles20_env, '-gles2', false], 
-                [rendercheck_tests_gles2_fail, '_gles2', gles20_env, '-gles2', true], 
+                [rendercheck_a8, '_gles2', gles20_env, '-gles2', true], 
                 [rendercheck_tests_gles3, '_gles2', piglit_env, '-gles3', false]
             ]
 
