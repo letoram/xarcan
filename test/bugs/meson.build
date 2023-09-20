@@ -43,6 +43,7 @@ if get_option('xvfb')
                     xvfb_args,
                     ':198'
                     ],
+                env: gles20_env,
                 suite: 'xephyr-glamor-gles2',
                 timeout: 300,
             )

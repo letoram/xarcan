@@ -8,6 +8,11 @@ piglit_env = environment()
 piglit_env.set('XSERVER_DIR', meson.source_root())
 piglit_env.set('XSERVER_BUILDDIR', meson.build_root())
 
+gles20_env = environment()
+gles20_env.set('XSERVER_DIR', meson.source_root())
+gles20_env.set('XSERVER_BUILDDIR', meson.build_root())
+gles20_env.set('MESA_GLES_VERSION_OVERRIDE', '2.0')
+
 some_ops = ' -o clear,src,dst,over,xor,disjointover'
 gles2_working_formats = ' -f '+ ','.join(['a8',
                                           'a8r8g8b8',
@@ -31,7 +36,6 @@ rendercheck_tests_noblend = [
     ['composite/Some/x8r8g8b8', '-t composite -f a8r8g8b8,x8r8g8b8' + some_ops],
     ['composite/Some/a2r10g10b10', '-t composite -f a8r8g8b8,a2r10g10b10' + some_ops],
     ['ca composite/Some/a8r8g8b8', '-t cacomposite -f a8r8g8b8' + some_ops],
-    ['ca composite/Some/a8', '-t cacomposite -f a8r8g8b8,a8' + some_ops],
     ['ca composite/Some/x8r8g8b8', '-t cacomposite -f a8r8g8b8,x8r8g8b8' + some_ops],
     ['ca composite/Some/a2r10g10b10', '-t cacomposite -f a8r8g8b8,a2r10g10b10' + some_ops],
     ['fill', '-t fill'],
@@ -50,14 +54,22 @@ rendercheck_blend = [
     ['blend/Src', '-t blend -o src'],
     ['blend/Over', '-t blend -o over'],
 ]
+#A8 test is fail on GLES 2.0 now
+rendercheck_a8 = [
+    ['ca composite/Some/a8', '-t cacomposite -f a8r8g8b8,a8' + some_ops],
+]
 #Exclude 15bpp for now due to GLES limitation (see glamor.c:470)
 rendercheck_blend_gles2 = [
     ['blend/Clear', '-t blend -o clear' + gles2_working_formats],
+]
+#Test than should fail before !1158 merged
+rendercheck_tests_gles2_fail = [
     ['blend/Src', '-t blend -o src' + gles2_working_formats],
     ['blend/Over', '-t blend -o over' + gles2_working_formats],
+    ['ca composite/Some/a8', '-t cacomposite -f a8r8g8b8,a8' + some_ops],
 ]
-rendercheck_tests = rendercheck_blend + rendercheck_tests_noblend
-rendercheck_tests_gles2 = rendercheck_blend_gles2 + rendercheck_tests_noblend
+rendercheck_tests = rendercheck_blend + rendercheck_tests_noblend + rendercheck_a8
+rendercheck_tests_gles2_success = rendercheck_blend_gles2 + rendercheck_tests_noblend
 rendercheck = find_program('rendercheck', required:false)
 
 if get_option('xvfb')
@@ -101,7 +113,7 @@ if get_option('xvfb')
         )
         test('XTS',
             find_program('scripts/xephyr-glamor-gles2-piglit.sh'),
-            env: piglit_env,
+            env: gles20_env,
             timeout: 1200,
             suite: 'xephyr-glamor-gles2',
         )
@@ -125,7 +137,7 @@ if get_option('xvfb')
                      timeout: 300,
                     )
             endforeach
-            foreach rctest: rendercheck_tests_gles2
+            foreach rctest: rendercheck_tests_gles2_success
                 test(rctest[0],
                      simple_xinit,
                      args: [simple_xinit.full_path(),
@@ -139,7 +151,28 @@ if get_option('xvfb')
                             '--',
                             xvfb_args,
                            ],
+                     env: gles20_env,
                      suite: 'xephyr-glamor-gles2',
+                     timeout: 300,
+                    )
+            endforeach
+            foreach rctest: rendercheck_tests_gles2_fail
+                test(rctest[0],
+                     simple_xinit,
+                     args: [simple_xinit.full_path(),
+                            rendercheck.path(),
+                            rctest[1].split(' '),
+                            '----',
+                            xephyr_server.full_path(),
+                            '-glamor_gles2',
+                            '-glamor-skip-present',
+                            '-schedMax', '2000',
+                            '--',
+                            xvfb_args,
+                           ],
+                     env: gles20_env,
+                     suite: 'xephyr-glamor-gles2',
+                     should_fail: true,
                      timeout: 300,
                     )
             endforeach
