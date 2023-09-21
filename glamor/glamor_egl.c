@@ -1035,17 +1035,40 @@ glamor_egl_try_gles_api(ScrnInfoPtr scrn)
     return TRUE;
 }
 
+enum {
+    GLAMOREGLOPT_RENDERING_API,
+};
+
+static const OptionInfoRec GlamorEGLOptions[] = {
+    { GLAMOREGLOPT_RENDERING_API, "RenderingAPI", OPTV_STRING, {0}, FALSE },
+    { -1, NULL, OPTV_NONE, {0}, FALSE },
+};
+
 Bool
 glamor_egl_init(ScrnInfoPtr scrn, int fd)
 {
     struct glamor_egl_screen_private *glamor_egl;
     const GLubyte *renderer;
+    OptionInfoPtr options;
+    const char *api = NULL;
+    Bool es_allowed = TRUE;
+    Bool force_es = FALSE;
 
     glamor_egl = calloc(sizeof(*glamor_egl), 1);
     if (glamor_egl == NULL)
         return FALSE;
     if (xf86GlamorEGLPrivateIndex == -1)
         xf86GlamorEGLPrivateIndex = xf86AllocateScrnInfoPrivateIndex();
+
+    options = xnfalloc(sizeof(GlamorEGLOptions));
+    memcpy(options, GlamorEGLOptions, sizeof(GlamorEGLOptions));
+    xf86ProcessOptions(scrn->scrnIndex, scrn->options, options);
+    api = xf86GetOptValString(options, GLAMOREGLOPT_RENDERING_API);
+    if (api && !strncasecmp(api, "es", 2))
+        force_es = TRUE;
+    else if (api && !strncasecmp(api, "gl", 2))
+        es_allowed = FALSE;
+    free(options);
 
     scrn->privates[xf86GlamorEGLPrivateIndex].ptr = glamor_egl;
     glamor_egl->fd = fd;
@@ -1084,10 +1107,12 @@ glamor_egl_init(ScrnInfoPtr scrn, int fd)
     GLAMOR_CHECK_EGL_EXTENSION(KHR_surfaceless_context);
     GLAMOR_CHECK_EGL_EXTENSION(KHR_no_config_context);
 
-    if(!glamor_egl_try_big_gl_api(scrn))
-        goto error;
+    if (!force_es) {
+        if(!glamor_egl_try_big_gl_api(scrn))
+            goto error;
+    }
 
-    if (glamor_egl->context == EGL_NO_CONTEXT) {
+    if (glamor_egl->context == EGL_NO_CONTEXT && es_allowed) {
         if(!glamor_egl_try_gles_api(scrn))
             goto error;
     }
