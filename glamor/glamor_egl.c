@@ -1000,6 +1000,10 @@ glamor_egl_try_big_gl_api(ScrnInfoPtr scrn)
             eglDestroyContext(glamor_egl->display, glamor_egl->context);
             glamor_egl->context = EGL_NO_CONTEXT;
         }
+        xf86DrvMsg(scrn->scrnIndex, X_INFO,
+            "glamor: Using OpenGL %d.%d context.\n",
+            epoxy_gl_version() / 10,
+            epoxy_gl_version() % 10);
     }
     return TRUE;
 }
@@ -1031,6 +1035,10 @@ glamor_egl_try_gles_api(ScrnInfoPtr scrn)
                        "Failed to make GLES context current\n");
             return FALSE;
         }
+        xf86DrvMsg(scrn->scrnIndex, X_INFO,
+                "glamor: Using OpenGL ES %d.%d context.\n",
+                epoxy_gl_version() / 10,
+                epoxy_gl_version() % 10);
     }
     return TRUE;
 }
