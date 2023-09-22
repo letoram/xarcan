@@ -18,7 +18,7 @@ WESTON_PID=$!
 export WAYLAND_DISPLAY=wayland-$$
 
 # Wait for weston to initialize before starting Xwayland
-timeout --preserve-status 60s bash -c "while ! $XSERVER_BUILDDIR/hw/xwayland/Xwayland -pogo &>/dev/null; do sleep 1; done"
+timeout --preserve-status 60s bash -c "while ! $XSERVER_BUILDDIR/hw/xwayland/Xwayland -pogo -displayfd 1 &>/dev/null; do sleep 1; done"
 
 # Start an Xwayland server
 export PIGLIT_RESULTS_DIR=$XSERVER_BUILDDIR/test/piglit-results/xwayland
