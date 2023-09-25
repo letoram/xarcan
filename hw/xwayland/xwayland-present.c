@@ -414,9 +414,11 @@ xwl_present_cleanup(WindowPtr window)
         xwl_present_window->sync_callback = NULL;
     }
 
-    /* Clear remaining events */
-    xorg_list_for_each_entry_safe(event, tmp, &window_priv->vblank, vblank.window_list)
-        xwl_present_free_event(event);
+    if (window_priv) {
+        /* Clear remaining events */
+        xorg_list_for_each_entry_safe(event, tmp, &window_priv->vblank, vblank.window_list)
+            xwl_present_free_event(event);
+    }
 
     /* Clear timer */
     xwl_present_free_timer(xwl_present_window);
