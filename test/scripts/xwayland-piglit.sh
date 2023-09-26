@@ -23,7 +23,11 @@ export WAYLAND_DISPLAY=wayland-$$
 trap 'kill $WESTON_PID' EXIT
 
 # Wait for weston to initialize before starting Xwayland
-timeout --preserve-status 5s bash -c "while ! $XSERVER_BUILDDIR/hw/xwayland/Xwayland -pogo -displayfd 1 &>/dev/null; do sleep 1; done"
+if ! timeout 5s bash -c "while ! $XSERVER_BUILDDIR/hw/xwayland/Xwayland -pogo -displayfd 1 &>/dev/null; do sleep 1; done"; then
+    # Try running Xwayland one more time, so we can propagate its stdout/stderr
+    # output and exit status
+    $XSERVER_BUILDDIR/hw/xwayland/Xwayland -pogo -displayfd 1
+fi
 
 # Start an Xwayland server
 export PIGLIT_RESULTS_DIR=$XSERVER_BUILDDIR/test/piglit-results/xwayland
