@@ -1,5 +1,17 @@
 #!/bin/bash -e
 
+if test "x$XTEST_DIR" = "x"; then
+    echo "XTEST_DIR must be set to the directory of the xtest repository."
+    # Exit as a "skip" so make check works even without xtest.
+    exit 77
+fi
+
+if test "x$PIGLIT_DIR" = "x"; then
+    echo "PIGLIT_DIR must be set to the directory of the piglit repository."
+    # Exit as a "skip" so make check works even without piglit.
+    exit 77
+fi
+
 # this times out on Travis, because the tests take too long.
 if test "x$TRAVIS_BUILD_DIR" != "x"; then
     exit 77
