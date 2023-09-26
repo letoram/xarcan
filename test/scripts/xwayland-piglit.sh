@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/bash -e
 
 # this times out on Travis, because the tests take too long.
 if test "x$TRAVIS_BUILD_DIR" != "x"; then
@@ -16,6 +16,11 @@ weston --version >/dev/null || exit 77
 weston --no-config --backend=headless-backend.so --socket=wayland-$$ &
 WESTON_PID=$!
 export WAYLAND_DISPLAY=wayland-$$
+
+# Need to kill weston before exiting, or meson will time out waiting for it to terminate
+# We rely on bash's behaviour, which executes the EXIT trap handler even if the shell is
+# terminated due to receiving a signal
+trap 'kill $WESTON_PID' EXIT
 
 # Wait for weston to initialize before starting Xwayland
 timeout --preserve-status 5s bash -c "while ! $XSERVER_BUILDDIR/hw/xwayland/Xwayland -pogo -displayfd 1 &>/dev/null; do sleep 1; done"
@@ -38,10 +43,4 @@ PIGLIT_ARGS="$PIGLIT_ARGS -x xsetfontpath@2"
 
 export PIGLIT_ARGS
 
-# Do not let run-piglit.sh exit status terminate this script prematurely
-set +e
 $XSERVER_DIR/test/scripts/run-piglit.sh
-PIGLIT_STATUS=$?
-
-kill $WESTON_PID
-exit $PIGLIT_STATUS
