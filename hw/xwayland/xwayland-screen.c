@@ -814,6 +814,13 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
             ErrorF("This build does not have libdecor support\n");
 #endif
         }
+        else if (strcmp(argv[i], "-enable-ei-portal") == 0) {
+#ifdef XWL_HAS_EI_PORTAL
+            xwl_screen->enable_ei_portal = 1;
+#else
+            ErrorF("This build does not have XDG portal support\n");
+#endif
+        }
     }
 
     if (!xwl_screen->rootless) {

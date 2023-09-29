@@ -109,6 +109,9 @@ ddxUseMsg(void)
 #ifdef XWL_HAS_LIBDECOR
     ErrorF("-decorate              add decorations to Xwayland when rootful\n");
 #endif
+#ifdef XWL_HAS_EI_PORTAL
+    ErrorF("-enable-ei-portal      use the XDG portal for input emulation\n");
+#endif
 }
 
 static int init_fd = -1;
@@ -244,6 +247,9 @@ ddxProcessArgument(int argc, char *argv[], int i)
         return 1;
     }
     else if (strcmp(argv[i], "-decorate") == 0) {
+        return 1;
+    }
+    else if (strcmp(argv[i], "-enable-ei-portal") == 0) {
         return 1;
     }
 

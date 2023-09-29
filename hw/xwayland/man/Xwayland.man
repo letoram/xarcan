@@ -61,6 +61,15 @@ backend first, then fallback to the GBM backend if EGLStream is not supported
 by the Wayland server. Without this option, \fIXwayland\fP tries the GBM
 backend first, and fallback to EGLStream if GBM is not usable.
 .TP 8
+.B \-enable-ei-portal
+Enable support for the XDG portal for input emulation.
+
+A Wayland compositor running nested should not use that command line
+option with Xwayland.
+
+This option has no effect if the compositor doesn't support the relevant
+XDG portal or if Xwayland was not compiled with EI and OEFFIS support.
+.TP 8
 .B \-fullscreen
 Set the Xwayland window fullscreen when running rootful.
 

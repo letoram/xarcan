@@ -334,12 +334,14 @@ setup_ei_from_socket(struct xwl_ei_client *xwl_ei_client)
 static struct xwl_ei_client *
 setup_ei(ClientPtr client)
 {
+    ScreenPtr pScreen = screenInfo.screens[0];
     struct xwl_ei_client *xwl_ei_client = NULL;
+    struct xwl_screen *xwl_screen = xwl_screen_get(pScreen);
     struct ei *ei = NULL;
     char buffer[PATH_MAX];
     const char *cmdname;
     char *client_name = NULL;
-    bool status;
+    bool status = false;
 
     cmdname = GetClientCmdName(client);
     if (cmdname) {
@@ -375,7 +377,8 @@ setup_ei(ClientPtr client)
     xorg_list_init(&xwl_ei_client->pending_emulated_events);
     xorg_list_init(&xwl_ei_client->abs_devices);
 
-    status = setup_oeffis(xwl_ei_client);
+    if (xwl_screen->enable_ei_portal)
+        status = setup_oeffis(xwl_ei_client);
     if (!status)
         status = setup_ei_from_socket(xwl_ei_client);
 

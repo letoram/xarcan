@@ -186,6 +186,7 @@ xwayland_vars = [
     'have_fullscreen=true',
     'have_host_grab=true',
     'have_decorate=' + have_libdecor.to_string(),
+    'have_enable_ei_portal=' + build_ei_portal.to_string(),
     'have_byteswappedclients=true',
 ]
 

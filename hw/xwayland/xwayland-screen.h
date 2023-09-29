@@ -67,6 +67,7 @@ struct xwl_screen {
     int host_grab;
     int has_grab;
     int decorate;
+    int enable_ei_portal;
 
     CreateScreenResourcesProcPtr CreateScreenResources;
     CloseScreenProcPtr CloseScreen;
