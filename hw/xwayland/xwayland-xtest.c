@@ -387,6 +387,8 @@ setup_ei(ClientPtr client)
         xwl_ei_client = NULL;
         ei_unref(ei);
         error_ei("EI setup failed\n");
+        /* We failed to setup EI using either backends, give up on EI. */
+        xwayland_restore_xtest();
     }
 
  out:
