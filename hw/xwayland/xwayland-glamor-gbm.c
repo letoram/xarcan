@@ -62,6 +62,7 @@ struct xwl_gbm_private {
     Bool drm_authenticated;
     uint32_t capabilities;
     int dmabuf_capable;
+    Bool glamor_gles;
 };
 
 struct xwl_pixmap {
@@ -82,13 +83,25 @@ xwl_gbm_get(struct xwl_screen *xwl_screen)
                             &xwl_gbm_private_key);
 }
 
+/* There is a workaround for Mesa behaviour, which will cause black windows
+ * when RGBX formats is using. Why exactly? There is an explanation:
+ * 1. We create GL_RGBA texture with GL_UNSIGNED_BYTE type, all allowed by ES.
+ * 2 .We export these texture to GBM bo with GBM_FORMAT_XRGB8888, and Mesa sets internal
+ * format of these textures as GL_RGB8 (mesa/mesa!5034 (merged))
+ * 3. We import these BO at some point, and use glTexSubImage on it with GL_RGBA format
+ * and with GL_UNSIGNED_BYTE type, as we creates. Mesa checks its internalformat
+ * in glTexSubImage2D and fails due to GLES internal format limitation
+ * (see https://registry.khronos.org/OpenGL/specs/es/2.0/es_full_spec_2.0.pdf, section 3.7.1).
+ */
 static uint32_t
-gbm_format_for_depth(int depth)
+gbm_format_for_depth(int depth, int gles)
 {
     switch (depth) {
     case 16:
         return GBM_FORMAT_RGB565;
     case 24:
+        if (gles)
+            return GBM_FORMAT_ARGB8888;
         return GBM_FORMAT_XRGB8888;
     case 30:
         return GBM_FORMAT_ARGB2101010;
@@ -291,7 +304,7 @@ xwl_glamor_gbm_create_pixmap_internal(struct xwl_screen *xwl_screen,
         (hint == CREATE_PIXMAP_USAGE_BACKING_PIXMAP ||
          hint == CREATE_PIXMAP_USAGE_SHARED ||
          (xwl_screen->rootless && hint == 0))) {
-        uint32_t format = gbm_format_for_depth(depth);
+        uint32_t format = gbm_format_for_depth(depth, xwl_gbm->glamor_gles);
         Bool implicit = FALSE;
 
 #ifdef GBM_BO_WITH_MODIFIERS
@@ -710,7 +723,7 @@ glamor_pixmap_from_fds(ScreenPtr screen, CARD8 num_fds, const int *fds,
        data.width = width;
        data.height = height;
        data.num_fds = num_fds;
-       data.format = gbm_format_for_depth(depth);
+       data.format = gbm_format_for_depth(depth, xwl_gbm->glamor_gles);
        data.modifier = modifier;
        for (i = 0; i < num_fds; i++) {
           data.fds[i] = fds[i];
@@ -727,7 +740,7 @@ glamor_pixmap_from_fds(ScreenPtr screen, CARD8 num_fds, const int *fds,
        data.width = width;
        data.height = height;
        data.stride = strides[0];
-       data.format = gbm_format_for_depth(depth);
+       data.format = gbm_format_for_depth(depth, xwl_gbm->glamor_gles);
        bo = gbm_bo_import(xwl_gbm->gbm, GBM_BO_IMPORT_FD, &data,
                           GBM_BO_USE_RENDERING);
        implicit = TRUE;
@@ -1180,6 +1193,7 @@ xwl_glamor_gbm_init_egl(struct xwl_screen *xwl_screen)
     /* Mesa uses "drm" as backend name, in that case, just do nothing */
     if (gbm_backend_name && strcmp(gbm_backend_name, "drm") != 0)
         xwl_screen->glvnd_vendor = gbm_backend_name;
+    xwl_gbm->glamor_gles = !epoxy_is_desktop_gl();
 
     return TRUE;
 error:
