@@ -70,6 +70,7 @@ rendercheck_tests_gles2_fail = [
 ]
 rendercheck_tests = rendercheck_blend + rendercheck_tests_noblend + rendercheck_a8
 rendercheck_tests_gles2_success = rendercheck_blend_gles2 + rendercheck_tests_noblend
+rendercheck_tests_gles3 = rendercheck_blend_gles2 + rendercheck_tests_noblend + rendercheck_tests_gles2_fail
 rendercheck = find_program('rendercheck', required:false)
 
 if get_option('xvfb')
@@ -105,76 +106,47 @@ if get_option('xvfb')
     endif
 
     if get_option('xephyr') and build_glamor
-        test('XTS',
-            find_program('scripts/xephyr-glamor-piglit.sh'),
-            env: piglit_env,
-            timeout: 1200,
-            suite: 'xephyr-glamor',
-        )
-        test('XTS',
-            find_program('scripts/xephyr-glamor-gles2-piglit.sh'),
-            env: gles20_env,
-            timeout: 1200,
-            suite: 'xephyr-glamor-gles2',
-        )
+        foreach testsuite : ['','-gles2','-gles3']
+            test_env = piglit_env
+            if(testsuite == '-gles2')
+                test_env = gles20_env
+            endif
+            test('XTS',
+                find_program('scripts/xephyr-glamor' + testsuite + '-piglit.sh'),
+                env: piglit_env,
+                timeout: 1200,
+                suite: 'xephyr-glamor' + testsuite,
+            )
+        endforeach
+        test_parameters = [
+                [rendercheck_tests, '', piglit_env, '', false], 
+                [rendercheck_tests_gles2_success, '_gles2', gles20_env, '-gles2', false], 
+                [rendercheck_tests_gles2_fail, '_gles2', gles20_env, '-gles2', true], 
+                [rendercheck_tests_gles3, '_gles2', piglit_env, '-gles3', false]
+            ]
 
         if rendercheck.found()
-            foreach rctest: rendercheck_tests
-                test(rctest[0],
-                     simple_xinit,
-                     args: [simple_xinit.full_path(),
-                            rendercheck.path(),
-                            rctest[1].split(' '),
-                            '----',
-                            xephyr_server.full_path(),
-                            '-glamor',
-                            '-glamor-skip-present',
-                            '-schedMax', '2000',
-                            '--',
-                            xvfb_args,
-                           ],
-                     suite: 'xephyr-glamor',
-                     timeout: 300,
-                    )
-            endforeach
-            foreach rctest: rendercheck_tests_gles2_success
-                test(rctest[0],
-                     simple_xinit,
-                     args: [simple_xinit.full_path(),
-                            rendercheck.path(),
-                            rctest[1].split(' '),
-                            '----',
-                            xephyr_server.full_path(),
-                            '-glamor_gles2',
-                            '-glamor-skip-present',
-                            '-schedMax', '2000',
-                            '--',
-                            xvfb_args,
-                           ],
-                     env: gles20_env,
-                     suite: 'xephyr-glamor-gles2',
-                     timeout: 300,
-                    )
-            endforeach
-            foreach rctest: rendercheck_tests_gles2_fail
-                test(rctest[0],
-                     simple_xinit,
-                     args: [simple_xinit.full_path(),
-                            rendercheck.path(),
-                            rctest[1].split(' '),
-                            '----',
-                            xephyr_server.full_path(),
-                            '-glamor_gles2',
-                            '-glamor-skip-present',
-                            '-schedMax', '2000',
-                            '--',
-                            xvfb_args,
-                           ],
-                     env: gles20_env,
-                     suite: 'xephyr-glamor-gles2',
-                     should_fail: true,
-                     timeout: 300,
-                    )
+            foreach testsuite : test_parameters
+                foreach rctest : testsuite[0]
+                    test(rctest[0],
+                        simple_xinit,
+                        args: [simple_xinit.full_path(),
+                                rendercheck.path(),
+                                rctest[1].split(' '),
+                                '----',
+                                xephyr_server.full_path(),
+                                '-glamor' + testsuite[1],
+                                '-glamor-skip-present',
+                                '-schedMax', '2000',
+                                '--',
+                                xvfb_args,
+                            ],
+                        env: testsuite[2],
+                        suite: 'xephyr-glamor' + testsuite[3],
+                        should_fail: testsuite[4],
+                        timeout: 300,
+                        )
+                endforeach
             endforeach
         endif
     endif
