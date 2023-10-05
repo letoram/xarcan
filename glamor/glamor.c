@@ -369,35 +369,6 @@ fallback:
 }
 
 
-static Bool
-glamor_check_instruction_count(int gl_version)
-{
-    GLint max_native_alu_instructions;
-
-    /* Avoid using glamor if the reported instructions limit is too low,
-     * as this would cause glamor to fallback on sw due to large shaders
-     * which ends up being unbearably slow.
-     */
-    if (gl_version < 30) {
-        if (!epoxy_has_gl_extension("GL_ARB_fragment_program")) {
-            ErrorF("GL_ARB_fragment_program required\n");
-            return FALSE;
-        }
-
-        glGetProgramivARB(GL_FRAGMENT_PROGRAM_ARB,
-                          GL_MAX_PROGRAM_NATIVE_ALU_INSTRUCTIONS_ARB,
-                          &max_native_alu_instructions);
-        if (max_native_alu_instructions < GLAMOR_MIN_ALU_INSTRUCTIONS) {
-            LogMessage(X_WARNING,
-                       "glamor requires at least %d instructions (%d reported)\n",
-                       GLAMOR_MIN_ALU_INSTRUCTIONS, max_native_alu_instructions);
-            return FALSE;
-        }
-    }
-
-    return TRUE;
-}
-
 static void GLAPIENTRY
 glamor_debug_output_callback(GLenum source,
                              GLenum type,
@@ -728,9 +699,6 @@ glamor_init(ScreenPtr screen, unsigned int flags)
             goto fail;
         }
 
-        if (!glamor_check_instruction_count(gl_version))
-            goto fail;
-
         /* Glamor rendering assumes that platforms with GLSL 130+
          * have instanced arrays, but this is not always the case.
          * etnaviv offers GLSL 140 with OpenGL 2.1.
@@ -891,7 +859,16 @@ glamor_init(ScreenPtr screen, unsigned int flags)
     ps->Glyphs = glamor_composite_glyphs;
 
     glamor_init_vbo(screen);
-    glamor_init_gradient_shader(screen);
+
+    glamor_priv->enable_gradient_shader = TRUE;
+
+    if (!glamor_init_gradient_shader(screen)) {
+        LogMessage(X_WARNING,
+                   "glamor%d: Cannot initialize gradient shader, falling back to software rendering for gradients\n",
+                   screen->myNum);
+        glamor_priv->enable_gradient_shader = FALSE;
+    }
+
     glamor_pixmap_init(screen);
     glamor_sync_init(screen);
 
