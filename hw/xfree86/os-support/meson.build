@@ -97,8 +97,12 @@ elif host_machine.system().endswith('bsd')
         'bsd/bsd_bell.c',
         'bsd/bsd_init.c',
         'shared/drm_platform.c',
-	'shared/pm_noop.c'
+        'shared/pm_noop.c'
     ]
+
+    if host_machine.system() == 'freebsd'
+        srcs_xorg_os_support += ['linux/lnx_platform.c', 'misc/SlowBcopy.c']
+    endif
 
     if host_machine.cpu_family() == 'x86_64'
         srcs_xorg_os_support += 'bsd/i386_video.c'
