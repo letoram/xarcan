@@ -379,7 +379,7 @@ xorg_data.set('HAVE_SYS_VT_H', cc.has_header('sys/vt.h') ? '1' : false)
 xorg_data.set('HAVE_MODESETTING_DRIVER', build_modesetting ? '1' : false)
 
 if host_machine.system() == 'freebsd' or host_machine.system() == 'dragonfly'
-    if host_machine.cpu_family() == 'x86' or host_machine.cpu_family() == 'x86_64'
+    if host_machine.cpu_family() == 'x86' or host_machine.cpu_family() == 'x86_64' or host_machine.cpu_family() == 'aarch64'
         xorg_data.set('USE_DEV_IO', '1')
     endif
 elif host_machine.system() == 'netbsd'
