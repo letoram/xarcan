@@ -116,7 +116,7 @@ elif host_machine.system().endswith('bsd')
         if host_machine.system() == 'netbsd' or host_machine.system() == 'openbsd'
             os_dep += cc.find_library('i386')
         endif
-    elif host_machine.cpu_family() == 'arm'
+    elif host_machine.cpu_family() == 'arm' or host_machine.cpu_family() == 'aarch64'
         srcs_xorg_os_support += 'bsd/arm_video.c'
     elif host_machine.cpu_family() == 'ppc' or host_machine.cpu_family() == 'ppc64'
         srcs_xorg_os_support += 'bsd/ppc_video.c'
