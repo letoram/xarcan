@@ -62,8 +62,6 @@ typedef struct tagREF_TRANSFORM {
 static const glamor_facet glamor_facet_xv_planar_2 = {
     .name = "xv_planar_2",
 
-    .version = 120,
-
     .source_name = "v_texcoord0",
     .vs_vars = ("in vec2 position;\n"
                 "in vec2 v_texcoord0;\n"
@@ -93,8 +91,6 @@ static const glamor_facet glamor_facet_xv_planar_2 = {
 
 static const glamor_facet glamor_facet_xv_planar_3 = {
     .name = "xv_planar_3",
-
-    .version = 120,
 
     .source_name = "v_texcoord0",
     .vs_vars = ("in vec2 position;\n"
