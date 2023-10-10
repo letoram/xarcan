@@ -200,6 +200,7 @@ free_ei(struct xwl_ei_client *xwl_ei_client)
     struct xwl_abs_device *abs, *tmp;
     ClientPtr client = xwl_ei_client->client;
 
+    TimerCancel(xwl_ei_client->disconnect_timer);
     xorg_list_del(&xwl_ei_client->link);
 
     debug_ei("Removing EI fd=%d\n", xwl_ei_client->ei_fd);
