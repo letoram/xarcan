@@ -175,6 +175,7 @@ xwayland_server = executable(
 
 xwayland_vars = [
     'have_glamor=' + build_glamor.to_string(),
+    'have_glamor_api=' + build_glamor.to_string(),
     'have_eglstream=' + build_eglstream.to_string(),
     'have_initfd=true',
     'have_listenfd=true',
