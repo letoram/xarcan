@@ -242,7 +242,11 @@ glamor_create_composite_fs(glamor_screen_private *glamor_priv, struct shader_key
     const char *mask_fetch = "";
     const char *in;
     const char *header;
-    const char *header_norm = glamor_priv->glsl_version > 120 ? "#version 130\n" : "#version 120\n#extension GL_EXT_gpu_shader4 : require\n" GLAMOR_COMPAT_DEFINES_FS;
+    const char *header_norm = glamor_priv->glsl_version > 120 ?
+        "#version 130\n" :
+        glamor_priv->use_gpu_shader4 ?
+          "#version 120\n#extension GL_EXT_gpu_shader4 : require\n" GLAMOR_COMPAT_DEFINES_FS :
+          "#version 120\n" GLAMOR_COMPAT_DEFINES_FS;
     const char *header_es = glamor_priv->glsl_version > 100 ? "#version 300 es\n" : "#version 100\n" GLAMOR_COMPAT_DEFINES_FS;
     const char *dest_swizzle;
     GLuint prog;
