@@ -945,6 +945,9 @@ typedef struct {
     RegionRec clip;
     PixmapPtr src_pix[3];       /* y, u, v for planar */
     int src_pix_w, src_pix_h;
+    /* Port optimization */
+    int prev_fmt;
+    glamor_program xv_prog;
 } glamor_port_private;
 
 extern XvAttributeRec glamor_xv_attributes[];
