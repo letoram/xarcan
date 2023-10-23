@@ -5,12 +5,12 @@ simple_xinit = executable(
 )
 
 piglit_env = environment()
-piglit_env.set('XSERVER_DIR', meson.source_root())
-piglit_env.set('XSERVER_BUILDDIR', meson.build_root())
+piglit_env.set('XSERVER_DIR', meson.project_source_root())
+piglit_env.set('XSERVER_BUILDDIR', meson.project_build_root())
 
 gles20_env = environment()
-gles20_env.set('XSERVER_DIR', meson.source_root())
-gles20_env.set('XSERVER_BUILDDIR', meson.build_root())
+gles20_env.set('XSERVER_DIR', meson.project_source_root())
+gles20_env.set('XSERVER_BUILDDIR', meson.project_build_root())
 gles20_env.set('MESA_GLES_VERSION_OVERRIDE', '2.0')
 
 some_ops = ' -o clear,src,dst,over,xor,disjointover'
