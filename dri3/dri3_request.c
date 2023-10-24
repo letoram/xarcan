@@ -555,6 +555,27 @@ proc_dri3_buffers_from_pixmap(ClientPtr client)
     return Success;
 }
 
+static int
+proc_dri3_set_drm_device_in_use(ClientPtr client)
+{
+    REQUEST(xDRI3SetDRMDeviceInUseReq);
+    WindowPtr window;
+    int status;
+
+    REQUEST_SIZE_MATCH(xDRI3SetDRMDeviceInUseReq);
+    status = dixLookupWindow(&window, stuff->window, client,
+                             DixGetAttrAccess);
+    if (status != Success)
+        return status;
+
+    /* TODO Eventually we should use this information to have
+     * DRI3GetSupportedModifiers return device-specific modifiers, but for now
+     * we will ignore it until multi-device support is more complete.
+     * Otherwise we can't advertise support for DRI3 1.4.
+     */
+    return Success;
+}
+
 int (*proc_dri3_vector[DRI3NumberRequests]) (ClientPtr) = {
     proc_dri3_query_version,            /* 0 */
     proc_dri3_open,                     /* 1 */
@@ -565,6 +586,7 @@ int (*proc_dri3_vector[DRI3NumberRequests]) (ClientPtr) = {
     proc_dri3_get_supported_modifiers,  /* 6 */
     proc_dri3_pixmap_from_buffers,      /* 7 */
     proc_dri3_buffers_from_pixmap,      /* 8 */
+    proc_dri3_set_drm_device_in_use,    /* 9 */
 };
 
 int
@@ -698,6 +720,17 @@ sproc_dri3_buffers_from_pixmap(ClientPtr client)
     return (*proc_dri3_vector[stuff->dri3ReqType]) (client);
 }
 
+static int _X_COLD
+sproc_dri3_set_drm_device_in_use(ClientPtr client)
+{
+    REQUEST(xDRI3SetDRMDeviceInUseReq);
+    REQUEST_SIZE_MATCH(xDRI3SetDRMDeviceInUseReq);
+    swapl(&stuff->window);
+    swapl(&stuff->drmMajor);
+    swapl(&stuff->drmMinor);
+    return (*proc_dri3_vector[stuff->dri3ReqType]) (client);
+}
+
 int (*sproc_dri3_vector[DRI3NumberRequests]) (ClientPtr) = {
     sproc_dri3_query_version,           /* 0 */
     sproc_dri3_open,                    /* 1 */
@@ -708,6 +741,7 @@ int (*sproc_dri3_vector[DRI3NumberRequests]) (ClientPtr) = {
     sproc_dri3_get_supported_modifiers, /* 6 */
     sproc_dri3_pixmap_from_buffers,     /* 7 */
     sproc_dri3_buffers_from_pixmap,     /* 8 */
+    sproc_dri3_set_drm_device_in_use,   /* 9 */
 };
 
 int _X_COLD
