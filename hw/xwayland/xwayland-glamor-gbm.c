@@ -1115,7 +1115,7 @@ xwl_glamor_try_gles_api(struct xwl_screen *xwl_screen)
         EGL_NONE,
     };
 
-    if (!(xwl_screen->glamor & XWL_GLAMOR_GL))
+    if (!(xwl_screen->glamor & XWL_GLAMOR_GLES))
         return FALSE;
 
     eglBindAPI(EGL_OPENGL_ES_API);

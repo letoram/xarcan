@@ -102,6 +102,9 @@ ddxUseMsg(void)
     ErrorF("-eglstream             use eglstream backend for nvidia GPUs\n");
 #endif
     ErrorF("-shm                   use shared memory for passing buffers\n");
+#ifdef XWL_HAS_GLAMOR
+    ErrorF("-glamor [gl|es|off]    use given API for Glamor acceleration. Incompatible with -shm option\n");
+#endif
     ErrorF("-verbose [n]           verbose startup messages\n");
     ErrorF("-version               show the server version and exit\n");
     ErrorF("-noTouchPointerEmulation  disable touch pointer emulation\n");
@@ -207,6 +210,13 @@ ddxProcessArgument(int argc, char *argv[], int i)
     else if (strcmp(argv[i], "-shm") == 0) {
         return 1;
     }
+#ifdef XWL_HAS_GLAMOR
+    else if (strcmp(argv[i], "-glamor") == 0) {
+        CHECK_FOR_REQUIRED_ARGUMENTS(1);
+        /* Only check here, actual work inside xwayland-screen.c */
+        return 2;
+    }
+#endif
     else if (strcmp(argv[i], "-verbose") == 0) {
         if (++i < argc && argv[i]) {
             char *end;

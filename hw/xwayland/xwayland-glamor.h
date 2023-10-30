@@ -44,6 +44,8 @@ typedef enum _xwl_egl_backend_flags {
 typedef enum _xwl_glamor_mode_flags{
     XWL_GLAMOR_NONE = 0,
     XWL_GLAMOR_GL = (1 << 0),
+    XWL_GLAMOR_GLES = (1 << 1),
+    XWL_GLAMOR_DEFAULT = XWL_GLAMOR_GL | XWL_GLAMOR_GLES,
 } xwl_glamor_mode_flags;
 
 struct xwl_egl_backend {

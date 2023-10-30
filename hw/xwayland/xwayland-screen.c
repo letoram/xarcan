@@ -760,7 +760,7 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
 #endif
 
 #ifdef XWL_HAS_GLAMOR
-    xwl_screen->glamor = XWL_GLAMOR_GL;
+    xwl_screen->glamor = XWL_GLAMOR_DEFAULT;
 #endif
 
     for (i = 1; i < argc; i++) {
@@ -790,6 +790,18 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
             ErrorF("Xwayland glamor: this build does not have EGLStream support\n");
 #endif
         }
+#ifdef XWL_HAS_GLAMOR
+        else if (strcmp(argv[i], "-glamor") == 0) {
+            if (strncmp(argv[i + 1], "es", 2) == 0)
+                xwl_screen->glamor = XWL_GLAMOR_GLES;
+            else if (strncmp(argv[i + 1], "gl", 2) == 0)
+                xwl_screen->glamor = XWL_GLAMOR_GL;
+            else if (strncmp(argv[i + 1], "off", 3) == 0)
+                xwl_screen->glamor = XWL_GLAMOR_NONE;
+            else
+                ErrorF("Xwayland glamor: unknown rendering API selected\n");
+        }
+#endif
         else if (strcmp(argv[i], "-force-xrandr-emulation") == 0) {
             xwl_screen->force_xrandr_emulation = 1;
         }
