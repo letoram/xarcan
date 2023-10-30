@@ -1072,6 +1072,9 @@ xwl_glamor_try_big_gl_api(struct xwl_screen *xwl_screen)
     };
     int gl_version;
 
+    if (!(xwl_screen->glamor & XWL_GLAMOR_GL))
+        return FALSE;
+
     eglBindAPI(EGL_OPENGL_API);
 
     xwl_screen->egl_context =
@@ -1111,6 +1114,9 @@ xwl_glamor_try_gles_api(struct xwl_screen *xwl_screen)
         2,
         EGL_NONE,
     };
+
+    if (!(xwl_screen->glamor & XWL_GLAMOR_GL))
+        return FALSE;
 
     eglBindAPI(EGL_OPENGL_ES_API);
 

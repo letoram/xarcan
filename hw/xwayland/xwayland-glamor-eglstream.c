@@ -962,6 +962,11 @@ xwl_glamor_eglstream_init_egl(struct xwl_screen *xwl_screen)
     };
     int n;
 
+    if (!(xwl_screen->glamor & XWL_GLAMOR_GL)) {
+        ErrorF("glamor: eglstream backend requires desktop OpenGL\n");
+        goto error;
+    }
+
     xwl_screen->egl_display = glamor_egl_get_display(
         EGL_PLATFORM_DEVICE_EXT, xwl_eglstream->egl_device);
     if (!xwl_screen->egl_display)

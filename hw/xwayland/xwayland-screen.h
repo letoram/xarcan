@@ -60,7 +60,7 @@ struct xwl_screen {
     enum RootClipMode root_clip_mode;
 
     int rootless;
-    int glamor;
+    xwl_glamor_mode_flags glamor;
     int present;
     int force_xrandr_emulation;
     int fullscreen;

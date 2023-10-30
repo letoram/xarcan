@@ -54,6 +54,9 @@
 #ifdef XWL_HAS_EI
 #include "xwayland-xtest.h"
 #endif
+#ifdef XWL_HAS_GLAMOR
+#include "xwayland-glamor.h"
+#endif
 
 #ifdef MITSHM
 #include "shmint.h"
@@ -757,7 +760,7 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
 #endif
 
 #ifdef XWL_HAS_GLAMOR
-    xwl_screen->glamor = 1;
+    xwl_screen->glamor = XWL_GLAMOR_GL;
 #endif
 
     for (i = 1; i < argc; i++) {
@@ -778,7 +781,7 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
             defaultScreenSaverInterval = 0;
         }
         else if (strcmp(argv[i], "-shm") == 0) {
-            xwl_screen->glamor = 0;
+            xwl_screen->glamor = XWL_GLAMOR_NONE;
         }
         else if (strcmp(argv[i], "-eglstream") == 0) {
 #ifdef XWL_HAS_EGLSTREAM
@@ -961,7 +964,7 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
 
         if (xwl_screen->egl_backend == NULL || !xwl_glamor_init(xwl_screen)) {
            ErrorF("Failed to initialize glamor, falling back to sw\n");
-           xwl_screen->glamor = 0;
+           xwl_screen->glamor = XWL_GLAMOR_NONE;
         }
     }
 #ifdef GLAMOR_HAS_GBM
