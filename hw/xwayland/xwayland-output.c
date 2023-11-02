@@ -725,6 +725,9 @@ output_handle_done(void *data, struct wl_output *wl_output)
 static void
 output_handle_scale(void *data, struct wl_output *wl_output, int32_t factor)
 {
+    struct xwl_output *xwl_output = data;
+
+    xwl_output->scale = factor;
 }
 
 static void

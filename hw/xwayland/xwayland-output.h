@@ -54,7 +54,7 @@ struct xwl_output {
     struct wl_output *output;
     struct zxdg_output_v1 *xdg_output;
     uint32_t server_output_id;
-    int32_t x, y, width, height, refresh;
+    int32_t x, y, width, height, refresh, scale;
     int32_t mode_width, mode_height;
     double xscale; /* Effective scale, can be fractional */
     Rotation rotation;
