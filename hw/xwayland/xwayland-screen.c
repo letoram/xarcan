@@ -915,6 +915,7 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
     xorg_list_init(&xwl_screen->drm_leases);
     xorg_list_init(&xwl_screen->pending_wl_surface_destroy);
     xwl_screen->depth = 24;
+    xwl_screen->global_surface_scale = 1;
 
     if (!monitorResolution)
         monitorResolution = DEFAULT_DPI;

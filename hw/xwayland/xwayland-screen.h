@@ -48,6 +48,7 @@ struct xwl_screen {
     double width;
     double height;
     int depth;
+    int global_surface_scale;
     int output_name_serial;
     ScreenPtr screen;
     int wm_client_id;
