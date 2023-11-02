@@ -769,6 +769,35 @@ xwl_screen_lost_focus(struct xwl_screen *xwl_screen)
 }
 
 Bool
+xwl_screen_update_global_surface_scale(struct xwl_screen *xwl_screen)
+{
+    ScreenPtr screen = xwl_screen->screen;
+    struct xwl_window *xwl_window;
+    int32_t old_scale;
+
+    if (xwl_screen->rootless)
+        return FALSE;
+
+    if (xwl_screen->fullscreen)
+        return FALSE;
+
+    if (!xwl_screen->hidpi)
+        return FALSE;
+
+    if (screen->root == NullWindow)
+        return FALSE;
+
+    xwl_window = xwl_window_get(screen->root);
+    if (!xwl_window)
+        return FALSE;
+
+    old_scale = xwl_screen->global_surface_scale;
+    xwl_screen->global_surface_scale = xwl_window_get_max_output_scale(xwl_window);
+
+    return (xwl_screen->global_surface_scale != old_scale);
+}
+
+Bool
 xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
 {
     static const char allow_commits[] = "_XWAYLAND_ALLOW_COMMITS";
@@ -880,6 +909,9 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
         }
         else if (strcmp(argv[i], "-nokeymap") == 0) {
             xwl_screen->nokeymap = 1;
+        }
+        else if (strcmp(argv[i], "-hidpi") == 0) {
+            xwl_screen->hidpi = 1;
         }
     }
 

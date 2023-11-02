@@ -671,10 +671,10 @@ xwl_window_maybe_resize(struct xwl_window *xwl_window, double width, double heig
     xwl_screen->height = height;
 
     xwl_output = xwl_screen_get_fixed_or_first_output(xwl_screen);
-    if (!xwl_randr_add_modes_fixed(xwl_output, round(width), round(height)))
+    if (!xwl_randr_add_modes_fixed(xwl_output, round(width / scale), round(height / scale)))
         return;
 
-    mode = xwl_output_find_mode(xwl_output,  round(width), round(height));
+    mode = xwl_output_find_mode(xwl_output, round(width / scale), round(height / scale));
     xwl_output_set_mode_fixed(xwl_output, mode);
 
     xwl_window_attach_buffer(xwl_window);
@@ -797,7 +797,39 @@ static const struct xdg_surface_listener xdg_surface_listener = {
 static void
 xwl_window_update_surface_scale(struct xwl_window *xwl_window)
 {
+    struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
+    int previous_scale, new_scale;
+    double new_width, new_height;
+
+    previous_scale = xwl_screen->global_surface_scale;
+    assert(previous_scale != 0);
     xwl_window->surface_scale = xwl_window_get_max_output_scale(xwl_window);
+
+    if (xwl_screen_update_global_surface_scale(xwl_screen)) {
+        new_scale = xwl_screen->global_surface_scale;
+
+        DebugF("XWAYLAND: Global scale is now %i (was %i)\n",
+               new_scale, previous_scale);
+
+        new_width = xwl_screen->width / previous_scale * new_scale;
+        new_height = xwl_screen->height / previous_scale * new_scale;
+
+        wl_surface_set_buffer_scale(xwl_window->surface, xwl_screen->global_surface_scale);
+        /* Reflect the scale factor using XRandR transform */
+        xwl_output_set_xscale(xwl_screen->fixed_output, new_scale);
+        xwl_window_maybe_resize(xwl_window, new_width, new_height);
+#ifdef XWL_HAS_LIBDECOR
+        if (xwl_window->libdecor_frame) {
+            xwl_window_libdecor_set_size_limits(xwl_window);
+            xwl_window_update_libdecor_size(xwl_window,
+                                            NULL,
+                                            round(new_width / new_scale),
+                                            round(new_height / new_scale));
+        }
+        else
+#endif
+            wl_surface_commit(xwl_window->surface);
+    }
 }
 
 static void

@@ -97,6 +97,7 @@ ddxUseMsg(void)
     ErrorF("-rootless              run rootless, requires wm support\n");
     ErrorF("-fullscreen            run fullscreen when rootful\n");
     ErrorF("-geometry WxH          set Xwayland window size when rootful\n");
+    ErrorF("-hidpi                 adjust to output scale when rootful\n");
     ErrorF("-host-grab             disable host keyboard shortcuts when rootful\n");
     ErrorF("-nokeymap              ignore keymap from the Wayland compositor\n");
     ErrorF("-output                specify which output to use for fullscreen when rootful\n");
@@ -267,6 +268,9 @@ ddxProcessArgument(int argc, char *argv[], int i)
         return 2;
     }
     else if (strcmp(argv[i], "-nokeymap") == 0) {
+        return 1;
+    }
+    else if (strcmp(argv[i], "-hidpi") == 0) {
         return 1;
     }
 

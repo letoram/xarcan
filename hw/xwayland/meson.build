@@ -174,6 +174,7 @@ xwayland_vars = [
     'have_decorate=' + have_libdecor.to_string(),
     'have_enable_ei_portal=' + build_ei_portal.to_string(),
     'have_byteswappedclients=true',
+    'have_hidpi=true',
 ]
 
 pkgconfig = import('pkgconfig')

@@ -66,6 +66,7 @@ struct xwl_screen {
     int decorate;
     int enable_ei_portal;
     int nokeymap;
+    int hidpi;
 
     CreateScreenResourcesProcPtr CreateScreenResources;
     CloseScreenProcPtr CloseScreen;
@@ -170,5 +171,6 @@ void xwl_surface_damage(struct xwl_screen *xwl_screen,
                         int32_t x, int32_t y, int32_t width, int32_t height);
 int xwl_screen_get_next_output_serial(struct xwl_screen * xwl_screen);
 void xwl_screen_lost_focus(struct xwl_screen *xwl_screen);
+Bool xwl_screen_update_global_surface_scale(struct xwl_screen *xwl_screen);
 
 #endif /* XWAYLAND_SCREEN_H */

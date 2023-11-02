@@ -82,6 +82,11 @@ and fallback to GL ES if GL version is less than 2.1.
 
 This option is not compatible with \fI-shm\fP option.
 .TP 8
+.B \-hidpi
+Adjust to the scale of the outputs when running rootful in windowing mode.
+
+This option is not compatible with rootless mode (\fI-rootless\fP).
+.TP 8
 .B \-host-grab
 Disable host keyboard shorcuts and confine the pointer when running rootful.
 
