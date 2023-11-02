@@ -27,6 +27,7 @@
 #include <dix-config.h>
 #endif
 
+#include <math.h>
 #include <sys/mman.h>
 
 #include <X11/X.h>
@@ -266,6 +267,9 @@ xwl_window_enable_viewport(struct xwl_window *xwl_window,
                            struct xwl_output *xwl_output,
                            struct xwl_emulated_mode *emulated_mode)
 {
+    struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
+    int width, height;
+
     if (!xwl_window_has_viewport_enabled(xwl_window)) {
         DebugF("XWAYLAND: enabling viewport %dx%d -> %dx%d\n",
                emulated_mode->width, emulated_mode->height,
@@ -274,17 +278,20 @@ xwl_window_enable_viewport(struct xwl_window *xwl_window,
                                                           xwl_window->surface);
     }
 
+    width = emulated_mode->width / xwl_screen->global_surface_scale;
+    height = emulated_mode->height / xwl_screen->global_surface_scale;
+
     wp_viewport_set_source(xwl_window->viewport,
                            wl_fixed_from_int(0),
                            wl_fixed_from_int(0),
-                           wl_fixed_from_int(emulated_mode->width),
-                           wl_fixed_from_int(emulated_mode->height));
+                           wl_fixed_from_int(width),
+                           wl_fixed_from_int(height));
     wp_viewport_set_destination(xwl_window->viewport,
                                 xwl_output->width,
                                 xwl_output->height);
 
-    xwl_window->scale_x = (float)emulated_mode->width  / xwl_output->width;
-    xwl_window->scale_y = (float)emulated_mode->height / xwl_output->height;
+    xwl_window->scale_x = (float) width / xwl_output->width;
+    xwl_window->scale_y = (float) height / xwl_output->height;
 }
 
 static Bool
@@ -641,11 +648,19 @@ xwl_window_maybe_resize(struct xwl_window *xwl_window, double width, double heig
 {
     struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
     struct xwl_output *xwl_output;
+    double scale;
     RRModePtr mode;
 
     /* Clamp the size */
     width = min(max(width, MIN_ROOTFUL_WIDTH), MAX_ROOTFUL_WIDTH);
     height = min(max(height, MIN_ROOTFUL_HEIGHT), MAX_ROOTFUL_HEIGHT);
+
+    /* Make sure the size is a multiple of the scale, it's a protocol error otherwise. */
+    scale = xwl_screen->global_surface_scale;
+    if (scale > 1.0) {
+        width = round(width / scale) * scale;
+        height = round(height / scale) * scale;
+    }
 
     if (width == xwl_screen->width && height == xwl_screen->height)
         return;
@@ -667,10 +682,18 @@ xwl_window_maybe_resize(struct xwl_window *xwl_window, double width, double heig
 static void
 xwl_window_libdecor_set_size_limits(struct xwl_window *xwl_window)
 {
+    struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
+
     libdecor_frame_set_min_content_size(xwl_window->libdecor_frame,
-                                        MIN_ROOTFUL_WIDTH, MIN_ROOTFUL_HEIGHT);
+                                        MIN_ROOTFUL_WIDTH /
+                                        xwl_screen->global_surface_scale,
+                                        MIN_ROOTFUL_HEIGHT /
+                                        xwl_screen->global_surface_scale);
     libdecor_frame_set_max_content_size(xwl_window->libdecor_frame,
-                                        MAX_ROOTFUL_WIDTH, MAX_ROOTFUL_HEIGHT);
+                                        MAX_ROOTFUL_WIDTH /
+                                        xwl_screen->global_surface_scale,
+                                        MAX_ROOTFUL_HEIGHT /
+                                        xwl_screen->global_surface_scale);
 }
 
 static void
@@ -701,11 +724,21 @@ handle_libdecor_configure(struct libdecor_frame *frame,
         new_width = (double) width;
         new_height = (double) height;
     }
+    else {
+        new_width = xwl_screen->width / xwl_screen->global_surface_scale;
+        new_height = xwl_screen->height / xwl_screen->global_surface_scale;
+    }
+
+    new_width *= xwl_screen->global_surface_scale;
+    new_height *= xwl_screen->global_surface_scale;
 
     xwl_window_maybe_resize(xwl_window, new_width, new_height);
+
+    new_width = xwl_screen->width / xwl_screen->global_surface_scale;
+    new_height = xwl_screen->height / xwl_screen->global_surface_scale;
+
     xwl_window_update_libdecor_size(xwl_window, configuration,
-                                     xwl_screen_get_width(xwl_screen),
-                                     xwl_screen_get_height(xwl_screen));
+                                    round(new_width), round(new_height));
     wl_surface_commit(xwl_window->surface);
 }
 
@@ -802,14 +835,17 @@ xdg_toplevel_handle_configure(void *data,
     struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
     uint32_t *p;
     Bool old_active = xwl_screen->active;
+    int new_width, new_height;
 
     /* Maintain our current size if no dimensions are requested */
     if (width == 0 && height == 0)
         return;
 
     if (!xwl_screen->fullscreen) {
+        new_width = width * xwl_screen->global_surface_scale;
+        new_height = height * xwl_screen->global_surface_scale;
         /* This will be committed by the xdg_surface.configure handler */
-        xwl_window_maybe_resize(xwl_window, width, height);
+        xwl_window_maybe_resize(xwl_window, new_width, new_height);
     }
 
     xwl_screen->active = FALSE;
@@ -1273,8 +1309,14 @@ xwl_resize_window(WindowPtr window,
         if (xwl_window_get(window) || xwl_window_is_toplevel(window))
             xwl_window_check_resolution_change_emulation(xwl_window);
 #ifdef XWL_HAS_LIBDECOR
-        if (window == screen->root)
-            xwl_window_update_libdecor_size(xwl_window, NULL, width, height);
+        if (window == screen->root) {
+            unsigned int decor_width, decor_height;
+
+            decor_width = width / xwl_screen->global_surface_scale;
+            decor_height = height / xwl_screen->global_surface_scale;
+            xwl_window_update_libdecor_size(xwl_window, NULL,
+                                            decor_width, decor_height);
+        }
 #endif
     }
 }

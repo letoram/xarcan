@@ -515,13 +515,13 @@ pointer_handle_enter(void *data, struct wl_pointer *pointer,
                      wl_fixed_t sx_w, wl_fixed_t sy_w)
 {
     struct xwl_seat *xwl_seat = data;
+    struct xwl_screen *xwl_screen = xwl_seat->xwl_screen;
     DeviceIntPtr dev = get_pointer_device(xwl_seat);
     DeviceIntPtr master;
     int i;
-    int sx = wl_fixed_to_int(sx_w);
-    int sy = wl_fixed_to_int(sy_w);
+    int sx, sy;
     int dx, dy;
-    ScreenPtr pScreen = xwl_seat->xwl_screen->screen;
+    ScreenPtr pScreen = xwl_screen->screen;
     ValuatorMask mask;
 
     /* There's a race here where if we create and then immediately
@@ -535,6 +535,9 @@ pointer_handle_enter(void *data, struct wl_pointer *pointer,
 
     if (!is_surface_from_xwl_window(surface))
         return;
+
+    sx = wl_fixed_to_int(sx_w) * xwl_screen->global_surface_scale;
+    sy = wl_fixed_to_int(sy_w) * xwl_screen->global_surface_scale;
 
     xwl_seat->xwl_screen->serial = serial;
     xwl_seat->pointer_enter_serial = serial;
@@ -624,6 +627,7 @@ pointer_handle_leave(void *data, struct wl_pointer *pointer,
 static void
 dispatch_relative_motion_with_warp(struct xwl_seat *xwl_seat)
 {
+    struct xwl_screen *xwl_screen = xwl_seat->xwl_screen;
     double dx, dx_unaccel;
     double dy, dy_unaccel;
 
@@ -631,6 +635,11 @@ dispatch_relative_motion_with_warp(struct xwl_seat *xwl_seat)
     dy = xwl_seat->pending_pointer_event.dy;
     dx_unaccel = xwl_seat->pending_pointer_event.dx_unaccel;
     dy_unaccel = xwl_seat->pending_pointer_event.dy_unaccel;
+
+    dx *= xwl_screen->global_surface_scale;
+    dy *= xwl_screen->global_surface_scale;
+    dx_unaccel *= xwl_screen->global_surface_scale;
+    dy_unaccel *= xwl_screen->global_surface_scale;
 
     xwl_pointer_warp_emulator_handle_motion(xwl_seat->pointer_warp_emulator,
                                             dx, dy,
@@ -640,6 +649,7 @@ dispatch_relative_motion_with_warp(struct xwl_seat *xwl_seat)
 static void
 dispatch_absolute_motion(struct xwl_seat *xwl_seat)
 {
+    struct xwl_screen *xwl_screen = xwl_seat->xwl_screen;
     ValuatorMask mask;
     DeviceIntPtr device;
     int flags;
@@ -649,6 +659,9 @@ dispatch_absolute_motion(struct xwl_seat *xwl_seat)
     int drawable_y = xwl_seat->focus_window->window->drawable.y;
     int x;
     int y;
+
+    event_x *= xwl_screen->global_surface_scale;
+    event_y *= xwl_screen->global_surface_scale;
 
     if (xwl_window_has_viewport_enabled(xwl_seat->focus_window)) {
         event_x *= xwl_seat->focus_window->scale_x;
@@ -676,11 +689,17 @@ dispatch_absolute_motion(struct xwl_seat *xwl_seat)
 static void
 dispatch_relative_motion(struct xwl_seat *xwl_seat)
 {
+    struct xwl_screen *xwl_screen = xwl_seat->xwl_screen;
     ValuatorMask mask;
     double event_dx = xwl_seat->pending_pointer_event.dx;
     double event_dy = xwl_seat->pending_pointer_event.dy;
     double event_dx_unaccel = xwl_seat->pending_pointer_event.dx_unaccel;
     double event_dy_unaccel = xwl_seat->pending_pointer_event.dy_unaccel;
+
+    event_dx *= xwl_screen->global_surface_scale;
+    event_dy *= xwl_screen->global_surface_scale;
+    event_dx_unaccel *= xwl_screen->global_surface_scale;
+    event_dy_unaccel *= xwl_screen->global_surface_scale;
 
     valuator_mask_zero(&mask);
     valuator_mask_set_unaccelerated(&mask, 0, event_dx, event_dx_unaccel);
@@ -955,8 +974,12 @@ pointer_gesture_swipe_handle_update(void *data,
                                     wl_fixed_t dyf)
 {
     struct xwl_seat *xwl_seat = data;
+    struct xwl_screen *xwl_screen = xwl_seat->xwl_screen;
     double dx = wl_fixed_to_double(dxf);
     double dy = wl_fixed_to_double(dyf);
+
+    dx *= xwl_screen->global_surface_scale;
+    dy *= xwl_screen->global_surface_scale;
 
     QueueGestureSwipeEvents(xwl_seat->pointer_gestures,
                             XI_GestureSwipeUpdate,
@@ -1021,9 +1044,13 @@ pointer_gesture_pinch_handle_update(void *data,
                                     wl_fixed_t rotation)
 {
     struct xwl_seat *xwl_seat = data;
+    struct xwl_screen *xwl_screen = xwl_seat->xwl_screen;
     double dx = wl_fixed_to_double(dxf);
     double dy = wl_fixed_to_double(dyf);
     double scale = wl_fixed_to_double(scalef);
+
+    dx *= xwl_screen->global_surface_scale;
+    dy *= xwl_screen->global_surface_scale;
 
     xwl_seat->pointer_gesture_pinch_last_scale = scale;
     QueueGesturePinchEvents(xwl_seat->pointer_gestures,
@@ -1403,6 +1430,7 @@ touch_handle_down(void *data, struct wl_touch *wl_touch,
                   int32_t id, wl_fixed_t sx_w, wl_fixed_t sy_w)
 {
     struct xwl_seat *xwl_seat = data;
+    struct xwl_screen *xwl_screen = xwl_seat->xwl_screen;
     struct xwl_touch *xwl_touch;
 
     if (surface == NULL)
@@ -1422,6 +1450,9 @@ touch_handle_down(void *data, struct wl_touch *wl_touch,
     xwl_touch->x = wl_fixed_to_int(sx_w);
     xwl_touch->y = wl_fixed_to_int(sy_w);
     xorg_list_add(&xwl_touch->link_touch, &xwl_seat->touches);
+
+    xwl_touch->x *= xwl_screen->global_surface_scale;
+    xwl_touch->y *= xwl_screen->global_surface_scale;
 
     xwl_touch_send_event(xwl_touch, xwl_seat, XI_TouchBegin);
 }
@@ -1449,6 +1480,7 @@ touch_handle_motion(void *data, struct wl_touch *wl_touch,
                     wl_fixed_t sx_w, wl_fixed_t sy_w)
 {
     struct xwl_seat *xwl_seat = data;
+    struct xwl_screen *xwl_screen = xwl_seat->xwl_screen;
     struct xwl_touch *xwl_touch;
 
     xwl_touch = xwl_seat_lookup_touch(xwl_seat, id);
@@ -1458,6 +1490,10 @@ touch_handle_motion(void *data, struct wl_touch *wl_touch,
 
     xwl_touch->x = wl_fixed_to_int(sx_w);
     xwl_touch->y = wl_fixed_to_int(sy_w);
+
+    xwl_touch->x *= xwl_screen->global_surface_scale;
+    xwl_touch->y *= xwl_screen->global_surface_scale;
+
     xwl_touch_send_event(xwl_touch, xwl_seat, XI_TouchUpdate);
 }
 
@@ -2146,12 +2182,16 @@ tablet_tool_motion(void *data, struct zwp_tablet_tool_v2 *tool,
 {
     struct xwl_tablet_tool *xwl_tablet_tool = data;
     struct xwl_seat *xwl_seat = xwl_tablet_tool->seat;
+    struct xwl_screen *xwl_screen = xwl_seat->xwl_screen;
     int32_t dx, dy;
     double sx = wl_fixed_to_double(x);
     double sy = wl_fixed_to_double(y);
 
     if (!xwl_seat->tablet_focus_window)
         return;
+
+    sx *= xwl_screen->global_surface_scale;
+    sy *= xwl_screen->global_surface_scale;
 
     dx = xwl_seat->tablet_focus_window->window->drawable.x;
     dy = xwl_seat->tablet_focus_window->window->drawable.y;
@@ -2186,12 +2226,16 @@ tablet_tool_tilt(void *data, struct zwp_tablet_tool_v2 *tool,
 {
     struct xwl_tablet_tool *xwl_tablet_tool = data;
     struct xwl_seat *xwl_seat = xwl_tablet_tool->seat;
+    struct xwl_screen *xwl_screen = xwl_seat->xwl_screen;
 
     if (!xwl_seat->tablet_focus_window)
         return;
 
     xwl_tablet_tool->tilt_x = wl_fixed_to_double(tilt_x);
     xwl_tablet_tool->tilt_y = wl_fixed_to_double(tilt_y);
+
+    xwl_tablet_tool->tilt_x *= xwl_screen->global_surface_scale;
+    xwl_tablet_tool->tilt_y *= xwl_screen->global_surface_scale;
 }
 
 static void
