@@ -795,6 +795,12 @@ static const struct xdg_surface_listener xdg_surface_listener = {
 };
 
 static void
+xwl_window_update_surface_scale(struct xwl_window *xwl_window)
+{
+    xwl_window->surface_scale = xwl_window_get_max_output_scale(xwl_window);
+}
+
+static void
 xwl_window_enter_output(struct xwl_window *xwl_window, struct xwl_output *xwl_output)
 {
     struct xwl_window_output *window_output;
@@ -828,6 +834,22 @@ xwl_window_free_outputs(struct xwl_window *xwl_window)
     }
 }
 
+int
+xwl_window_get_max_output_scale(struct xwl_window *xwl_window)
+{
+    struct xwl_window_output *window_output;
+    struct xwl_output *xwl_output;
+    int scale = 1;
+
+    xorg_list_for_each_entry(window_output, &xwl_window->xwl_output_list, link) {
+        xwl_output = window_output->xwl_output;
+        if (xwl_output->scale > scale)
+            scale = xwl_output->scale;
+    }
+
+    return scale;
+}
+
 static void
 xwl_window_surface_enter(void *data,
                          struct wl_surface *wl_surface,
@@ -837,8 +859,10 @@ xwl_window_surface_enter(void *data,
     struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
     struct xwl_output *xwl_output = xwl_output_from_wl_output(xwl_screen, wl_output);
 
-    if (xwl_output)
+    if (xwl_output) {
         xwl_window_enter_output(xwl_window, xwl_output);
+        xwl_window_update_surface_scale(xwl_window);
+    }
 
     if (xwl_window->wl_output != wl_output) {
         xwl_window->wl_output = wl_output;
@@ -857,8 +881,10 @@ xwl_window_surface_leave(void *data,
     struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
     struct xwl_output *xwl_output = xwl_output_from_wl_output(xwl_screen, wl_output);
 
-    if (xwl_output)
+    if (xwl_output) {
         xwl_window_leave_output(xwl_window, xwl_output);
+        xwl_window_update_surface_scale(xwl_window);
+    }
 
     if (xwl_window->wl_output == wl_output)
         xwl_window->wl_output = NULL;

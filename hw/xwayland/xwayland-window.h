@@ -59,6 +59,7 @@ struct xwl_window {
     struct wl_surface *surface;
     struct wp_viewport *viewport;
     float viewport_scale_x, viewport_scale_y;
+    int surface_scale;
     struct xdg_surface *xdg_surface;
     struct xdg_toplevel *xdg_toplevel;
     WindowPtr window;
@@ -100,6 +101,7 @@ void xwl_window_set_window_pixmap(WindowPtr window, PixmapPtr pixmap);
 
 void xwl_window_leave_output(struct xwl_window *xwl_window,
                              struct xwl_output *xwl_output);
+int xwl_window_get_max_output_scale(struct xwl_window *xwl_window);
 Bool xwl_realize_window(WindowPtr window);
 Bool xwl_unrealize_window(WindowPtr window);
 Bool xwl_change_window_attributes(WindowPtr window, unsigned long mask);
