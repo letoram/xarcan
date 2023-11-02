@@ -49,6 +49,11 @@ struct xwl_wl_surface {
     struct xorg_list link;
 };
 
+struct xwl_window_output {
+    struct xorg_list link;
+    struct xwl_output *xwl_output;
+};
+
 struct xwl_window {
     struct xwl_screen *xwl_screen;
     struct wl_surface *surface;
@@ -66,6 +71,7 @@ struct xwl_window {
     OsTimerPtr window_buffers_timer;
     struct wl_output *wl_output;
     struct wl_output *wl_output_fullscreen;
+    struct xorg_list xwl_output_list;
     struct xorg_list frame_callback_list;
 #ifdef XWL_HAS_LIBDECOR
     struct libdecor_frame *libdecor_frame;
@@ -92,6 +98,8 @@ void xwl_window_rootful_update_fullscreen(struct xwl_window *xwl_window,
                                           struct xwl_output *xwl_output);
 void xwl_window_set_window_pixmap(WindowPtr window, PixmapPtr pixmap);
 
+void xwl_window_leave_output(struct xwl_window *xwl_window,
+                             struct xwl_output *xwl_output);
 Bool xwl_realize_window(WindowPtr window);
 Bool xwl_unrealize_window(WindowPtr window);
 Bool xwl_change_window_attributes(WindowPtr window, unsigned long mask);

@@ -795,12 +795,50 @@ static const struct xdg_surface_listener xdg_surface_listener = {
 };
 
 static void
+xwl_window_enter_output(struct xwl_window *xwl_window, struct xwl_output *xwl_output)
+{
+    struct xwl_window_output *window_output;
+
+    window_output = xnfcalloc(1, sizeof(struct xwl_window_output));
+    window_output->xwl_output = xwl_output;
+    xorg_list_add(&window_output->link, &xwl_window->xwl_output_list);
+}
+
+void
+xwl_window_leave_output(struct xwl_window *xwl_window, struct xwl_output *xwl_output)
+{
+    struct xwl_window_output *window_output, *tmp;
+
+    xorg_list_for_each_entry_safe(window_output, tmp, &xwl_window->xwl_output_list, link) {
+        if (window_output->xwl_output == xwl_output) {
+            xorg_list_del(&window_output->link);
+            free(window_output);
+        }
+    }
+}
+
+static void
+xwl_window_free_outputs(struct xwl_window *xwl_window)
+{
+    struct xwl_window_output *window_output, *tmp;
+
+    xorg_list_for_each_entry_safe(window_output, tmp, &xwl_window->xwl_output_list, link) {
+        xorg_list_del(&window_output->link);
+        free(window_output);
+    }
+}
+
+static void
 xwl_window_surface_enter(void *data,
                          struct wl_surface *wl_surface,
                          struct wl_output *wl_output)
 {
     struct xwl_window *xwl_window = data;
     struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
+    struct xwl_output *xwl_output = xwl_output_from_wl_output(xwl_screen, wl_output);
+
+    if (xwl_output)
+        xwl_window_enter_output(xwl_window, xwl_output);
 
     if (xwl_window->wl_output != wl_output) {
         xwl_window->wl_output = wl_output;
@@ -816,6 +854,11 @@ xwl_window_surface_leave(void *data,
                          struct wl_output *wl_output)
 {
     struct xwl_window *xwl_window = data;
+    struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
+    struct xwl_output *xwl_output = xwl_output_from_wl_output(xwl_screen, wl_output);
+
+    if (xwl_output)
+        xwl_window_leave_output(xwl_window, xwl_output);
 
     if (xwl_window->wl_output == wl_output)
         xwl_window->wl_output = NULL;
@@ -913,9 +956,6 @@ xwl_create_root_surface(struct xwl_window *xwl_window)
             goto err_surf;
         }
 
-        wl_surface_add_listener(xwl_window->surface,
-                                &surface_listener, xwl_window);
-
         xdg_surface_add_listener(xwl_window->xdg_surface,
                                  &xdg_surface_listener, xwl_window);
 
@@ -923,6 +963,9 @@ xwl_create_root_surface(struct xwl_window *xwl_window)
                                   &xdg_toplevel_listener,
                                   xwl_window);
     }
+
+    wl_surface_add_listener(xwl_window->surface,
+                            &surface_listener, xwl_window);
 
     xwl_window_rootful_update_title(xwl_window);
     xwl_window_rootful_set_app_id(xwl_window);
@@ -981,6 +1024,7 @@ ensure_surface_for_window(WindowPtr window)
     xwl_window->window = window;
     xwl_window->viewport_scale_x = 1.0;
     xwl_window->viewport_scale_y = 1.0;
+    xorg_list_init(&xwl_window->xwl_output_list);
     xwl_window->surface = wl_compositor_create_surface(xwl_screen->compositor);
     if (xwl_window->surface == NULL) {
         ErrorF("wl_display_create_surface failed\n");
@@ -1229,6 +1273,8 @@ xwl_unrealize_window(WindowPtr window)
 
     if (xwl_window->frame_callback)
         wl_callback_destroy(xwl_window->frame_callback);
+
+    xwl_window_free_outputs(xwl_window);
 
     free(xwl_window);
     dixSetPrivate(&window->devPrivates, &xwl_window_private_key, NULL);

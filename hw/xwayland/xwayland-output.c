@@ -962,7 +962,12 @@ xwl_output_remove(struct xwl_output *xwl_output)
 {
     struct xwl_output *it;
     struct xwl_screen *xwl_screen = xwl_output->xwl_screen;
+    struct xwl_window *xwl_window;
     int width = 0, height = 0;
+
+    /* Not all compositors send a "leave" event on output removal */
+    xorg_list_for_each_entry(xwl_window, &xwl_screen->window_list, link_window)
+        xwl_window_leave_output(xwl_window, xwl_output);
 
     xorg_list_del(&xwl_output->link);
 
