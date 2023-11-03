@@ -47,11 +47,6 @@
 
 static DevPrivateKeyRec xa_present_window_private_key;
 
-static CARD32
-xa_present_timer_callback(OsTimerPtr timer,
-                           CARD32 time,
-                           void *arg);
-
 struct xa_present_window *
 xa_present_window_priv(WindowPtr window)
 {
@@ -91,14 +86,6 @@ xa_present_event_from_id(uint64_t event_id)
     return (struct xa_present_event*)(uintptr_t)event_id;
 }
 
-static void
-xa_present_free_timer(struct xa_present_window *xa_present_window)
-{
-    TimerFree(xa_present_window->frame_timer);
-    xa_present_window->frame_timer = NULL;
-    xa_present_window->timer_armed = 0;
-}
-
 static present_vblank_ptr
 xa_present_get_pending_flip(struct xa_present_window *xa_present_window)
 {
@@ -113,6 +100,7 @@ xa_present_get_pending_flip(struct xa_present_window *xa_present_window)
     if (flip_pending->queued)
         return NULL;
 
+		printf("got pending flip\n");
     return flip_pending;
 }
 
@@ -123,40 +111,6 @@ xa_present_has_pending_events(struct xa_present_window *xa_present_window)
 
     return (flip_pending && flip_pending->sync_flip) ||
            !xorg_list_is_empty(&xa_present_window->wait_list);
-}
-
-void
-xa_present_reset_timer(struct xa_present_window *xa_present_window)
-{
-    if (!xa_present_has_pending_events(xa_present_window)) {
-        ErrorF("no_pending\n");
-        xa_present_free_timer(xa_present_window);
-        return;
-    }
-
-    CARD32 now = GetTimeInMillis();
-    CARD32 timeout = 17;
-
-    if (xa_present_window->timer_armed) {
-        if ((int)(now - xa_present_window->timer_armed) > 1000) {
-            xa_present_timer_callback(
-                                      xa_present_window->frame_timer,
-                                      now,
-                                      xa_present_window);
-            return;
-        }
-        else {
-            xa_present_window->timer_armed = now;
-        }
-
-        xa_present_window->frame_timer = TimerSet(xa_present_window->frame_timer,
-                                                   0, timeout,
-                                                   &xa_present_timer_callback,
-                                                   xa_present_window);
-    }
-    else {
-        xa_present_free_timer(xa_present_window);
-    }
 }
 
 static void
@@ -264,9 +218,6 @@ xa_present_flips_stop(WindowPtr window)
     struct xa_present_window *xa_present_window = xa_present_window_priv(window);
     present_vblank_ptr vblank, tmp;
 
-    /* Change back to the fast refresh rate */
-    xa_present_reset_timer(xa_present_window);
-
     /* Free any left over idle vblanks */
     xorg_list_for_each_entry_safe(vblank, tmp, &xa_present_window->idle_queue, event_queue)
         xa_present_free_idle_vblank(vblank);
@@ -354,10 +305,7 @@ xa_present_cleanup(WindowPtr window)
     xorg_list_for_each_entry_safe(event, tmp, &window_priv->vblank, vblank.window_list)
         xa_present_free_event(event);
 
-    /* Clear timer */
-    xa_present_free_timer(xa_present_window);
-
-    /* Remove from privates so we don't try to access it later */
+   /* Remove from privates so we don't try to access it later */
     dixSetPrivate(&window->devPrivates,
                   &xa_present_window_private_key,
                   NULL);
@@ -386,15 +334,14 @@ xa_present_buffer_release(void *data)
         xa_present_free_event(event);
 }
 
-static void
-xa_present_msc_bump(struct xa_present_window *xa_present_window)
+void
+xa_present_msc_bump(struct xa_present_window *xa_present_window, uint64_t msc)
 {
     present_vblank_ptr flip_pending = xa_present_get_pending_flip(xa_present_window);
-    uint64_t msc = ++xa_present_window->msc;
+		xa_present_window->msc = msc;
     present_vblank_ptr vblank, tmp;
 
     xa_present_window->ust = GetTimeInMicros();
-    xa_present_window->timer_armed = 0;
 
     if (flip_pending && flip_pending->sync_flip)
         xa_present_flip_notify_vblank(flip_pending, xa_present_window->ust, msc);
@@ -407,26 +354,9 @@ xa_present_msc_bump(struct xa_present_window *xa_present_window)
             xa_present_execute(vblank, xa_present_window->ust, msc);
             xa_present_buffer_release(xa_present_event_from_id(vblank->event_id));
         }
+				else
+					DebugPresent(("waiting: %"PRIu64" vs %"PRIu64"\n", vblank->exec_msc, msc));
     }
-}
-
-static CARD32
-xa_present_timer_callback(OsTimerPtr timer,
-                           CARD32 time,
-                           void *arg)
-{
-    struct xa_present_window *xa_present_window = arg;
-    xa_present_msc_bump(xa_present_window);
-    xa_present_reset_timer(xa_present_window);
-
-    return 0;
-}
-
-void
-xa_present_frame_callback(struct xa_present_window *xa_present_window)
-{
-    xorg_list_del(&xa_present_window->frame_callback_list);
-    xa_present_msc_bump(xa_present_window);
 }
 
 static RRCrtcPtr
@@ -465,10 +395,6 @@ xa_present_queue_vblank(ScreenPtr screen,
 
     xorg_list_del(&event->vblank.event_queue);
     xorg_list_append(&event->vblank.event_queue, &xa_present_window->wait_list);
-
-    if (
-        !xa_present_window->frame_timer)
-        xa_present_reset_timer(xa_present_window);
 
     return Success;
 }
@@ -741,9 +667,6 @@ xa_present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
                 /* Put pending flip at the flip queue head */
                 xorg_list_add(&vblank->event_queue, &xa_present_window->flip_queue);
 
-                /* Realign timer */
-                xa_present_reset_timer(xa_present_window);
-
                 return;
             }
 
@@ -879,9 +802,6 @@ xa_present_pixmap(WindowPtr window,
 void
 xa_present_unrealize_window(struct xa_present_window *xa_present_window)
 {
-    /* Make sure the timer callback doesn't get called */
-    xa_present_window->timer_armed = 0;
-    xa_present_reset_timer(xa_present_window);
 }
 
 Bool

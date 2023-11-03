@@ -60,7 +60,7 @@ struct xa_present_event {
 };
 
 void xa_present_reset_timer(struct xa_present_window *);
-void xa_present_frame_callback(struct xa_present_window *);
+void xa_present_msc_bump(struct xa_present_window *xa_present_window, uint64_t msc);
 Bool xa_present_init(ScreenPtr screen);
 void xa_present_cleanup(WindowPtr window);
 void xa_present_unrealize_window(struct xa_present_window*);

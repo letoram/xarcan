@@ -71,8 +71,6 @@ static int mouseButtonBitmap;
 #include "../../dmx/input/atKeynames.h"
 #include "bsd_KbdMap.c"
 
-
-
 static void enqueueKeyboard(uint16_t scancode, int active)
 {
     KdEnqueueKeyboardEvent(arcanInputPriv.ki, wsUsbMap[scancode], !active);
@@ -648,6 +646,33 @@ static int64_t findBestSegment(arcanScrPriv *S, int w, int h, WindowPtr pWin)
     return bi;
 }
 
+/*
+ * Enable / Disable VBlank and presentation feedback reporting. Both yield
+ * STEPFRAME events (like with the render hint of frame delivery) but latched
+ * to slightly different clocks. Blank is for aligning, present for estimating
+ * pipeline latency.
+ */
+static void setAprivVblankPresent(
+                                  struct arcan_shmif_cont *C,
+                                  arcanShmifPriv *apriv, Bool state)
+{
+    arcan_event ev = {
+        .ext.kind = ARCAN_EVENT(CLOCKREQ)
+    };
+
+    if (state != apriv->vblank){
+        apriv->vblank = state;
+        ev.ext.clock.dynamic = 1;
+        ARCAN_ENQUEUE(C, &ev);
+    }
+
+    if (state != apriv->present){
+        apriv->present = state;
+        ev.ext.clock.dynamic = 2;
+        ARCAN_ENQUEUE(C, &ev);
+    }
+}
+
 static Bool arcanRealizeWindow(WindowPtr wnd)
 {
     Bool rv = true;
@@ -740,6 +765,8 @@ static Bool arcanUnrealizeWindow(WindowPtr wnd)
                   (uintptr_t) shmif->window
                  );
             shmif->bound = false;
+            if (arcanConfigPriv.present)
+                setAprivVblankPresent(apriv->shmif, shmif, false);
         }
         else
             trace("unrealize:id=%zu:shmif=no", (size_t) wnd->drawable.id);
@@ -920,8 +947,8 @@ arcanScreenInitialize(KdScreenInfo * screen, arcanScrPriv * scrpriv)
 {
     scrpriv->acon->hints =
         SHMIF_RHINT_SUBREGION    |
-        SHMIF_RHINT_IGNORE_ALPHA |
-        SHMIF_RHINT_VSIGNAL_EV;
+        SHMIF_RHINT_IGNORE_ALPHA;
+
     scrpriv->dirty = true;
     trace("arcanScreenInitialize");
 
@@ -1554,6 +1581,47 @@ cmdRedirectWindow(struct arcan_shmif_cont *con, XID id)
         });
 }
 
+static void
+announceRequestBuiltins(struct arcan_shmif_cont *con)
+{
+/* request a cursor and a clipboard, if they arrive we initialize that code
+ * as well, otherwise we have our own implementation of save-under + cursor
+ * bitblit */
+    if (!arcanConfigPriv.soft_mouse)
+        arcan_shmif_enqueue(con, &(struct arcan_event){
+            .ext.kind = ARCAN_EVENT(SEGREQ),
+            .ext.segreq.width = 32,
+            .ext.segreq.height = 32,
+            .ext.segreq.kind = SEGID_CURSOR,
+            .ext.segreq.id = CURSOR_REQUEST_ID
+        });
+    else
+        arcan_shmif_enqueue(con, &(arcan_event){
+            .ext.kind = ARCAN_EVENT(CURSORHINT),
+            .ext.message.data = "hidden"
+        });
+
+    arcan_shmif_enqueue(con, &(struct arcan_event){
+        .ext.kind = ARCAN_EVENT(SEGREQ),
+        .ext.segreq.width = 32,
+        .ext.segreq.height = 32,
+        .ext.segreq.kind = SEGID_CLIPBOARD,
+        .ext.segreq.id = CLIPBOARD_REQUEST_ID
+    });
+
+/* announce a 'dot' and 'svg' exported file extensions for getting a snapshot
+ * of the window tree in order to make debugging much less painful */
+    arcan_shmif_enqueue(con, &(struct arcan_event){
+        .ext.kind = ARCAN_EVENT(BCHUNKSTATE),
+        .category = EVENT_EXTERNAL,
+        .ext.bchunk = {
+                       .input = false,
+                       .hint  = 0,
+                       .extensions = "dot;svg"
+                      }
+    });
+}
+
 static
 void
 decodeMessage(struct arcan_shmif_cont* con, const char* msg)
@@ -1693,15 +1761,6 @@ handleNewSegment(struct arcan_shmif_cont *C, arcanScrPriv *S, int kind, bool out
         *pxout = arcan_shmif_acquire(C, NULL, kind, SHMIF_DISABLE_GUARD);
         pxout->user = contpriv;
 
-/* With the present extension there might be client listeners that trigger on
- * feedback about presentation, but also on 'idle' or vblank events. While possible
- * to just hook a timer based on OUTPUTHINT, the better option is to request
- * a dynamic event clock to latch our processing on. */
-        arcan_shmif_enqueue(C, &(struct arcan_event){
-            .ext.kind = ARCAN_EVENT(CLOCKREQ),
-            .ext.clock.dynamic = 1
-        });
-
         sendSegmentToPool(S, pxout);
         compRedirectWindow(serverClient, wnd, CompositeRedirectManual);
     }
@@ -1748,9 +1807,18 @@ static int64_t requestIntoPool(arcanScrPriv* ascr, XID id, int w, int h)
 
 static void resetRecoverPool(arcanScrPriv* ascr)
 {
-/* for each entry in pool, if it is bound, re-request the segment, copy
- * contents and signal drop ones that are not bound
- */
+/*    struct arcan_shmif_cont *acon = ascr->acon; */
+    uint64_t bmap = ascr->redirectBitmap;
+    while (bmap){
+        uint64_t i = __builtin_ffsll(bmap) - 1;
+        bmap &= ~((uint64_t)1 << i);
+
+/* unset from redirectBitmap so sparse allocation work with requestInotuPool */
+/* int64_t state = requestIntoPool(ascr, i->xid */
+/* copy old into new, drop old, swap pixmap unless GBM, signal transfer asynch */
+    }
+
+/* need to re-request clipboard and mouse cursor */
 }
 
 static Bool arcanDestroyPixmap(PixmapPtr pixmap)
@@ -1924,8 +1992,10 @@ static PixmapPtr arcanCompNewPixmap(WindowPtr pWin, int x, int y, int w, int h)
 /* This gives us STEPFRAME events latched to frame delivery and combines with
  * the CLOCKREQ events when the segment is added to the pool. Combined it gives
  * us events with feedback on MSC and VBLANK to hook into present feedback. */
-    if (arcanConfigPriv.present)
+    if (arcanConfigPriv.present){
         C->hints |= SHMIF_RHINT_VSIGNAL_EV;
+        setAprivVblankPresent(C, C->user, true);
+    }
 
     arcan_shmif_resize(C, w, h);
     arcan_shmif_dirty(C, 0, 0, w, h, 0);
@@ -2483,43 +2553,7 @@ int arcanInit(void)
 #endif
     });
 
-/* request a cursor and a clipboard, if they arrive we initialize that code
- * as well, otherwise we have our own implementation of save-under + cursor
- * bitblit */
-    if (!arcanConfigPriv.soft_mouse)
-        arcan_shmif_enqueue(con, &(struct arcan_event){
-            .ext.kind = ARCAN_EVENT(SEGREQ),
-            .ext.segreq.width = 32,
-            .ext.segreq.height = 32,
-            .ext.segreq.kind = SEGID_CURSOR,
-            .ext.segreq.id = CURSOR_REQUEST_ID
-        });
-    else
-        arcan_shmif_enqueue(con, &(arcan_event){
-            .ext.kind = ARCAN_EVENT(CURSORHINT),
-            .ext.message.data = "hidden"
-        });
-
-    arcan_shmif_enqueue(con, &(struct arcan_event){
-        .ext.kind = ARCAN_EVENT(SEGREQ),
-        .ext.segreq.width = 32,
-        .ext.segreq.height = 32,
-        .ext.segreq.kind = SEGID_CLIPBOARD,
-        .ext.segreq.id = CLIPBOARD_REQUEST_ID
-    });
-
-/* announce a 'dot' and 'svg' exported file extensions for getting a snapshot
- * of the window tree in order to make debugging much less painful */
-    arcan_shmif_enqueue(con, &(struct arcan_event){
-        .ext.kind = ARCAN_EVENT(BCHUNKSTATE),
-        .category = EVENT_EXTERNAL,
-        .ext.bchunk = {
-                       .input = false,
-                       .hint  = 0,
-                       .extensions = "dot;svg"
-                      }
-    });
-
+    announceRequestBuiltins(con);
     arcan_shmif_setprimary(SHMIF_INPUT, con);
 
     return 1;
@@ -3252,14 +3286,24 @@ updateWindowFocus(WindowPtr wnd, bool focus)
     );
 }
 
+enum {
+    STEP_VBLANK = 1,
+    STEP_PRESENT = 2,
+    STEP_DELIVERY = 0
+};
+
 static void
-flushPendingPresent(WindowPtr wnd)
+flushPendingPresent(WindowPtr wnd, int type, uint64_t msc)
 {
     if (!arcanConfigPriv.present)
         return;
 
     struct xa_present_window* pwnd = xa_present_window_priv(wnd);
-    xa_present_frame_callback(pwnd);
+    if (!pwnd)
+        return;
+
+    if (msc)
+        xa_present_msc_bump(pwnd, msc);
 }
 
 void
@@ -3275,9 +3319,7 @@ arcanFlushRedirectedEvents(int fd, int mask, void *tag)
  * on the window position to go from relative to absolute. We can also go from
  * io.dst -> XID and explicilty queue to client without going through the
  * normal loop as a way of evading logging. */
-
     input_lock();
-    flushPendingPresent(P->window);
 
     while ((rv = arcan_shmif_poll(C, &ev)) > 0){
         if (!P->window)
@@ -3300,7 +3342,7 @@ arcanFlushRedirectedEvents(int fd, int mask, void *tag)
             if (hh && hw && (hw != C->w || hh != C->h)){
                 trace("segmentResized(%d,%d)", hw, hh);
                 cmdReconfigureWindow(0, 0, hw, hh, false, P->window->drawable.id);
-                flushPendingPresent(P->window);
+/*              flushPendingPresent(P->window); */
             }
         }
         break;
@@ -3308,7 +3350,7 @@ arcanFlushRedirectedEvents(int fd, int mask, void *tag)
 /* Still incomplete as we need changes to upstream Arcan for the last, this
  * blocks -redirect -present -glamor -exec from working completely. */
         case TARGET_COMMAND_STEPFRAME:{
-            flushPendingPresent(P->window);
+            flushPendingPresent(P->window, ev.tgt.ioevs[1].iv, ev.tgt.ioevs[2].uiv);
         }
 
         case TARGET_COMMAND_OUTPUTHINT:

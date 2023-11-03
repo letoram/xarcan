@@ -50,7 +50,7 @@ typedef struct _arcanPixmapPriv {
 typedef struct _arcanShmifPriv {
     PixmapPtr pixmap;
     WindowPtr window;
-    bool bound;
+    bool bound, vblank, present;
     unsigned long long dying;
 } arcanShmifPriv;
 
