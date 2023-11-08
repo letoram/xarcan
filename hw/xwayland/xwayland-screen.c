@@ -167,11 +167,32 @@ xwl_property_callback(CallbackListPtr *pcbl, void *closure,
         xwl_window_update_property(xwl_window, rec);
 }
 
+#define readOnlyPropertyAccessMask (DixReadAccess |\
+                                    DixGetAttrAccess |\
+                                    DixListPropAccess |\
+                                    DixGetPropAccess)
+
 static void
 xwl_access_property_callback(CallbackListPtr *pcbl, void *closure,
                              void *calldata)
 {
+    XacePropertyAccessRec *rec = calldata;
+    PropertyPtr prop = *rec->ppProp;
+    ClientPtr client = rec->client;
+    Mask access_mode = rec->access_mode;
+    ScreenPtr pScreen = closure;
+    struct xwl_screen *xwl_screen = xwl_screen_get(pScreen);
+
+    if (prop->propertyName == xwl_screen->allow_commits_prop) {
+        /* Only the WM and the Xserver itself */
+        if (client != serverClient &&
+            client->index != xwl_screen->wm_client_id &&
+            (access_mode & ~readOnlyPropertyAccessMask) != 0)
+            rec->status = BadAccess;
+    }
 }
+
+#undef readOnlyPropertyAccessMask
 
 static void
 xwl_root_window_finalized_callback(CallbackListPtr *pcbl,
