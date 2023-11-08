@@ -41,6 +41,7 @@
 #include <dixstruct.h>
 #include <propertyst.h>
 #include <inputstr.h>
+#include <xacestr.h>
 #include <xserver_poll.h>
 
 #include "xwayland-cursor.h"
@@ -167,6 +168,12 @@ xwl_property_callback(CallbackListPtr *pcbl, void *closure,
 }
 
 static void
+xwl_access_property_callback(CallbackListPtr *pcbl, void *closure,
+                             void *calldata)
+{
+}
+
+static void
 xwl_root_window_finalized_callback(CallbackListPtr *pcbl,
                                    void *closure,
                                    void *calldata)
@@ -195,6 +202,7 @@ xwl_close_screen(ScreenPtr screen)
     xwl_dmabuf_feedback_destroy(&xwl_screen->default_feedback);
 
     DeleteCallback(&PropertyStateCallback, xwl_property_callback, screen);
+    XaceDeleteCallback(XACE_PROPERTY_ACCESS, xwl_access_property_callback, screen);
 
     xorg_list_for_each_entry_safe(xwl_output, next_xwl_output,
                                   &xwl_screen->output_list, link)
@@ -1027,6 +1035,7 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
 
     AddCallback(&PropertyStateCallback, xwl_property_callback, pScreen);
     AddCallback(&RootWindowFinalizeCallback, xwl_root_window_finalized_callback, pScreen);
+    XaceRegisterCallback(XACE_PROPERTY_ACCESS, xwl_access_property_callback, pScreen);
 
     xwl_screen_setup_custom_vector(xwl_screen);
 
