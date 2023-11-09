@@ -789,13 +789,16 @@ xdg_toplevel_handle_configure(void *data,
                               struct wl_array *states)
 {
     struct xwl_window *xwl_window = data;
+    struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
 
     /* Maintain our current size if no dimensions are requested */
     if (width == 0 && height == 0)
         return;
 
-    /* This will be committed by the xdg_surface.configure handler */
-    xwl_window_maybe_resize(xwl_window, width, height);
+    if (!xwl_screen->fullscreen) {
+        /* This will be committed by the xdg_surface.configure handler */
+        xwl_window_maybe_resize(xwl_window, width, height);
+    }
 }
 
 static void
