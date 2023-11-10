@@ -135,7 +135,8 @@ Bool xwl_window_has_viewport_enabled(struct xwl_window *xwl_window);
 Bool xwl_window_is_toplevel(WindowPtr window);
 void xwl_window_check_resolution_change_emulation(struct xwl_window *xwl_window);
 void xwl_window_rootful_update_title(struct xwl_window *xwl_window);
-
+void xwl_window_rootful_update_fullscreen(struct xwl_window *xwl_window,
+                                          struct xwl_output *xwl_output);
 void xwl_window_set_window_pixmap(WindowPtr window, PixmapPtr pixmap);
 
 Bool xwl_realize_window(WindowPtr window);

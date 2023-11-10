@@ -570,6 +570,29 @@ xwl_window_set_fullscreen(struct xwl_window *xwl_window)
 }
 
 void
+xwl_window_rootful_update_fullscreen(struct xwl_window *xwl_window,
+                                     struct xwl_output *xwl_output)
+{
+    struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
+
+    if (!xwl_screen->fullscreen)
+        return;
+
+    if (xwl_window->window != xwl_screen->screen->root)
+        return;
+
+    if (xwl_window->wl_output_fullscreen != xwl_output->output)
+        return;
+
+    /* The size and position of the output may have changed, clear our
+     * output to make sure the next call to xwl_window_set_fullscreen()
+     * recomputes the size and updates the viewport as needed.
+     */
+    xwl_window->wl_output_fullscreen = NULL;
+    xwl_window_set_fullscreen(xwl_window);
+}
+
+void
 xwl_window_rootful_update_title(struct xwl_window *xwl_window)
 {
     struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
