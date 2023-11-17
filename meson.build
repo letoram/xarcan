@@ -691,7 +691,10 @@ glx_inc = include_directories('glx')
 
 top_dir_inc = include_directories('.')
 
-serverconfigdir = join_paths(get_option('prefix'), get_option('libdir'), 'xorg')
+serverconfigdir = get_option('serverconfigdir')
+if serverconfigdir == ''
+    serverconfigdir = join_paths(get_option('prefix'), get_option('libdir'), 'xorg')
+endif
 
 manpage_config = configuration_data()
 manpage_config.set('vendorversion', '"xorg-server @0@" "X Version 11"'.format(meson.project_version()))
