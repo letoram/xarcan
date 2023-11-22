@@ -69,6 +69,7 @@
 #include "xdg-shell-client-protocol.h"
 #include "xwayland-shell-v1-client-protocol.h"
 #include "tearing-control-v1-client-protocol.h"
+#include "fractional-scale-v1-client-protocol.h"
 
 static DevPrivateKeyRec xwl_screen_private_key;
 static DevPrivateKeyRec xwl_client_private_key;
@@ -506,6 +507,10 @@ registry_global(void *data, struct wl_registry *registry, uint32_t id,
     else if (strcmp(interface, wp_tearing_control_manager_v1_interface.name) == 0) {
         xwl_screen->tearing_control_manager =
             wl_registry_bind(registry, id, &wp_tearing_control_manager_v1_interface, 1);
+    }
+    else if (strcmp(interface, wp_fractional_scale_manager_v1_interface.name) == 0) {
+        xwl_screen->fractional_scale_manager =
+            wl_registry_bind(registry, id, &wp_fractional_scale_manager_v1_interface, 1);
     }
 #ifdef XWL_HAS_GLAMOR
     else if (xwl_screen->glamor) {

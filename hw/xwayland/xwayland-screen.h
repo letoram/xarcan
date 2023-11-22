@@ -111,6 +111,7 @@ struct xwl_screen {
     struct wp_viewporter *viewporter;
     struct xwayland_shell_v1 *xwayland_shell;
     struct wp_tearing_control_manager_v1 *tearing_control_manager;
+    struct wp_fractional_scale_manager_v1 *fractional_scale_manager;
     struct xorg_list drm_lease_devices;
     struct xorg_list queued_drm_lease_devices;
     struct xorg_list drm_leases;
