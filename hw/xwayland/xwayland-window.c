@@ -264,10 +264,13 @@ xwl_window_disable_viewport(struct xwl_window *xwl_window)
     xwl_window->viewport_scale_y = 1.0;
 }
 
+/* Enable the viewport for Xwayland rootful fullscreen, to match the XRandR
+ * resolution with the actual output size.
+ */
 static void
-xwl_window_enable_viewport(struct xwl_window *xwl_window,
-                           struct xwl_output *xwl_output,
-                           struct xwl_emulated_mode *emulated_mode)
+xwl_window_enable_viewport_for_output(struct xwl_window *xwl_window,
+                                      struct xwl_output *xwl_output,
+                                      struct xwl_emulated_mode *emulated_mode)
 {
     struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
     int width, height;
@@ -438,7 +441,7 @@ xwl_window_check_resolution_change_emulation(struct xwl_window *xwl_window)
     struct xwl_output *xwl_output;
 
     if (xwl_window_should_enable_viewport(xwl_window, &xwl_output, &emulated_mode))
-        xwl_window_enable_viewport(xwl_window, xwl_output, &emulated_mode);
+        xwl_window_enable_viewport_for_output(xwl_window, xwl_output, &emulated_mode);
     else if (xwl_window_has_viewport_enabled(xwl_window))
         xwl_window_disable_viewport(xwl_window);
 }
