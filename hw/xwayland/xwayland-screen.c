@@ -448,7 +448,7 @@ registry_global(void *data, struct wl_registry *registry, uint32_t id,
 {
     struct xwl_screen *xwl_screen = data;
 
-    if (strcmp(interface, "wl_compositor") == 0) {
+    if (strcmp(interface, wl_compositor_interface.name) == 0) {
         uint32_t request_version = 1;
 
         if (version >= WL_SURFACE_DAMAGE_BUFFER_SINCE_VERSION)
@@ -457,28 +457,28 @@ registry_global(void *data, struct wl_registry *registry, uint32_t id,
         xwl_screen->compositor =
             wl_registry_bind(registry, id, &wl_compositor_interface, request_version);
     }
-    else if (strcmp(interface, "wl_shm") == 0) {
+    else if (strcmp(interface, wl_shm_interface.name) == 0) {
         xwl_screen->shm = wl_registry_bind(registry, id, &wl_shm_interface, 1);
     }
-    else if (strcmp(interface, "xdg_wm_base") == 0) {
+    else if (strcmp(interface, xdg_wm_base_interface.name) == 0) {
         xwl_screen->xdg_wm_base =
             wl_registry_bind(registry, id, &xdg_wm_base_interface, 1);
         xdg_wm_base_add_listener(xwl_screen->xdg_wm_base,
                                  &xdg_wm_base_listener,
                                  NULL);
     }
-    else if (strcmp(interface, "wl_output") == 0 && version >= 2) {
+    else if (strcmp(interface, wl_output_interface.name) == 0 && version >= 2) {
         if (xwl_output_create(xwl_screen, id, (xwl_screen->fixed_output == NULL), version))
             xwl_screen->expecting_event++;
     }
-    else if (strcmp(interface, "zxdg_output_manager_v1") == 0) {
+    else if (strcmp(interface, zxdg_output_manager_v1_interface.name) == 0) {
         /* We support xdg-output from version 1 to version 3 */
         version = min(version, 3);
         xwl_screen->xdg_output_manager =
             wl_registry_bind(registry, id, &zxdg_output_manager_v1_interface, version);
         xwl_screen_init_xdg_output(xwl_screen);
     }
-    else if (strcmp(interface, "wp_drm_lease_device_v1") == 0) {
+    else if (strcmp(interface, wp_drm_lease_device_v1_interface.name) == 0) {
         if (xwl_screen->screen->root == NULL) {
             struct xwl_queued_drm_lease_device *queued = malloc(sizeof(struct xwl_queued_drm_lease_device));
             queued->id = id;
@@ -487,14 +487,14 @@ registry_global(void *data, struct wl_registry *registry, uint32_t id,
             xwl_screen_add_drm_lease_device(xwl_screen, id);
         }
     }
-    else if (strcmp(interface, "wp_viewporter") == 0) {
+    else if (strcmp(interface, wp_viewporter_interface.name) == 0) {
         xwl_screen->viewporter = wl_registry_bind(registry, id, &wp_viewporter_interface, 1);
     }
-    else if (strcmp(interface, "xwayland_shell_v1") == 0 && xwl_screen->rootless) {
+    else if (strcmp(interface, xwayland_shell_v1_interface.name) == 0 && xwl_screen->rootless) {
         xwl_screen->xwayland_shell =
             wl_registry_bind(registry, id, &xwayland_shell_v1_interface, 1);
     }
-    else if (strcmp(interface, "wp_tearing_control_manager_v1") == 0) {
+    else if (strcmp(interface, wp_tearing_control_manager_v1_interface.name) == 0) {
         xwl_screen->tearing_control_manager =
             wl_registry_bind(registry, id, &wp_tearing_control_manager_v1_interface, 1);
     }

@@ -663,7 +663,7 @@ xwl_glamor_eglstream_init_wl_registry(struct xwl_screen *xwl_screen,
     struct xwl_eglstream_private *xwl_eglstream =
         xwl_eglstream_get(xwl_screen);
 
-    if (strcmp(name, "wl_eglstream_display") == 0) {
+    if (strcmp(name, wl_eglstream_display_interface.name) == 0) {
         xwl_eglstream->display = wl_registry_bind(
             wl_registry, id, &wl_eglstream_display_interface, version);
 
@@ -671,11 +671,11 @@ xwl_glamor_eglstream_init_wl_registry(struct xwl_screen *xwl_screen,
                                           &eglstream_display_listener,
                                           xwl_screen);
         return TRUE;
-    } else if (strcmp(name, "wl_eglstream_controller") == 0) {
+    } else if (strcmp(name, wl_eglstream_controller_interface.name) == 0) {
         xwl_eglstream->controller = wl_registry_bind(
             wl_registry, id, &wl_eglstream_controller_interface, version);
         return TRUE;
-    } else if (strcmp(name, "zwp_linux_dmabuf_v1") == 0) {
+    } else if (strcmp(name, zwp_linux_dmabuf_v1_interface.name) == 0) {
         xwl_screen_set_dmabuf_interface(xwl_screen, id, version);
         return TRUE;
     }

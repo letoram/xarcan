@@ -3025,22 +3025,22 @@ input_handler(void *data, struct wl_registry *registry, uint32_t id,
 {
     struct xwl_screen *xwl_screen = data;
 
-    if (strcmp(interface, "wl_seat") == 0 && version >= 3) {
+    if (strcmp(interface, wl_seat_interface.name) == 0 && version >= 3) {
         create_input_device(xwl_screen, id, version);
         xwl_screen->expecting_event++;
-    } else if (strcmp(interface, "zwp_relative_pointer_manager_v1") == 0) {
+    } else if (strcmp(interface, zwp_relative_pointer_manager_v1_interface.name) == 0) {
         init_relative_pointer_manager(xwl_screen, id, version);
         maybe_init_relative_pointer_listeners_after_capabilities(xwl_screen);
-    } else if (strcmp(interface, "zwp_pointer_constraints_v1") == 0) {
+    } else if (strcmp(interface, zwp_pointer_constraints_v1_interface.name) == 0) {
         init_pointer_constraints(xwl_screen, id, version);
-    } else if (strcmp(interface, "zwp_pointer_gestures_v1") == 0) {
+    } else if (strcmp(interface, zwp_pointer_gestures_v1_interface.name) == 0) {
         init_pointer_gestures(xwl_screen, id, version);
         maybe_init_pointer_gesture_listeners_after_capabilities(xwl_screen);
-    } else if (strcmp(interface, "zwp_tablet_manager_v2") == 0) {
+    } else if (strcmp(interface, zwp_tablet_manager_v2_interface.name) == 0) {
         init_tablet_manager(xwl_screen, id, version);
-    } else if (strcmp(interface, "zwp_xwayland_keyboard_grab_manager_v1") == 0) {
+    } else if (strcmp(interface, zwp_xwayland_keyboard_grab_manager_v1_interface.name) == 0) {
         init_keyboard_grab(xwl_screen, id, version);
-    } else if (strcmp(interface, "zwp_keyboard_shortcuts_inhibit_manager_v1") == 0) {
+    } else if (strcmp(interface, zwp_keyboard_shortcuts_inhibit_manager_v1_interface.name) == 0) {
         init_keyboard_shortcuts_inhibit(xwl_screen, id, version);
     }
 }

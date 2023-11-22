@@ -1004,10 +1004,10 @@ xwl_glamor_gbm_init_wl_registry(struct xwl_screen *xwl_screen,
                                 uint32_t id, const char *name,
                                 uint32_t version)
 {
-    if (strcmp(name, "wl_drm") == 0) {
+    if (strcmp(name, wl_drm_interface.name) == 0) {
         xwl_screen_set_drm_interface(xwl_screen, id, version);
         return TRUE;
-    } else if (strcmp(name, "zwp_linux_dmabuf_v1") == 0) {
+    } else if (strcmp(name, zwp_linux_dmabuf_v1_interface.name) == 0) {
         xwl_screen_set_dmabuf_interface(xwl_screen, id, version);
         return TRUE;
     }
