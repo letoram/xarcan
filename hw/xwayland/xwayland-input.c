@@ -313,6 +313,13 @@ xwl_pointer_proc_pointer_gestures(DeviceIntPtr device, int what)
         axes_labels[0] = XIGetKnownProperty(AXIS_LABEL_PROP_REL_X);
         axes_labels[1] = XIGetKnownProperty(AXIS_LABEL_PROP_REL_Y);
 
+        /*
+         * We'll never send buttons, but XGetPointerMapping might in certain
+         * situations make the client think we have no buttons.
+         */
+        if (!init_pointer_buttons(device))
+            return BadValue;
+
         if (!InitValuatorClassDeviceStruct(device, NAXES, axes_labels,
                                            GetMotionHistorySize(), Relative))
             return BadValue;
