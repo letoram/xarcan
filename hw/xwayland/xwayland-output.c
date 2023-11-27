@@ -891,6 +891,7 @@ xwl_output_create(struct xwl_screen *xwl_screen, uint32_t id,
 
     xwl_output->server_output_id = id;
     wl_output_add_listener(xwl_output->output, &output_listener, xwl_output);
+    xwl_output->xscale = 1.0;
 
     xwl_output->xwl_screen = xwl_screen;
 
@@ -1141,6 +1142,12 @@ mode_sort(const void *left, const void *right)
     return (*mode_b)->mode.width - (*mode_a)->mode.width;
 }
 
+void
+xwl_output_set_xscale(struct xwl_output *xwl_output, double xscale)
+{
+    xwl_output->xscale = xscale;
+}
+
 Bool
 xwl_randr_add_modes_fixed(struct xwl_output *xwl_output,
                           int current_width, int current_height)
@@ -1198,7 +1205,9 @@ xwl_output_set_mode_fixed(struct xwl_output *xwl_output, RRModePtr mode)
     xwl_output->mode_width = mode->mode.width;
     xwl_output->mode_height = mode->mode.height;
 
-    update_screen_size(xwl_screen, mode->mode.width, mode->mode.height);
+    update_screen_size(xwl_screen,
+                       round((double) mode->mode.width * xwl_output->xscale),
+                       round((double) mode->mode.height * xwl_output->xscale));
 
     RRCrtcNotify(xwl_output->randr_crtc, mode, 0, 0, RR_Rotate_0,
                  NULL, 1, &xwl_output->randr_output);
@@ -1275,6 +1284,7 @@ xwl_screen_init_randr_fixed(struct xwl_screen *xwl_screen)
 
     xwl_output->xwl_screen = xwl_screen;
     xwl_screen->fixed_output = xwl_output;
+    xwl_output->xscale = 1.0;
 
     return TRUE;
 

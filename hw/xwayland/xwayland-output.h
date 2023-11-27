@@ -55,6 +55,7 @@ struct xwl_output {
     uint32_t server_output_id;
     int32_t x, y, width, height, refresh;
     int32_t mode_width, mode_height;
+    double xscale; /* Effective scale, can be fractional */
     Rotation rotation;
     Bool wl_output_done;
     Bool xdg_output_done;
@@ -77,6 +78,9 @@ struct xwl_emulated_mode {
 Bool xwl_screen_init_output(struct xwl_screen *xwl_screen);
 
 Bool xwl_screen_init_randr_fixed(struct xwl_screen *xwl_screen);
+
+void
+xwl_output_set_xscale(struct xwl_output *xwl_output, double xscale);
 
 Bool
 xwl_randr_add_modes_fixed(struct xwl_output *xwl_output,
