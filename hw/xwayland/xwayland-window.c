@@ -27,6 +27,7 @@
 #include <dix-config.h>
 #endif
 
+#include <float.h>
 #include <math.h>
 #include <sys/mman.h>
 
@@ -53,6 +54,7 @@
 #include "viewporter-client-protocol.h"
 #include "xdg-shell-client-protocol.h"
 #include "xwayland-shell-v1-client-protocol.h"
+#include "fractional-scale-v1-client-protocol.h"
 
 #define DELAYED_WL_SURFACE_DESTROY 1000 /* ms */
 
@@ -60,6 +62,8 @@
 #define MAX_ROOTFUL_HEIGHT 32767
 #define MIN_ROOTFUL_WIDTH 320
 #define MIN_ROOTFUL_HEIGHT 200
+
+#define FRACTIONAL_SCALE_DENOMINATOR 120
 
 static DevPrivateKeyRec xwl_window_private_key;
 static DevPrivateKeyRec xwl_damage_private_key;
@@ -247,6 +251,24 @@ unregister_damage(WindowPtr window)
 }
 
 static Bool
+xwl_window_update_fractional_scale(struct xwl_window *xwl_window,
+                                   int fractional_scale_numerator)
+{
+    int old_scale_numerator = xwl_window->fractional_scale_numerator;
+
+    xwl_window->fractional_scale_numerator = fractional_scale_numerator;
+
+    return (old_scale_numerator != fractional_scale_numerator);
+}
+
+static double
+xwl_window_get_fractional_scale_factor(struct xwl_window *xwl_window)
+{
+    return (double) xwl_window->fractional_scale_numerator /
+           (double) FRACTIONAL_SCALE_DENOMINATOR;
+}
+
+static Bool
 xwl_window_has_viewport_enabled(struct xwl_window *xwl_window)
 {
     return (xwl_window->viewport != NULL);
@@ -262,6 +284,42 @@ xwl_window_disable_viewport(struct xwl_window *xwl_window)
     xwl_window->viewport = NULL;
     xwl_window->viewport_scale_x = 1.0;
     xwl_window->viewport_scale_y = 1.0;
+}
+
+/* Enable the viewport for fractional scale support with Xwayland rootful.
+ * Fractional scale support is not used with Xwayland rootful fullscreen (which
+ * sets its own XRandR resolution) so we can use the viewport for either
+ * fullscreen mode or fractional scale.
+ */
+static void
+xwl_window_enable_viewport_for_fractional_scale(struct xwl_window *xwl_window,
+                                                int width, int height)
+{
+    struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
+    int buffer_width, buffer_height;
+    double scale;
+
+    scale = xwl_window_get_fractional_scale_factor(xwl_window);
+    buffer_width = round((double) width / scale);
+    buffer_height = round((double) height / scale);
+
+    if (!xwl_window_has_viewport_enabled(xwl_window))
+        xwl_window->viewport = wp_viewporter_get_viewport(xwl_screen->viewporter,
+                                                          xwl_window->surface);
+
+    DebugF("XWAYLAND: enabling viewport for fractional scale %dx%d -> %dx%d\n",
+           width, height, buffer_width, buffer_height);
+    wp_viewport_set_source(xwl_window->viewport,
+                           wl_fixed_from_int(0),
+                           wl_fixed_from_int(0),
+                           wl_fixed_from_int(width),
+                           wl_fixed_from_int(height));
+    wp_viewport_set_destination(xwl_window->viewport,
+                                buffer_width,
+                                buffer_height);
+
+    xwl_window->viewport_scale_x = scale;
+    xwl_window->viewport_scale_y = scale;
 }
 
 /* Enable the viewport for Xwayland rootful fullscreen, to match the XRandR
@@ -434,6 +492,35 @@ xwl_window_should_enable_viewport(struct xwl_window *xwl_window,
     return FALSE;
 }
 
+static Bool
+xwl_window_should_enable_fractional_scale_viewport(struct xwl_window *xwl_window)
+{
+    struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
+    double scale;
+
+    if (!xwl_screen_should_use_fractional_scale(xwl_screen))
+        return FALSE;
+
+    scale = xwl_window_get_fractional_scale_factor(xwl_window);
+
+    return fabs(scale - 1.00) > FLT_EPSILON;
+}
+
+static void
+xwl_window_check_fractional_scale_viewport(struct xwl_window *xwl_window,
+                                           int width, int height)
+{
+    struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
+
+    if (!xwl_screen_should_use_fractional_scale(xwl_screen))
+        return;
+
+    if (xwl_window_should_enable_fractional_scale_viewport(xwl_window))
+        xwl_window_enable_viewport_for_fractional_scale(xwl_window, width, height);
+    else if (xwl_window_has_viewport_enabled(xwl_window))
+        xwl_window_disable_viewport(xwl_window);
+}
+
 void
 xwl_window_check_resolution_change_emulation(struct xwl_window *xwl_window)
 {
@@ -442,6 +529,8 @@ xwl_window_check_resolution_change_emulation(struct xwl_window *xwl_window)
 
     if (xwl_window_should_enable_viewport(xwl_window, &xwl_output, &emulated_mode))
         xwl_window_enable_viewport_for_output(xwl_window, xwl_output, &emulated_mode);
+    else if (xwl_window_should_enable_fractional_scale_viewport(xwl_window))
+        return;
     else if (xwl_window_has_viewport_enabled(xwl_window))
         xwl_window_disable_viewport(xwl_window);
 }
@@ -673,6 +762,13 @@ xwl_window_maybe_resize(struct xwl_window *xwl_window, double width, double heig
     xwl_screen->width = width;
     xwl_screen->height = height;
 
+    /* When fractional scale is used, the global surface scale is 1, and vice
+     * versa, so we can multiply the two here, and have the resulting scale
+     * apply for both cases, the legacy wl_surface buffer scale and fractional
+     * scaling.
+     */
+    scale *= xwl_window_get_fractional_scale_factor(xwl_window);
+
     xwl_output = xwl_screen_get_fixed_or_first_output(xwl_screen);
     if (!xwl_randr_add_modes_fixed(xwl_output, round(width / scale), round(height / scale)))
         return;
@@ -707,9 +803,12 @@ xwl_window_update_libdecor_size(struct xwl_window *xwl_window,
                                 int width, int height)
 {
     struct libdecor_state *state;
+    double scale;
 
     if (xwl_window->libdecor_frame) {
-	state = libdecor_state_new(width, height);
+	scale = xwl_window_get_fractional_scale_factor(xwl_window);
+	state = libdecor_state_new(round((double) width / scale),
+	                           round((double) height / scale));
 	libdecor_frame_commit(xwl_window->libdecor_frame, state, configuration);
 	libdecor_state_free(state);
     }
@@ -724,6 +823,7 @@ handle_libdecor_configure(struct libdecor_frame *frame,
     struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
     int width, height;
     double new_width, new_height;
+    double scale;
 
     if (libdecor_configuration_get_content_size(configuration, frame, &width, &height)) {
         new_width = (double) width;
@@ -736,6 +836,10 @@ handle_libdecor_configure(struct libdecor_frame *frame,
 
     new_width *= xwl_screen->global_surface_scale;
     new_height *= xwl_screen->global_surface_scale;
+
+    scale = xwl_window_get_fractional_scale_factor(xwl_window);
+    new_width *= scale;
+    new_height *= scale;
 
     xwl_window_maybe_resize(xwl_window, new_width, new_height);
 
@@ -941,15 +1045,20 @@ xdg_toplevel_handle_configure(void *data,
     struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
     uint32_t *p;
     Bool old_active = xwl_screen->active;
-    int new_width, new_height;
+    double scale, new_width, new_height;
 
     /* Maintain our current size if no dimensions are requested */
     if (width == 0 && height == 0)
         return;
 
     if (!xwl_screen->fullscreen) {
-        new_width = width * xwl_screen->global_surface_scale;
-        new_height = height * xwl_screen->global_surface_scale;
+        new_width = (double) (width * xwl_screen->global_surface_scale);
+        new_height = (double) (height * xwl_screen->global_surface_scale);
+
+        scale = xwl_window_get_fractional_scale_factor(xwl_window);
+        new_width *= scale;
+        new_height *= scale;
+
         /* This will be committed by the xdg_surface.configure handler */
         xwl_window_maybe_resize(xwl_window, new_width, new_height);
     }
@@ -980,6 +1089,58 @@ xdg_toplevel_handle_close(void *data,
 static const struct xdg_toplevel_listener xdg_toplevel_listener = {
     xdg_toplevel_handle_configure,
     xdg_toplevel_handle_close,
+};
+
+static void
+xwl_window_update_rootful_scale(struct xwl_window *xwl_window, double previous_scale)
+{
+    struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
+    double new_scale, new_width, new_height;
+
+    new_scale = xwl_window_get_fractional_scale_factor(xwl_window);
+    new_width = xwl_screen->width / previous_scale * new_scale;
+    new_height = xwl_screen->height / previous_scale * new_scale;
+
+    DebugF("XWAYLAND: Fractional scale is now %.2f (was %.2f)\n",
+           new_scale, previous_scale);
+
+    xwl_output_set_xscale(xwl_screen->fixed_output, new_scale);
+    xwl_window_maybe_resize(xwl_window, new_width, new_height);
+    xwl_window_check_fractional_scale_viewport(xwl_window,
+                                               xwl_screen_get_width(xwl_screen),
+                                               xwl_screen_get_height(xwl_screen));
+
+#ifdef XWL_HAS_LIBDECOR
+    if (xwl_window->libdecor_frame) {
+        xwl_window_libdecor_set_size_limits(xwl_window);
+        xwl_window_update_libdecor_size(xwl_window,
+                                        NULL,
+                                        xwl_screen_get_width(xwl_screen),
+                                        xwl_screen_get_height(xwl_screen));
+    }
+    else
+#endif
+        wl_surface_commit(xwl_window->surface);
+}
+
+static void
+wp_fractional_scale_preferred_scale(void *data,
+                                    struct wp_fractional_scale_v1 *fractional_scale,
+                                    uint32_t scale_numerator)
+{
+    struct xwl_window *xwl_window = data;
+    struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
+    double previous_scale = xwl_window_get_fractional_scale_factor(xwl_window);
+
+    if (xwl_window_update_fractional_scale(xwl_window, scale_numerator)) {
+        if (xwl_screen->fixed_output) { /* We're running rootful */
+            xwl_window_update_rootful_scale(xwl_window, previous_scale);
+        }
+    }
+}
+
+static const struct wp_fractional_scale_v1_listener fractional_scale_listener = {
+   wp_fractional_scale_preferred_scale,
 };
 
 static Bool
@@ -1027,6 +1188,14 @@ xwl_create_root_surface(struct xwl_window *xwl_window)
 
     wl_surface_add_listener(xwl_window->surface,
                             &surface_listener, xwl_window);
+
+    if (xwl_screen_should_use_fractional_scale(xwl_screen)) {
+        xwl_window->fractional_scale =
+            wp_fractional_scale_manager_v1_get_fractional_scale(xwl_screen->fractional_scale_manager,
+                                                                xwl_window->surface);
+        wp_fractional_scale_v1_add_listener(xwl_window->fractional_scale,
+                                            &fractional_scale_listener, xwl_window);
+    }
 
     xwl_window_rootful_update_title(xwl_window);
     xwl_window_rootful_set_app_id(xwl_window);
@@ -1083,8 +1252,10 @@ ensure_surface_for_window(WindowPtr window)
 
     xwl_window->xwl_screen = xwl_screen;
     xwl_window->window = window;
+    xwl_window->fractional_scale_numerator = FRACTIONAL_SCALE_DENOMINATOR;
     xwl_window->viewport_scale_x = 1.0;
     xwl_window->viewport_scale_y = 1.0;
+    xwl_window->surface_scale = 1;
     xorg_list_init(&xwl_window->xwl_output_list);
     xwl_window->surface = wl_compositor_create_surface(xwl_screen->compositor);
     if (xwl_window->surface == NULL) {
@@ -1322,6 +1493,9 @@ xwl_unrealize_window(WindowPtr window)
     if (xwl_window->tearing_control)
         wp_tearing_control_v1_destroy(xwl_window->tearing_control);
 
+    if (xwl_window->fractional_scale)
+        wp_fractional_scale_v1_destroy(xwl_window->fractional_scale);
+
     release_wl_surface_for_window(xwl_window);
     xorg_list_del(&xwl_window->link_damage);
     xorg_list_del(&xwl_window->link_window);
@@ -1419,16 +1593,17 @@ xwl_resize_window(WindowPtr window,
     if (xwl_window) {
         if (xwl_window_get(window) || xwl_window_is_toplevel(window))
             xwl_window_check_resolution_change_emulation(xwl_window);
-#ifdef XWL_HAS_LIBDECOR
         if (window == screen->root) {
+#ifdef XWL_HAS_LIBDECOR
             unsigned int decor_width, decor_height;
 
             decor_width = width / xwl_screen->global_surface_scale;
             decor_height = height / xwl_screen->global_surface_scale;
             xwl_window_update_libdecor_size(xwl_window, NULL,
                                             decor_width, decor_height);
-        }
 #endif
+            xwl_window_check_fractional_scale_viewport(xwl_window, width, height);
+        }
     }
 }
 

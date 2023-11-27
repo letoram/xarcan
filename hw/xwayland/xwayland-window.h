@@ -82,6 +82,8 @@ struct xwl_window {
     /* If TRUE, the window buffer format supports scanout with implicit modifier */
     Bool has_implicit_scanout_support;
     struct wp_tearing_control_v1 *tearing_control;
+    struct wp_fractional_scale_v1 *fractional_scale;
+    int fractional_scale_numerator;
 };
 
 struct xwl_window *xwl_window_get(WindowPtr window);
