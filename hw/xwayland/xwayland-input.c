@@ -663,10 +663,8 @@ dispatch_absolute_motion(struct xwl_seat *xwl_seat)
     event_x *= xwl_screen->global_surface_scale;
     event_y *= xwl_screen->global_surface_scale;
 
-    if (xwl_window_has_viewport_enabled(xwl_seat->focus_window)) {
-        event_x *= xwl_seat->focus_window->viewport_scale_x;
-        event_y *= xwl_seat->focus_window->viewport_scale_y;
-    }
+    event_x *= xwl_seat->focus_window->viewport_scale_x;
+    event_y *= xwl_seat->focus_window->viewport_scale_y;
 
     x = drawable_x + event_x;
     y = drawable_y + event_y;

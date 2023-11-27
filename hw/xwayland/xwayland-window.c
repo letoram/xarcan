@@ -260,6 +260,8 @@ xwl_window_disable_viewport(struct xwl_window *xwl_window)
     DebugF("XWAYLAND: disabling viewport\n");
     wp_viewport_destroy(xwl_window->viewport);
     xwl_window->viewport = NULL;
+    xwl_window->viewport_scale_x = 1.0;
+    xwl_window->viewport_scale_y = 1.0;
 }
 
 static void
@@ -977,6 +979,8 @@ ensure_surface_for_window(WindowPtr window)
 
     xwl_window->xwl_screen = xwl_screen;
     xwl_window->window = window;
+    xwl_window->viewport_scale_x = 1.0;
+    xwl_window->viewport_scale_y = 1.0;
     xwl_window->surface = wl_compositor_create_surface(xwl_screen->compositor);
     if (xwl_window->surface == NULL) {
         ErrorF("wl_display_create_surface failed\n");
