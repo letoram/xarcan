@@ -945,6 +945,8 @@ xwl_output_destroy(struct xwl_output *xwl_output)
 {
     if (xwl_output->lease_connector)
         wp_drm_lease_connector_v1_destroy(xwl_output->lease_connector);
+    if (xwl_output->transform)
+        free(xwl_output->transform);
     if (xwl_output->xdg_output)
         zxdg_output_v1_destroy(xwl_output->xdg_output);
     if (xwl_output->output)
@@ -1142,10 +1144,41 @@ mode_sort(const void *left, const void *right)
     return (*mode_b)->mode.width - (*mode_a)->mode.width;
 }
 
+static void
+xwl_output_set_transform(struct xwl_output *xwl_output)
+{
+    pixman_fixed_t transform_xscale;
+    RRModePtr mode;
+
+    mode = xwl_output_find_mode(xwl_output, xwl_output->mode_width, xwl_output->mode_height);
+    if (!mode) {
+        ErrorF("XWAYLAND: Failed to find mode for %ix%i\n",
+               xwl_output->mode_width, xwl_output->mode_height);
+        return;
+    }
+
+    if (xwl_output->transform == NULL) {
+        xwl_output->transform = xnfalloc(sizeof(RRTransformRec));
+        RRTransformInit(xwl_output->transform);
+    }
+
+    transform_xscale = pixman_double_to_fixed(xwl_output->xscale);
+    pixman_transform_init_scale(&xwl_output->transform->transform,
+                                transform_xscale, transform_xscale);
+    pixman_f_transform_init_scale(&xwl_output->transform->f_transform,
+                                  xwl_output->xscale, xwl_output->xscale);
+    pixman_f_transform_invert(&xwl_output->transform->f_inverse,
+                              &xwl_output->transform->f_transform);
+
+    RRCrtcNotify(xwl_output->randr_crtc, mode, 0, 0, RR_Rotate_0,
+                 xwl_output->transform, 1, &xwl_output->randr_output);
+}
+
 void
 xwl_output_set_xscale(struct xwl_output *xwl_output, double xscale)
 {
     xwl_output->xscale = xscale;
+    xwl_output_set_transform(xwl_output);
 }
 
 Bool
@@ -1209,8 +1242,7 @@ xwl_output_set_mode_fixed(struct xwl_output *xwl_output, RRModePtr mode)
                        round((double) mode->mode.width * xwl_output->xscale),
                        round((double) mode->mode.height * xwl_output->xscale));
 
-    RRCrtcNotify(xwl_output->randr_crtc, mode, 0, 0, RR_Rotate_0,
-                 NULL, 1, &xwl_output->randr_output);
+    xwl_output_set_transform(xwl_output);
 }
 
 static Bool
@@ -1264,6 +1296,7 @@ xwl_screen_init_randr_fixed(struct xwl_screen *xwl_screen)
     }
     RRCrtcSetRotations (xwl_output->randr_crtc, RR_Rotate_0);
     RRCrtcGammaSetSize(xwl_output->randr_crtc, 256);
+    RRCrtcSetTransformSupport(xwl_output->randr_crtc, TRUE);
     RROutputSetCrtcs(xwl_output->randr_output, &xwl_output->randr_crtc, 1);
 
     xwl_randr_add_modes_fixed(xwl_output,

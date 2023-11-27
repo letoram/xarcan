@@ -48,6 +48,7 @@ struct xwl_output {
     struct xwl_screen *xwl_screen;
     RROutputPtr randr_output;
     RRCrtcPtr randr_crtc;
+    RRTransformPtr transform;
 
     /* only for regular outputs */
     struct wl_output *output;
