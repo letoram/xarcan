@@ -1155,6 +1155,9 @@ xwl_randr_add_modes_fixed(struct xwl_output *xwl_output,
         return FALSE;
     }
 
+    xwl_output->mode_width = current_width;
+    xwl_output->mode_height = current_height;
+
     nmodes = 0;
     current = 0;
 
@@ -1191,6 +1194,9 @@ void
 xwl_output_set_mode_fixed(struct xwl_output *xwl_output, RRModePtr mode)
 {
     struct xwl_screen *xwl_screen = xwl_output->xwl_screen;
+
+    xwl_output->mode_width = mode->mode.width;
+    xwl_output->mode_height = mode->mode.height;
 
     update_screen_size(xwl_screen, mode->mode.width, mode->mode.height);
 
