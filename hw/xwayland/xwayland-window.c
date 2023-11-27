@@ -246,7 +246,7 @@ unregister_damage(WindowPtr window)
     dixSetPrivate(&window->devPrivates, &xwl_damage_private_key, NULL);
 }
 
-Bool
+static Bool
 xwl_window_has_viewport_enabled(struct xwl_window *xwl_window)
 {
     return (xwl_window->viewport != NULL);
