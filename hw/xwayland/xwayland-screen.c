@@ -774,11 +774,34 @@ xwl_screen_lost_focus(struct xwl_screen *xwl_screen)
 }
 
 Bool
+xwl_screen_should_use_fractional_scale(struct xwl_screen *xwl_screen)
+{
+    /* Fullscreen uses a viewport already */
+    if (xwl_screen->fullscreen)
+        return FALSE;
+
+    if (xwl_screen->rootless)
+        return FALSE;
+
+    /* We need both fractional scale and viewporter protocols */
+    if (!xwl_screen->fractional_scale_manager)
+        return FALSE;
+
+    if (!xwl_screen->viewporter)
+        return FALSE;
+
+    return xwl_screen->hidpi;
+}
+
+Bool
 xwl_screen_update_global_surface_scale(struct xwl_screen *xwl_screen)
 {
     ScreenPtr screen = xwl_screen->screen;
     struct xwl_window *xwl_window;
     int32_t old_scale;
+
+    if (xwl_screen_should_use_fractional_scale(xwl_screen))
+        return FALSE;
 
     if (xwl_screen->rootless)
         return FALSE;
