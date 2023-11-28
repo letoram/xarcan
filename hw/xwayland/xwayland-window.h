@@ -53,7 +53,7 @@ struct xwl_window {
     struct xwl_screen *xwl_screen;
     struct wl_surface *surface;
     struct wp_viewport *viewport;
-    float scale_x, scale_y;
+    float viewport_scale_x, viewport_scale_y;
     struct xdg_surface *xdg_surface;
     struct xdg_toplevel *xdg_toplevel;
     WindowPtr window;

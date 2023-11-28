@@ -290,8 +290,8 @@ xwl_window_enable_viewport(struct xwl_window *xwl_window,
                                 xwl_output->width,
                                 xwl_output->height);
 
-    xwl_window->scale_x = (float) width / xwl_output->width;
-    xwl_window->scale_y = (float) height / xwl_output->height;
+    xwl_window->viewport_scale_x = (float) width / xwl_output->width;
+    xwl_window->viewport_scale_y = (float) height / xwl_output->height;
 }
 
 static Bool
