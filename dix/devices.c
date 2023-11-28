@@ -827,6 +827,14 @@ FreeDeviceClass(int type, void **class)
         free((*t));
         break;
     }
+    case XIGestureClass:
+    {
+        GestureClassPtr *g = (GestureClassPtr *) class;
+
+        GestureFreeGestureInfo(&(*g)->gesture);
+        free((*g));
+        break;
+    }
     case FocusClass:
     {
         FocusClassPtr *f = (FocusClassPtr *) class;
@@ -941,6 +949,7 @@ FreeAllDeviceClasses(ClassesPtr classes)
     FreeDeviceClass(ButtonClass, (void *) &classes->button);
     FreeDeviceClass(FocusClass, (void *) &classes->focus);
     FreeDeviceClass(ProximityClass, (void *) &classes->proximity);
+    FreeDeviceClass(XIGestureClass, (void*) &classes->gesture);
 
     FreeFeedbackClass(KbdFeedbackClass, (void *) &classes->kbdfeed);
     FreeFeedbackClass(PtrFeedbackClass, (void *) &classes->ptrfeed);

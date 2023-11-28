@@ -666,6 +666,7 @@ extern void TouchEmitTouchEnd(DeviceIntPtr dev, TouchPointInfoPtr ti, int flags,
 extern void TouchAcceptAndEnd(DeviceIntPtr dev, int touchid);
 
 extern Bool GestureInitGestureInfo(GestureInfoPtr gesture);
+extern void GestureFreeGestureInfo(GestureInfoPtr gesture);
 extern GestureInfoPtr GestureBeginGesture(DeviceIntPtr dev, InternalEvent *ev);
 extern GestureInfoPtr GestureFindActiveByEventType(DeviceIntPtr dev, int type);
 extern void GestureEndGesture(GestureInfoPtr gi);
