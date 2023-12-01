@@ -683,6 +683,7 @@ xwl_output_set_name(struct xwl_output *xwl_output, const char *name)
     }
 
     snprintf(xwl_output->randr_output->name, MAX_OUTPUT_NAME, "%s", name);
+    xwl_output->randr_output->nameLength = strlen(xwl_output->randr_output->name);
 }
 
 static void
