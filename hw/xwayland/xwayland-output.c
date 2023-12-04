@@ -838,6 +838,27 @@ xwl_output_from_wl_output(struct xwl_screen *xwl_screen,
     return NULL;
 }
 
+
+struct xwl_output *
+xwl_output_get_output_from_name(struct xwl_screen *xwl_screen, const char *name)
+{
+    struct xwl_output *xwl_output;
+
+    if (name == NULL)
+        return NULL;
+
+    xorg_list_for_each_entry(xwl_output, &xwl_screen->output_list, link) {
+        if (xwl_output->randr_output == NULL)
+            continue;
+
+        if (strcmp(xwl_output->randr_output->name, name) == 0) {
+            return xwl_output;
+        }
+    }
+
+    return NULL;
+}
+
 struct xwl_output *
 xwl_output_create(struct xwl_screen *xwl_screen, uint32_t id,
                   Bool connected, uint32_t version)
