@@ -831,7 +831,7 @@ xwl_output_from_wl_output(struct xwl_screen *xwl_screen,
 
 struct xwl_output *
 xwl_output_create(struct xwl_screen *xwl_screen, uint32_t id,
-                  Bool with_xrandr, uint32_t version)
+                  Bool connected, uint32_t version)
 {
     struct xwl_output *xwl_output;
     char name[MAX_OUTPUT_NAME] = { 0 };
@@ -854,31 +854,31 @@ xwl_output_create(struct xwl_screen *xwl_screen, uint32_t id,
 
     xwl_output->xwl_screen = xwl_screen;
 
-    if (with_xrandr) {
-        xwl_output->randr_crtc = RRCrtcCreate(xwl_screen->screen, xwl_output);
-        if (!xwl_output->randr_crtc) {
-            ErrorF("Failed creating RandR CRTC\n");
-            goto err;
-        }
-        RRCrtcSetRotations (xwl_output->randr_crtc, ALL_ROTATIONS);
-
-        /* Allocate MAX_OUTPUT_NAME data for the output name, all filled with zeros */
-        xwl_output->randr_output = RROutputCreate(xwl_screen->screen, name,
-                                                  MAX_OUTPUT_NAME, xwl_output);
-        if (!xwl_output->randr_output) {
-            ErrorF("Failed creating RandR Output\n");
-            goto err;
-        }
-        /* Set the default output name to a sensible value */
-        snprintf(name, MAX_OUTPUT_NAME, "XWAYLAND%d",
-                 xwl_screen_get_next_output_serial(xwl_screen));
-        xwl_output_set_name(xwl_output, name);
-        xwl_output_set_emulated(xwl_output);
-
-        RRCrtcGammaSetSize(xwl_output->randr_crtc, 256);
-        RROutputSetCrtcs(xwl_output->randr_output, &xwl_output->randr_crtc, 1);
-        RROutputSetConnection(xwl_output->randr_output, RR_Connected);
+    xwl_output->randr_crtc = RRCrtcCreate(xwl_screen->screen, xwl_output);
+    if (!xwl_output->randr_crtc) {
+        ErrorF("Failed creating RandR CRTC\n");
+        goto err;
     }
+    RRCrtcSetRotations (xwl_output->randr_crtc, ALL_ROTATIONS);
+
+    /* Allocate MAX_OUTPUT_NAME data for the output name, all filled with zeros */
+    xwl_output->randr_output = RROutputCreate(xwl_screen->screen, name,
+                                              MAX_OUTPUT_NAME, xwl_output);
+    if (!xwl_output->randr_output) {
+        ErrorF("Failed creating RandR Output\n");
+        goto err;
+    }
+    /* Set the default output name to a sensible value */
+    snprintf(name, MAX_OUTPUT_NAME, "XWAYLAND%d",
+             xwl_screen_get_next_output_serial(xwl_screen));
+    xwl_output_set_name(xwl_output, name);
+    xwl_output_set_emulated(xwl_output);
+
+    RRCrtcGammaSetSize(xwl_output->randr_crtc, 256);
+    RROutputSetCrtcs(xwl_output->randr_output, &xwl_output->randr_crtc, 1);
+    RROutputSetConnection(xwl_output->randr_output,
+                          connected ? RR_Connected : RR_Disconnected);
+
     /* We want the output to be in the list as soon as created so we can
      * use it when binding to the xdg-output protocol...
      */

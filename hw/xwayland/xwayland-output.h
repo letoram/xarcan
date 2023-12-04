@@ -88,7 +88,7 @@ struct xwl_output *xwl_output_from_wl_output(struct xwl_screen *xwl_screen,
                                              struct wl_output* wl_output);
 
 struct xwl_output *xwl_output_create(struct xwl_screen *xwl_screen,
-                                     uint32_t id, Bool with_xrandr,
+                                     uint32_t id, Bool connected,
                                      uint32_t version);
 
 void xwl_output_destroy(struct xwl_output *xwl_output);
