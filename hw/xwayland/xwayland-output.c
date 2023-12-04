@@ -598,10 +598,24 @@ xwl_output_set_emulated_mode(struct xwl_output *xwl_output, ClientPtr client,
 }
 
 static void
-apply_output_change(struct xwl_output *xwl_output)
+maybe_update_fullscreen_state(struct xwl_output *xwl_output)
 {
     struct xwl_screen *xwl_screen = xwl_output->xwl_screen;
     struct xwl_window *xwl_window;
+
+    if (xwl_screen->fullscreen) {
+        /* The root window may not yet be created */
+        if (xwl_screen->screen->root) {
+            xwl_window = xwl_window_get(xwl_screen->screen->root);
+            xwl_window_rootful_update_fullscreen(xwl_window, xwl_output);
+        }
+    }
+}
+
+static void
+apply_output_change(struct xwl_output *xwl_output)
+{
+    struct xwl_screen *xwl_screen = xwl_output->xwl_screen;
     struct xwl_output *it;
     int mode_width, mode_height, count;
     int width = 0, height = 0, has_this_output = 0;
@@ -661,13 +675,7 @@ apply_output_change(struct xwl_output *xwl_output)
         RRTellChanged(xwl_screen->screen);
 
     /* If running rootful and fullscreen, make sure to match the new setup */
-    if (xwl_screen->fullscreen) {
-        /* The root window may not yet be created */
-        if (xwl_screen->screen->root) {
-            xwl_window = xwl_window_get(xwl_screen->screen->root);
-            xwl_window_rootful_update_fullscreen(xwl_window, xwl_output);
-        }
-    }
+    maybe_update_fullscreen_state(xwl_output);
 }
 
 static void
