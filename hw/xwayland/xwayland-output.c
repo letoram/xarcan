@@ -681,6 +681,8 @@ apply_output_change(struct xwl_output *xwl_output)
 static void
 xwl_output_set_name(struct xwl_output *xwl_output, const char *name)
 {
+    struct xwl_screen *xwl_screen = xwl_output->xwl_screen;
+
     if (xwl_output->randr_output == NULL)
         return; /* rootful */
 
@@ -692,6 +694,9 @@ xwl_output_set_name(struct xwl_output *xwl_output, const char *name)
 
     snprintf(xwl_output->randr_output->name, MAX_OUTPUT_NAME, "%s", name);
     xwl_output->randr_output->nameLength = strlen(xwl_output->randr_output->name);
+
+    if (xwl_screen->output_name && strcmp(name, xwl_screen->output_name) == 0)
+        maybe_update_fullscreen_state(xwl_output);
 }
 
 static void
