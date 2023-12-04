@@ -319,8 +319,11 @@ xwl_window_get_output(struct xwl_window *xwl_window)
     struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
     struct xwl_output *xwl_output;
 
-    xwl_output = xwl_output_from_wl_output(xwl_screen, xwl_window->wl_output);
+    xwl_output = xwl_output_get_output_from_name(xwl_screen, xwl_screen->output_name);
+    if (xwl_output)
+        return xwl_output;
 
+    xwl_output = xwl_output_from_wl_output(xwl_screen, xwl_window->wl_output);
     if (xwl_output)
         return xwl_output;
 
