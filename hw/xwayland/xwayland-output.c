@@ -1174,6 +1174,7 @@ Bool
 xwl_screen_init_randr_fixed(struct xwl_screen *xwl_screen)
 {
     struct xwl_output *xwl_output;
+    char name[MAX_OUTPUT_NAME] = { 0 };
     rrScrPrivPtr rp;
     RRModePtr mode;
 
@@ -1192,7 +1193,10 @@ xwl_screen_init_randr_fixed(struct xwl_screen *xwl_screen)
     rp->rrGetInfo = xwl_randr_get_info;
     rp->rrSetConfig = xwl_randr_set_config_fixed;
 
-    xwl_output->randr_output = RROutputCreate(xwl_screen->screen, "XWAYLAND0", 9, NULL);
+    snprintf(name, MAX_OUTPUT_NAME, "XWAYLAND%d",
+             xwl_screen_get_next_output_serial(xwl_screen));
+    xwl_output->randr_output = RROutputCreate(xwl_screen->screen, name,
+                                              strlen(name), NULL);
     if (!xwl_output->randr_output) {
         ErrorF("Failed to create RandR output\n");
         goto err;
