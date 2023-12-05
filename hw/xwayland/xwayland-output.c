@@ -834,7 +834,7 @@ xwl_output_create(struct xwl_screen *xwl_screen, uint32_t id,
                   Bool with_xrandr, uint32_t version)
 {
     struct xwl_output *xwl_output;
-    char name[MAX_OUTPUT_NAME] = { '\0', };
+    char name[MAX_OUTPUT_NAME] = { 0 };
 
     xwl_output = calloc(1, sizeof *xwl_output);
     if (xwl_output == NULL) {
