@@ -698,8 +698,12 @@ static void
 output_handle_done(void *data, struct wl_output *wl_output)
 {
     struct xwl_output *xwl_output = data;
+    struct xwl_screen *xwl_screen = xwl_output->xwl_screen;
 
     xwl_output->wl_output_done = TRUE;
+    if (xwl_screen->fixed_output)
+        return;
+
     /* Apply the changes from wl_output only if both "done" events are received,
      * if xdg-output is not supported or if xdg-output version is high enough.
      */
@@ -761,8 +765,13 @@ static void
 xdg_output_handle_done(void *data, struct zxdg_output_v1 *xdg_output)
 {
     struct xwl_output *xwl_output = data;
+    struct xwl_screen *xwl_screen = xwl_output->xwl_screen;
 
     xwl_output->xdg_output_done = TRUE;
+
+    if (xwl_screen->fixed_output)
+        return;
+
     if (xwl_output->wl_output_done &&
         zxdg_output_v1_get_version(xdg_output) < 3)
         apply_output_change(xwl_output);
