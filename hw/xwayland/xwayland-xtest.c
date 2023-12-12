@@ -300,7 +300,8 @@ setup_oeffis(struct xwl_ei_client *xwl_ei_client)
     SetNotifyFd(xwl_ei_client->oeffis_fd, xwl_handle_oeffis_event,
         X_NOTIFY_READ, xwl_ei_client);
 
-    oeffis_create_session(xwl_ei_client->oeffis, OEFFIS_DEVICE_ALL_DEVICES);
+    oeffis_create_session(xwl_ei_client->oeffis,
+                          OEFFIS_DEVICE_KEYBOARD | OEFFIS_DEVICE_POINTER);
 
     return true;
 #else
