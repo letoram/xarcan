@@ -744,6 +744,17 @@ xwl_screen_get_next_output_serial(struct xwl_screen *xwl_screen)
     return xwl_screen->output_name_serial++;
 }
 
+void
+xwl_screen_lost_focus(struct xwl_screen *xwl_screen)
+{
+    struct xwl_seat *xwl_seat;
+
+    xorg_list_for_each_entry(xwl_seat, &xwl_screen->seat_list, link) {
+        xwl_seat_leave_ptr(xwl_seat, TRUE);
+        xwl_seat_leave_kbd(xwl_seat);
+    }
+}
+
 Bool
 xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
 {
