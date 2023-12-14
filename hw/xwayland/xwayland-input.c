@@ -587,14 +587,26 @@ pointer_handle_enter(void *data, struct wl_pointer *pointer,
     maybe_fake_grab_devices(xwl_seat);
 }
 
+void
+xwl_seat_leave_ptr(struct xwl_seat *xwl_seat, Bool focus_lost)
+{
+    DeviceIntPtr dev = get_pointer_device(xwl_seat);
+
+    if (focus_lost)
+        CheckMotion(NULL, GetMaster(dev, POINTER_OR_FLOAT));
+
+    maybe_fake_ungrab_devices(xwl_seat);
+}
+
 static void
 pointer_handle_leave(void *data, struct wl_pointer *pointer,
                      uint32_t serial, struct wl_surface *surface)
 {
     struct xwl_seat *xwl_seat = data;
-    DeviceIntPtr dev = get_pointer_device(xwl_seat);
+    struct xwl_screen *xwl_screen = xwl_seat->xwl_screen;
+    Bool focus_lost = FALSE;
 
-    xwl_seat->xwl_screen->serial = serial;
+    xwl_screen->serial = serial;
 
     /* The pointer has left a known xwindow, save it for a possible match
      * in sprite_check_lost_focus()
@@ -602,10 +614,10 @@ pointer_handle_leave(void *data, struct wl_pointer *pointer,
     if (xwl_seat->focus_window) {
         xwl_seat->last_xwindow = xwl_seat->focus_window->window;
         xwl_seat->focus_window = NULL;
-        CheckMotion(NULL, GetMaster(dev, POINTER_OR_FLOAT));
+        focus_lost = TRUE;
     }
 
-    maybe_fake_ungrab_devices(xwl_seat);
+    xwl_seat_leave_ptr(xwl_seat, focus_lost);
 }
 
 static void
@@ -1177,14 +1189,10 @@ keyboard_handle_enter(void *data, struct wl_keyboard *keyboard,
     maybe_fake_grab_devices(xwl_seat);
 }
 
-static void
-keyboard_handle_leave(void *data, struct wl_keyboard *keyboard,
-                      uint32_t serial, struct wl_surface *surface)
+void
+xwl_seat_leave_kbd(struct xwl_seat *xwl_seat)
 {
-    struct xwl_seat *xwl_seat = data;
     uint32_t *k;
-
-    xwl_seat->xwl_screen->serial = serial;
 
     wl_array_for_each(k, &xwl_seat->keys)
         QueueKeyboardEvents(xwl_seat->keyboard, LeaveNotify, *k + 8);
@@ -1192,6 +1200,18 @@ keyboard_handle_leave(void *data, struct wl_keyboard *keyboard,
     xwl_seat->keyboard_focus = NULL;
 
     maybe_fake_ungrab_devices(xwl_seat);
+}
+
+static void
+keyboard_handle_leave(void *data, struct wl_keyboard *keyboard,
+                      uint32_t serial, struct wl_surface *surface)
+{
+    struct xwl_seat *xwl_seat = data;
+    struct xwl_screen *xwl_screen = xwl_seat->xwl_screen;
+
+    xwl_screen->serial = serial;
+
+    xwl_seat_leave_kbd(xwl_seat);
 }
 
 static void
