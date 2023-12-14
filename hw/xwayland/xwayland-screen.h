@@ -54,6 +54,7 @@ struct xwl_screen {
     int expecting_event;
     enum RootClipMode root_clip_mode;
 
+    Bool active;
     int rootless;
     xwl_glamor_mode_flags glamor;
     int present;

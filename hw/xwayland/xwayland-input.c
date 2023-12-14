@@ -617,7 +617,8 @@ pointer_handle_leave(void *data, struct wl_pointer *pointer,
         focus_lost = TRUE;
     }
 
-    xwl_seat_leave_ptr(xwl_seat, focus_lost);
+    if (xwl_screen->rootless)
+        xwl_seat_leave_ptr(xwl_seat, focus_lost);
 }
 
 static void
@@ -1211,7 +1212,8 @@ keyboard_handle_leave(void *data, struct wl_keyboard *keyboard,
 
     xwl_screen->serial = serial;
 
-    xwl_seat_leave_kbd(xwl_seat);
+    if (xwl_screen->rootless)
+        xwl_seat_leave_kbd(xwl_seat);
 }
 
 static void
