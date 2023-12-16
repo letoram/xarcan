@@ -1206,6 +1206,8 @@ glamor_egl_init(ScrnInfoPtr scrn, int fd)
         if (xf86Info.debug != NULL)
             glamor_egl->dmabuf_capable = !!strstr(xf86Info.debug,
                                                   "dmabuf_capable");
+        else if (strstr((const char *)renderer, "Intel"))
+            glamor_egl->dmabuf_capable = TRUE;
         else
             glamor_egl->dmabuf_capable = FALSE;
     }
