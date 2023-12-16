@@ -118,7 +118,7 @@ as rotated and scaled CRTCs. When PageFlip is enabled, fullscreen DRI
 applications will still have the discretion to not use tearing prevention.
 .br
 The default is
-.B off.
+.B on.
 .TP
 .BI "Option \*qAtomic\*q \*q" boolean \*q
 Enable atomic modesetting when supported.  The default is
