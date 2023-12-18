@@ -37,7 +37,7 @@
 #include <randrstr.h>
 #include <inttypes.h>
 
-#if 0
+#if 1
 #define DebugPresent(x) ErrorF x
 #else
 #define DebugPresent(x)

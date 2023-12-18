@@ -407,32 +407,17 @@ static bool windowSupportsProtocol(WindowPtr wnd, Atom protocol)
     return true;
 }
 
-static int getWindowFullWidth(WindowPtr wnd)
-{
-    return wnd->drawable.width + wnd->borderWidth + wnd->borderWidth;
-}
-
-static int getWindowFullHeight(WindowPtr wnd)
-{
-    return wnd->drawable.height + wnd->borderWidth + wnd->borderWidth;
-}
-
 static void sendWndData(WindowPtr wnd, int depth, int max_depth, bool redir, void *tag)
 {
     struct arcan_shmif_cont *acon = tag;
     int bw = wnd->borderWidth;
-    WindowPtr anchorRel = NULL;
-
-    if (wnd->parent && wnd->parent->parent){
-        anchorRel = wnd->parent;
-    }
 
     struct arcan_event out = (struct arcan_event)
     {
        .category = EVENT_EXTERNAL,
        .ext.kind = ARCAN_EVENT(VIEWPORT),
-       .ext.viewport.w = getWindowFullWidth(wnd),
-       .ext.viewport.h = getWindowFullHeight(wnd),
+       .ext.viewport.w = wnd->drawable.width,
+       .ext.viewport.h = wnd->drawable.height,
        .ext.viewport.x = wnd->drawable.x,
        .ext.viewport.y = wnd->drawable.y,
        .ext.viewport.border = {bw, bw, bw, bw},
@@ -457,12 +442,15 @@ static void sendWndData(WindowPtr wnd, int depth, int max_depth, bool redir, voi
         }
     }
 
-/* translate relative to anchor parent */
+/* translate relative to anchor parent
+ * this was removed as maintaining the stacking order didn't provide much utility
+ * and can be reconstructed from stacking information anyhow
     if (anchorRel){
         out.ext.viewport.x = wnd->drawable.x - bw - anchorRel->drawable.x;
         out.ext.viewport.y = wnd->drawable.y - bw - anchorRel->drawable.y;
         out.ext.viewport.parent = anchorRel->drawable.id;
     }
+*/
 
 /* ensure 'correct' alpha flag, this might take another roundtrip to get right,
  * so a better tactic for these toggles should really be used */
@@ -483,6 +471,14 @@ static void sendWndData(WindowPtr wnd, int depth, int max_depth, bool redir, voi
             ARCAN_ENQUEUE(acon, &out);
          }
     }
+
+/* this workaround shold be reconsidered, right now it is only compositor redir
+ * windows that get a private dixEntry and we instead have the unsynched prop
+ * as part of windowstr.h - the main path that would hit this is for wmSynch
+ * with forced metadata based decomposition. */
+    else
+        ARCAN_ENQUEUE(acon, &out);
+
     wnd->unsynched = 0;
 }
 
@@ -899,24 +895,9 @@ static int arcanConfigureWindow(WindowPtr wnd, int x, int y, int w, int h, int b
 {
     arcanScrPriv *ascr = getArcanScreen(wnd);
 
-    trace("ConfigureWindow(%d, %d, %d, %d) - %d", x, y, w, h, sibling ? (int) sibling->drawable.id : -1);
+    trace("kind=ConfigureWindow:x=%d:y=%d:w=%d:h=%d:mapped=%d:realized=%d",
+          x, y, w, h, (int)wnd->mapped, (int)wnd->realized);
     int res = 0;
-
-/*
- *  for this to be useful we should rebuild and swap out pixmaps, uncertain if it isn't just
- *  better to let the compose-redirect approach handle all that for us and pay the price for
- *  the one over-allocated shmif context
- *
-    arcanWindowPriv *aWnd = ensureArcanWndPrivate(wnd);
-    if (aWnd && aWnd->shmif){
-        int dw = w + bw + bw;
-        int dh = h + bw + bw;
-
-        if (aWnd->shmif->w != dw || aWnd->shmif->h != dh){
-            arcan_shmif_resize(aWnd->shmif, dw, dh);
-        }
-    }
-*/
 
     if (ascr->hooks.configureWindow){
         ascr->screen->ConfigNotify = ascr->hooks.configureWindow;
@@ -947,7 +928,8 @@ arcanScreenInitialize(KdScreenInfo * screen, arcanScrPriv * scrpriv)
 {
     scrpriv->acon->hints =
         SHMIF_RHINT_SUBREGION    |
-        SHMIF_RHINT_IGNORE_ALPHA;
+        SHMIF_RHINT_IGNORE_ALPHA |
+        SHMIF_RHINT_VSIGNAL_EV;
 
     scrpriv->dirty = true;
     trace("arcanScreenInitialize");
@@ -1115,7 +1097,7 @@ arcanDisplayHint(struct arcan_shmif_cont* con,
         for (size_t i = 0; i < sizeof(code_tbl) / sizeof(code_tbl[0]); i++){
             if (code_tbl[i]){
                 trace("force-release:%d", code_tbl[i]);
-                enqueueKeyboard(i, 1);
+                enqueueKeyboard(i, 0);
                 code_tbl[i] = 0;
             }
         }
@@ -1200,7 +1182,8 @@ shutdownTimerCheck(OsTimerPtr timer, CARD32 time, void *arg)
 static
 void wmSendMeta(WindowPtr wnd, int depth, int max_depth, void *tag)
 {
-    sendWndData(wnd, depth, max_depth, false, tag);
+    if (wnd->unsynched)
+        sendWndData(wnd, depth, max_depth, false, tag);
 }
 
 static
@@ -1213,14 +1196,13 @@ arcanSignal(struct arcan_shmif_cont* con)
         return;
 
     scrpriv->unsynched = 0;
+    if (scrpriv->wmSynch)
+        synchTreeDepth(scrpriv, scrpriv->screen->root, wmSendMeta, true, con);
 
 /* To avoid a storm of event -> update, don't signal or attempt to update
  * before the segment has finished synchronising the last one. */
     if (arcan_shmif_signalstatus(con))
         return;
-
-    if (scrpriv->wmSynch)
-        synchTreeDepth(scrpriv, scrpriv->screen->root, wmSendMeta, true, con);
 
     RegionPtr region;
     bool in_glamor = false;
@@ -2057,6 +2039,8 @@ arcanEventDispatch(struct arcan_shmif_cont* con, arcanScrPriv* ascr, arcan_event
 
     switch (ev.tgt.kind){
     case TARGET_COMMAND_STEPFRAME:
+    if (ascr->wmSynch)
+        synchTreeDepth(ascr, ascr->screen->root, wmSendMeta, true, con);
         return 1;
     break;
     case TARGET_COMMAND_MESSAGE:
@@ -3299,11 +3283,17 @@ flushPendingPresent(WindowPtr wnd, int type, uint64_t msc)
         return;
 
     struct xa_present_window* pwnd = xa_present_window_priv(wnd);
-    if (!pwnd)
+    if (!pwnd){
         return;
+    }
 
-    if (msc)
+    if (type == 1){
+        trace("kind=present_feedback:wnd=%08" PRIx32 ":msc=%"PRIu64, wnd->drawable.id, msc);
+    }
+    else if (type == 2){
+        trace("kind=vblank_feedback:wnd=%08" PRIx32 ":msc=%"PRIu64, wnd->drawable.id, msc);
         xa_present_msc_bump(pwnd, msc);
+    }
 }
 
 void

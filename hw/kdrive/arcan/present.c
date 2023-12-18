@@ -100,7 +100,6 @@ xa_present_get_pending_flip(struct xa_present_window *xa_present_window)
     if (flip_pending->queued)
         return NULL;
 
-		printf("got pending flip\n");
     return flip_pending;
 }
 
@@ -173,7 +172,7 @@ xa_present_release_pixmap(struct xa_present_event *event)
 /*
  * shouldn't be needed, buffer is tied to the shmif context in the pixmap
  * and we disassociate, not delete
- * xwl_pixmap_del_buffer_release_cb(event->pixmap);
+ 	xwl_pixmap_del_buffer_release_cb(event->pixmap);
  */
     dixDestroyPixmap(event->pixmap, event->pixmap->drawable.id);
     event->pixmap = NULL;
@@ -236,7 +235,7 @@ xa_present_flip_notify_vblank(present_vblank_ptr vblank, uint64_t ust, uint64_t 
     WindowPtr                   window = vblank->window;
     struct xa_present_window *xa_present_window = xa_present_window_priv(window);
 
-    DebugPresent(("\tnotify %" PRIu64 " %p %" PRIu64 " %" PRIu64 ": %08" PRIx32 " -> %08" PRIx32 "\n",
+    DebugPresent(("\ttype=notify_flip:id=%" PRIu64 ":ptr=%p:msc=%" PRIu64 ":tgt_msc=%" PRIu64 ":pmap=%08" PRIx32 ":wnd=%08" PRIx32 "\n",
                   vblank->event_id, vblank, vblank->exec_msc, vblank->target_msc,
                   vblank->pixmap ? vblank->pixmap->drawable.id : 0,
                   vblank->window ? vblank->window->drawable.id : 0));
@@ -348,14 +347,14 @@ xa_present_msc_bump(struct xa_present_window *xa_present_window, uint64_t msc)
 
     xorg_list_for_each_entry_safe(vblank, tmp, &xa_present_window->wait_list, event_queue) {
         if (vblank->exec_msc <= msc) {
-            DebugPresent(("\tmsc-reply %" PRIu64 " ust %" PRIu64 " msc %" PRIu64 "\n",
+            DebugPresent(("\ttype=msc-reply:id=%" PRIu64 ":ust=%" PRIu64 ":msc=%" PRIu64 "\n",
                           vblank->event_id, xa_present_window->ust, msc));
 
             xa_present_execute(vblank, xa_present_window->ust, msc);
             xa_present_buffer_release(xa_present_event_from_id(vblank->event_id));
         }
 				else
-					DebugPresent(("waiting: %"PRIu64" vs %"PRIu64"\n", vblank->exec_msc, msc));
+					DebugPresent(("type=wait_for:tgt_msc=%"PRIu64":msc=%"PRIu64"\n", vblank->exec_msc, msc));
     }
 }
 
@@ -393,7 +392,7 @@ xa_present_queue_vblank(ScreenPtr screen,
 
     event->vblank.exec_msc = msc;
 
-    xorg_list_del(&event->vblank.event_queue);
+/*    xorg_list_del(&event->vblank.event_queue); */
     xorg_list_append(&event->vblank.event_queue, &xa_present_window->wait_list);
 
     return Success;
@@ -617,8 +616,9 @@ xa_present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
         return;
 
     if (flip_pending && vblank->flip && vblank->pixmap && vblank->window) {
-        DebugPresent(("\tflip_ready %" PRIu64 " %p (pending %p)\n",
+        DebugPresent(("\ttype=exec_pending:id=%" PRIu64 ":ptr=%p:pending_ptr=%p\n",
                       vblank->event_id, vblank, flip_pending));
+				xorg_list_del(&vblank->event_queue); /* difference with xwl-present? */
         xorg_list_append(&vblank->event_queue, &xa_present_window->flip_queue);
         vblank->flip_ready = TRUE;
         return;
@@ -632,7 +632,7 @@ xa_present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
         if (vblank->flip) {
             RegionPtr damage;
 
-            DebugPresent(("\tflip %" PRIu64 " %p %" PRIu64 ": %08" PRIx32 " -> %08" PRIx32 "\n",
+            DebugPresent(("\ttype=exec_flip:id=%" PRIu64 ":ptr=%p:msc=%" PRIu64 ":pmap=%08" PRIx32 ":wnd=%08" PRIx32 "\n",
                           vblank->event_id, vblank, crtc_msc,
                           vblank->pixmap->drawable.id, vblank->window->drawable.id));
 
@@ -673,7 +673,7 @@ xa_present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
             vblank->flip = FALSE;
         }
 
-        DebugPresent(("\tcomplete %p %" PRIu64 ": %08" PRIx32 " -> %08" PRIx32 "\n",
+        DebugPresent(("\ttype=flip_over:ptr=%p:msc=%" PRIu64 ":pmap=%08" PRIx32 ":wnd=%08" PRIx32 "\n",
                       vblank, crtc_msc, vblank->pixmap->drawable.id, vblank->window->drawable.id));
 
         if (flip_pending)
@@ -792,7 +792,7 @@ xa_present_pixmap(WindowPtr window,
         if (xa_present_queue_vblank(screen, window, target_crtc, vblank->event_id, vblank->exec_msc) == Success)
             return Success;
 
-        DebugPresent(("present_queue_vblank failed\n"));
+        DebugPresent(("type=queue_vblank_fail\n"));
     }
 
     xa_present_execute(vblank, ust, crtc_msc);

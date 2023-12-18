@@ -126,12 +126,12 @@ present_check_flip(RRCrtcPtr            crtc,
     /* Ask the driver for permission */
     if (screen_priv->info->version >= 1 && screen_priv->info->check_flip2) {
         if (!(*screen_priv->info->check_flip2) (crtc, window, pixmap, sync_flip, reason)) {
-            DebugPresent(("\td %08" PRIx32 " -> %08" PRIx32 "\n", window->drawable.id, pixmap ? pixmap->drawable.id : 0));
+            DebugPresent(("\ttype=check2:pmap=%08" PRIx32 ":wnd=%08" PRIx32 "\n", window->drawable.id, pixmap ? pixmap->drawable.id : 0));
             return FALSE;
         }
     } else if (screen_priv->info->check_flip) {
         if (!(*screen_priv->info->check_flip) (crtc, window, pixmap, sync_flip)) {
-            DebugPresent(("\td %08" PRIx32 " -> %08" PRIx32 "\n", window->drawable.id, pixmap ? pixmap->drawable.id : 0));
+            DebugPresent(("\ttype=check:pmap=%08" PRIx32 ":wnd=%08" PRIx32 "\n", window->drawable.id, pixmap ? pixmap->drawable.id : 0));
             return FALSE;
         }
     }
@@ -327,7 +327,7 @@ present_unflip(ScreenPtr screen)
     present_restore_screen_pixmap(screen);
 
     screen_priv->unflip_event_id = ++present_scmd_event_id;
-    DebugPresent(("u %" PRIu64 "\n", screen_priv->unflip_event_id));
+    DebugPresent(("type=unflip:id=%" PRIu64 "\n", screen_priv->unflip_event_id));
     (*screen_priv->info->unflip) (screen, screen_priv->unflip_event_id);
 }
 
@@ -337,7 +337,8 @@ present_flip_notify(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
     ScreenPtr                   screen = vblank->screen;
     present_screen_priv_ptr     screen_priv = present_screen_priv(screen);
 
-    DebugPresent(("\tn %" PRIu64 " %p %" PRIu64 " %" PRIu64 ": %08" PRIx32 " -> %08" PRIx32 "\n",
+    DebugPresent(("\ttype=notify_flip:id=%" PRIu64 ":ptr=%p:msc=%" PRIu64 ":tgt_msc=%" PRIu64
+                  ":pmap=%08" PRIx32 ":wnd=%08" PRIx32 "\n",
                   vblank->event_id, vblank, vblank->exec_msc, vblank->target_msc,
                   vblank->pixmap ? vblank->pixmap->drawable.id : 0,
                   vblank->window ? vblank->window->drawable.id : 0));
@@ -378,7 +379,7 @@ present_event_notify(uint64_t event_id, uint64_t ust, uint64_t msc)
 
     if (!event_id)
         return;
-    DebugPresent(("\te %" PRIu64 " ust %" PRIu64 " msc %" PRIu64 "\n", event_id, ust, msc));
+    DebugPresent(("\ttype=notify_event:id=%" PRIu64 ":ust=%" PRIu64 ":msc=%" PRIu64 "\n", event_id, ust, msc));
     xorg_list_for_each_entry(vblank, &present_exec_queue, event_queue) {
         int64_t match = event_id - vblank->event_id;
         if (match == 0) {
@@ -401,7 +402,7 @@ present_event_notify(uint64_t event_id, uint64_t ust, uint64_t msc)
         present_screen_priv_ptr screen_priv = present_screen_priv(screen);
 
         if (event_id == screen_priv->unflip_event_id) {
-            DebugPresent(("\tun %" PRIu64 "\n", event_id));
+            DebugPresent(("\ttype=unflip_scr:id=%" PRIu64 "\n", event_id));
             screen_priv->unflip_event_id = 0;
             present_flip_idle(screen);
             present_flip_try_ready(screen);
@@ -546,7 +547,7 @@ present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
 
     if (vblank->flip && vblank->pixmap && vblank->window) {
         if (screen_priv->flip_pending || screen_priv->unflip_event_id) {
-            DebugPresent(("\tr %" PRIu64 " %p (pending %p unflip %" PRIu64 ")\n",
+            DebugPresent(("\ttype=exec_pending:id=%" PRIu64 ":ptr=%p:pending_ptr=%p:unflip_id=%" PRIu64 ")\n",
                           vblank->event_id, vblank,
                           screen_priv->flip_pending, screen_priv->unflip_event_id));
             xorg_list_del(&vblank->event_queue);
@@ -564,7 +565,7 @@ present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
 
         if (vblank->flip) {
 
-            DebugPresent(("\tf %" PRIu64 " %p %" PRIu64 ": %08" PRIx32 " -> %08" PRIx32 "\n",
+            DebugPresent(("\ttype=exec_flip:id=%" PRIu64 ":ptr=%p:msc=%" PRIu64 ":pmap=%08" PRIx32 ":wnd=%08" PRIx32 "\n",
                           vblank->event_id, vblank, crtc_msc,
                           vblank->pixmap->drawable.id, vblank->window->drawable.id));
 
@@ -609,7 +610,7 @@ present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
             vblank->flip = FALSE;
             vblank->exec_msc = vblank->target_msc;
         }
-        DebugPresent(("\tc %p %" PRIu64 ": %08" PRIx32 " -> %08" PRIx32 "\n",
+        DebugPresent(("\ttype=flip_over:ptr=%p:msc=%" PRIu64 ":pmap=%08" PRIx32 ":wnd=%08" PRIx32 "\n",
                       vblank, crtc_msc, vblank->pixmap->drawable.id, vblank->window->drawable.id));
         if (screen_priv->flip_pending) {
 
@@ -777,7 +778,7 @@ present_scmd_pixmap(WindowPtr window,
         if (ret == Success)
             return Success;
 
-        DebugPresent(("present_queue_vblank failed\n"));
+        DebugPresent(("type=queue_vblank_fail\n"));
     }
 
     present_execute(vblank, ust, crtc_msc);
