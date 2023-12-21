@@ -283,6 +283,8 @@ AddInputDevice(ClientPtr client, DeviceProc deviceProc, Bool autoStart)
     dev->deviceGrab.DeactivateGrab = DeactivateKeyboardGrab;
     dev->deviceGrab.sync.event = calloc(1, sizeof(InternalEvent));
 
+    dev->sendEventsProc = XTestDeviceSendEvents;
+
     XkbSetExtension(dev, ProcessKeyboardEvent);
 
     dev->coreEvents = TRUE;
