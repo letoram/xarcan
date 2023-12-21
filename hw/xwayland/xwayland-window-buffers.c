@@ -39,7 +39,6 @@ struct xwl_window_buffer {
     struct xwl_window *xwl_window;
     PixmapPtr pixmap;
     RegionPtr damage_region;
-    Bool recycle_on_release;
     int refcnt;
     uint32_t time;
     struct xorg_list link_buffer;
@@ -112,16 +111,6 @@ xwl_window_buffer_maybe_dispose(struct xwl_window_buffer *xwl_window_buffer)
     free(xwl_window_buffer);
 
     return TRUE;
-}
-
-static void
-xwl_window_buffer_recycle(struct xwl_window_buffer *xwl_window_buffer)
-{
-    RegionEmpty(xwl_window_buffer->damage_region);
-    xwl_window_buffer->recycle_on_release = FALSE;
-
-    if (xwl_window_buffer->pixmap)
-        xwl_window_buffer_destroy_pixmap (xwl_window_buffer);
 }
 
 static void
@@ -199,9 +188,6 @@ xwl_window_buffer_release_callback(void *data)
     if (xwl_window_buffer_maybe_dispose(xwl_window_buffer))
         return;
 
-    if (xwl_window_buffer->recycle_on_release)
-        xwl_window_buffer_recycle(xwl_window_buffer);
-
     /* We append the buffers to the end of the list, as we pick the last
      * entry again when looking for new available buffers, that means the
      * least used buffers will remain at the beginning of the list so that
@@ -235,29 +221,6 @@ xwl_window_buffers_init(struct xwl_window *xwl_window)
 }
 
 void
-xwl_window_buffers_recycle(struct xwl_window *xwl_window)
-{
-    struct xwl_window_buffer *xwl_window_buffer, *tmp;
-
-    /* Dispose available buffers */
-    xorg_list_for_each_entry_safe(xwl_window_buffer, tmp,
-                                  &xwl_window->window_buffers_available,
-                                  link_buffer) {
-        xwl_window_buffer_maybe_dispose(xwl_window_buffer);
-    }
-
-    if (xwl_window->window_buffers_timer)
-        TimerCancel(xwl_window->window_buffers_timer);
-
-    /* Mark the others for recycle on release */
-    xorg_list_for_each_entry(xwl_window_buffer,
-                             &xwl_window->window_buffers_unavailable,
-                             link_buffer) {
-        xwl_window_buffer->recycle_on_release = TRUE;
-    }
-}
-
-void
 xwl_window_buffers_dispose(struct xwl_window *xwl_window)
 {
     struct xwl_window_buffer *xwl_window_buffer, *tmp;
@@ -280,10 +243,8 @@ xwl_window_buffers_dispose(struct xwl_window *xwl_window)
         xwl_window_buffer_maybe_dispose(xwl_window_buffer);
     }
 
-    if (xwl_window->window_buffers_timer) {
-        TimerFree(xwl_window->window_buffers_timer);
-        xwl_window->window_buffers_timer = 0;
-    }
+    if (xwl_window->window_buffers_timer)
+        TimerCancel(xwl_window->window_buffers_timer);
 }
 
 PixmapPtr

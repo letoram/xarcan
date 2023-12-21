@@ -1192,6 +1192,9 @@ xwl_unrealize_window(WindowPtr window)
 
     xwl_window_buffers_dispose(xwl_window);
 
+    if (xwl_window->window_buffers_timer)
+        TimerFree(xwl_window->window_buffers_timer);
+
     if (xwl_window->frame_callback)
         wl_callback_destroy(xwl_window->frame_callback);
 
@@ -1229,7 +1232,7 @@ xwl_window_set_window_pixmap(WindowPtr window,
 
     xwl_window = xwl_window_get(window);
     if (xwl_window)
-            xwl_window_buffers_recycle(xwl_window);
+        xwl_window_buffers_dispose(xwl_window);
 }
 
 Bool

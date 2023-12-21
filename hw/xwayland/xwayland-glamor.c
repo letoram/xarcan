@@ -788,10 +788,10 @@ xwl_window_dmabuf_feedback_done(void *data,
             xwl_window->window->drawable.id,
             xwl_window->has_implicit_scanout_support ? "" : "not");
 
-    /* If the linux-dmabuf v4 per-surface feedback changed, recycle the
+    /* If the linux-dmabuf v4 per-surface feedback changed, dispose of the
      * window buffers so that they get re-created with appropriate parameters.
      */
-    xwl_window_buffers_recycle(xwl_window);
+    xwl_window_buffers_dispose(xwl_window);
 }
 
 static void
