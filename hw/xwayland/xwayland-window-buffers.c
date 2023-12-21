@@ -96,7 +96,7 @@ xwl_window_buffer_destroy_pixmap(struct xwl_window_buffer *xwl_window_buffer)
 }
 
 static Bool
-xwl_window_buffer_dispose(struct xwl_window_buffer *xwl_window_buffer)
+xwl_window_buffer_maybe_dispose(struct xwl_window_buffer *xwl_window_buffer)
 {
     assert(xwl_window_buffer->refcnt > 0);
 
@@ -169,7 +169,7 @@ xwl_window_buffer_timer_callback(OsTimerPtr timer, CARD32 time, void *arg)
                                   &xwl_window->window_buffers_available,
                                   link_buffer) {
         if ((int64_t)(time - xwl_window_buffer->time) >= BUFFER_TIMEOUT)
-            xwl_window_buffer_dispose(xwl_window_buffer);
+            xwl_window_buffer_maybe_dispose(xwl_window_buffer);
     }
 
     /* If there are still available buffers, re-arm the timer */
@@ -196,7 +196,7 @@ xwl_window_buffer_release_callback(void *data)
     /* Drop the reference on the buffer we took in get_pixmap. If that
      * frees the window buffer, we're done.
      */
-    if (xwl_window_buffer_dispose(xwl_window_buffer))
+    if (xwl_window_buffer_maybe_dispose(xwl_window_buffer))
         return;
 
     if (xwl_window_buffer->recycle_on_release)
@@ -243,7 +243,7 @@ xwl_window_buffers_recycle(struct xwl_window *xwl_window)
     xorg_list_for_each_entry_safe(xwl_window_buffer, tmp,
                                   &xwl_window->window_buffers_available,
                                   link_buffer) {
-        xwl_window_buffer_dispose(xwl_window_buffer);
+        xwl_window_buffer_maybe_dispose(xwl_window_buffer);
     }
 
     if (xwl_window->window_buffers_timer)
@@ -270,14 +270,14 @@ xwl_window_buffers_dispose(struct xwl_window *xwl_window)
                                   &xwl_window->window_buffers_available,
                                   link_buffer) {
         xorg_list_del(&xwl_window_buffer->link_buffer);
-        xwl_window_buffer_dispose(xwl_window_buffer);
+        xwl_window_buffer_maybe_dispose(xwl_window_buffer);
     }
 
     xorg_list_for_each_entry_safe(xwl_window_buffer, tmp,
                                   &xwl_window->window_buffers_unavailable,
                                   link_buffer) {
         xorg_list_del(&xwl_window_buffer->link_buffer);
-        xwl_window_buffer_dispose(xwl_window_buffer);
+        xwl_window_buffer_maybe_dispose(xwl_window_buffer);
     }
 
     if (xwl_window->window_buffers_timer) {
