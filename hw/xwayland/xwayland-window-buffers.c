@@ -45,27 +45,24 @@ struct xwl_window_buffer {
     struct xorg_list link_buffer;
 };
 
-static Bool
+static void
 copy_pixmap_area(PixmapPtr src_pixmap, PixmapPtr dst_pixmap,
                  int x, int y, int width, int height)
 {
     GCPtr pGC;
     pGC = GetScratchGC(dst_pixmap->drawable.depth,
                        dst_pixmap->drawable.pScreen);
-    if (pGC) {
-        ValidateGC(&dst_pixmap->drawable, pGC);
-        (void) (*pGC->ops->CopyArea) (&src_pixmap->drawable,
-                                      &dst_pixmap->drawable,
-                                      pGC,
-                                      x, y,
-                                      width, height,
-                                      x, y);
-        FreeScratchGC(pGC);
+    if (!pGC)
+        FatalError("GetScratchGC failed for depth %d", dst_pixmap->drawable.depth);
 
-        return TRUE;
-    }
-
-    return FALSE;
+    ValidateGC(&dst_pixmap->drawable, pGC);
+    (void) (*pGC->ops->CopyArea) (&src_pixmap->drawable,
+                                  &dst_pixmap->drawable,
+                                  pGC,
+                                  x, y,
+                                  width, height,
+                                  x, y);
+    FreeScratchGC(pGC);
 }
 
 static struct xwl_window_buffer *
@@ -317,13 +314,12 @@ xwl_window_buffers_get_pixmap(struct xwl_window *xwl_window,
         BoxPtr pBox = RegionRects(full_damage);
         int nBox = RegionNumRects(full_damage);
         while (nBox--) {
-            if (!copy_pixmap_area(window_pixmap,
-                                  xwl_window_buffer->pixmap,
-                                  pBox->x1 + xwl_window->window->borderWidth,
-                                  pBox->y1 + xwl_window->window->borderWidth,
-                                  pBox->x2 - pBox->x1,
-                                  pBox->y2 - pBox->y1))
-                return window_pixmap;
+            copy_pixmap_area(window_pixmap,
+                             xwl_window_buffer->pixmap,
+                             pBox->x1 + xwl_window->window->borderWidth,
+                             pBox->y1 + xwl_window->window->borderWidth,
+                             pBox->x2 - pBox->x1,
+                             pBox->y2 - pBox->y1);
 
             pBox++;
         }
@@ -345,14 +341,11 @@ xwl_window_buffers_get_pixmap(struct xwl_window *xwl_window,
         if (!xwl_window_buffer->pixmap)
             return window_pixmap;
 
-        if (!copy_pixmap_area(window_pixmap,
-                              xwl_window_buffer->pixmap,
-                              0, 0,
-                              window_pixmap->drawable.width,
-                              window_pixmap->drawable.height)) {
-            xwl_window_buffer_recycle(xwl_window_buffer);
-            return window_pixmap;
-        }
+        copy_pixmap_area(window_pixmap,
+                         xwl_window_buffer->pixmap,
+                         0, 0,
+                         window_pixmap->drawable.width,
+                         window_pixmap->drawable.height);
     }
 
     RegionEmpty(xwl_window_buffer->damage_region);
