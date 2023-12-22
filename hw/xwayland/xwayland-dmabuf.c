@@ -735,7 +735,7 @@ xwl_window_dmabuf_feedback_done(void *data,
                                 struct zwp_linux_dmabuf_feedback_v1 *dmabuf_feedback)
 {
     struct xwl_window *xwl_window = data;
-    uint32_t format = wl_drm_format_for_depth(xwl_window->window->drawable.depth);
+    uint32_t format = wl_drm_format_for_depth(xwl_window->toplevel->drawable.depth);
 
     xwl_dmabuf_feedback_done(&xwl_window->feedback, dmabuf_feedback);
 
@@ -743,7 +743,7 @@ xwl_window_dmabuf_feedback_done(void *data,
         xwl_feedback_is_modifier_supported(&xwl_window->feedback, format,
                                            DRM_FORMAT_MOD_INVALID, TRUE);
     DebugF("XWAYLAND: Window 0x%x can%s get implicit scanout support\n",
-            xwl_window->window->drawable.id,
+            xwl_window->toplevel->drawable.id,
             xwl_window->has_implicit_scanout_support ? "" : "not");
 
     /* If the linux-dmabuf v4 per-surface feedback changed, make sure the

@@ -305,7 +305,7 @@ xwl_cursor_warped_to(DeviceIntPtr device,
 
     xwl_window = xwl_window_from_window(window);
     if (!xwl_window && xwl_seat->focus_window) {
-        focus = xwl_seat->focus_window->window;
+        focus = xwl_seat->focus_window->toplevel;
 
         /* Warps on non wl_surface backed Windows are only allowed
          * as long as the pointer stays within the focus window.
@@ -339,15 +339,15 @@ find_matching_input_output_window(struct xwl_screen *xwl_screen,
         /* When confining happens on InputOnly windows, work out the InputOutput
          * window that would be covered by its geometry.
          */
-        if (window->drawable.x < xwl_window->window->drawable.x ||
+        if (window->drawable.x < xwl_window->toplevel->drawable.x ||
             window->drawable.x + window->drawable.width >
-            xwl_window->window->drawable.x + xwl_window->window->drawable.width ||
-            window->drawable.y < xwl_window->window->drawable.y ||
+            xwl_window->toplevel->drawable.x + xwl_window->toplevel->drawable.width ||
+            window->drawable.y < xwl_window->toplevel->drawable.y ||
             window->drawable.y + window->drawable.height >
-            xwl_window->window->drawable.y + xwl_window->window->drawable.height)
+            xwl_window->toplevel->drawable.y + xwl_window->toplevel->drawable.height)
             continue;
 
-        if (xwl_window->window->drawable.class == InputOnly)
+        if (xwl_window->toplevel->drawable.class == InputOnly)
             continue;
 
         return xwl_window;

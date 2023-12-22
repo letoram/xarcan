@@ -543,8 +543,8 @@ pointer_handle_enter(void *data, struct wl_pointer *pointer,
     xwl_seat->pointer_enter_serial = serial;
 
     xwl_seat->focus_window = wl_surface_get_user_data(surface);
-    dx = xwl_seat->focus_window->window->drawable.x;
-    dy = xwl_seat->focus_window->window->drawable.y;
+    dx = xwl_seat->focus_window->toplevel->drawable.x;
+    dy = xwl_seat->focus_window->toplevel->drawable.y;
 
     /* We just entered a new xwindow, forget about the old last xwindow */
     xwl_seat->last_focus_window = NULL;
@@ -660,8 +660,8 @@ dispatch_absolute_motion(struct xwl_seat *xwl_seat)
     int flags;
     int event_x = wl_fixed_to_int(xwl_seat->pending_pointer_event.x);
     int event_y = wl_fixed_to_int(xwl_seat->pending_pointer_event.y);
-    int drawable_x = xwl_seat->focus_window->window->drawable.x;
-    int drawable_y = xwl_seat->focus_window->window->drawable.y;
+    int drawable_x = xwl_seat->focus_window->toplevel->drawable.x;
+    int drawable_y = xwl_seat->focus_window->toplevel->drawable.y;
     int x;
     int y;
 
@@ -1411,8 +1411,8 @@ xwl_touch_send_event(struct xwl_touch *xwl_touch,
     double dx, dy, x, y;
     ValuatorMask mask;
 
-    dx = xwl_touch->window->window->drawable.x;
-    dy = xwl_touch->window->window->drawable.y;
+    dx = xwl_touch->window->toplevel->drawable.x;
+    dy = xwl_touch->window->toplevel->drawable.y;
 
     x = (dx + xwl_touch->x) * 0xFFFF / xwl_screen_get_width(xwl_seat->xwl_screen);
     y = (dy + xwl_touch->y) * 0xFFFF / xwl_screen_get_height(xwl_seat->xwl_screen);
@@ -2202,8 +2202,8 @@ tablet_tool_motion(void *data, struct zwp_tablet_tool_v2 *tool,
     sx *= xwl_seat->tablet_focus_window->viewport_scale_x;
     sy *= xwl_seat->tablet_focus_window->viewport_scale_y;
 
-    dx = xwl_seat->tablet_focus_window->window->drawable.x;
-    dy = xwl_seat->tablet_focus_window->window->drawable.y;
+    dx = xwl_seat->tablet_focus_window->toplevel->drawable.x;
+    dy = xwl_seat->tablet_focus_window->toplevel->drawable.y;
 
     xwl_tablet_tool->x = (double) dx + sx;
     xwl_tablet_tool->y = (double) dy + sy;
@@ -3193,8 +3193,8 @@ sprite_check_lost_focus(SpritePtr sprite, WindowPtr window)
 
     if (xwl_seat->focus_window == NULL &&
         xwl_seat->last_focus_window != NULL &&
-        (xwl_seat->last_focus_window->window == window ||
-         IsParent(xwl_seat->last_focus_window->window, window)))
+        (xwl_seat->last_focus_window->toplevel == window ||
+         IsParent(xwl_seat->last_focus_window->toplevel, window)))
         return TRUE;
 
     return FALSE;
@@ -3257,7 +3257,7 @@ xwl_pointer_warp_emulator_set_fake_pos(struct xwl_pointer_warp_emulator *warp_em
     if (!warp_emulator->xwl_seat->focus_window)
         return;
 
-    window = warp_emulator->xwl_seat->focus_window->window;
+    window = warp_emulator->xwl_seat->focus_window->toplevel;
     if (x >= window->drawable.x ||
         y >= window->drawable.y ||
         x < (window->drawable.x + window->drawable.width) ||
@@ -3326,7 +3326,7 @@ xwl_pointer_warp_emulator_maybe_lock(struct xwl_pointer_warp_emulator *warp_emul
     if (pointer_grab &&
         !pointer_grab->ownerEvents &&
         sprite &&
-        XYToWindow(sprite, x, y) != xwl_seat->focus_window->window)
+        XYToWindow(sprite, x, y) != xwl_seat->focus_window->toplevel)
         return;
 
     xwl_pointer_warp_emulator_lock(warp_emulator);
@@ -3364,7 +3364,7 @@ xwl_pointer_warp_emulator_handle_motion(struct xwl_pointer_warp_emulator *warp_e
     QueuePointerEvents(xwl_seat->relative_pointer, MotionNotify, 0,
                        POINTER_RELATIVE, &mask);
 
-    window = xwl_seat->focus_window->window;
+    window = xwl_seat->focus_window->toplevel;
     miPointerGetPosition(xwl_seat->pointer, &x, &y);
 
     if (xwl_pointer_warp_emulator_is_locked(warp_emulator) &&

@@ -62,7 +62,13 @@ struct xwl_window {
     int surface_scale;
     struct xdg_surface *xdg_surface;
     struct xdg_toplevel *xdg_toplevel;
-    WindowPtr window;
+
+    /* Top-level window for the Wayland surface:
+     * - With rootful, the root window itself
+     * - With rootless, a direct child of the root window
+     */
+    WindowPtr toplevel;
+
     struct xorg_list link_damage;
     struct xorg_list link_window;
     struct wl_callback *frame_callback;

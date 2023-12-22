@@ -339,7 +339,7 @@ xwl_window_allocate_pixmap(struct xwl_window *xwl_window)
         return window_pixmap;
 #endif /* XWL_HAS_GLAMOR */
 
-    window_pixmap = screen->GetWindowPixmap(xwl_window->window);
+    window_pixmap = screen->GetWindowPixmap(xwl_window->toplevel);
     return screen->CreatePixmap(screen,
                                 window_pixmap->drawable.width,
                                 window_pixmap->drawable.height,
@@ -358,7 +358,7 @@ xwl_window_realloc_pixmap(struct xwl_window *xwl_window)
     if (!new_window_pixmap)
         return;
 
-    window = xwl_window->window;
+    window = xwl_window->toplevel;
     screen = window->drawable.pScreen;
     window_pixmap = screen->GetWindowPixmap(window);
     copy_pixmap_area(window_pixmap,
@@ -366,7 +366,7 @@ xwl_window_realloc_pixmap(struct xwl_window *xwl_window)
                      0, 0,
                      window_pixmap->drawable.width,
                      window_pixmap->drawable.height);
-    xwl_window_set_pixmap(xwl_window->window, new_window_pixmap);
+    xwl_window_set_pixmap(xwl_window->toplevel, new_window_pixmap);
     screen->DestroyPixmap(window_pixmap);
 }
 
@@ -393,7 +393,7 @@ xwl_window_buffers_set_syncpts(struct xwl_window_buffer *xwl_window_buffer)
     else
         goto fail;
 
-    xwl_glamor_dri3_syncobj_passthrough(xwl_window->window,
+    xwl_glamor_dri3_syncobj_passthrough(xwl_window->toplevel,
                                         xwl_window_buffer->syncobj,
                                         xwl_window_buffer->syncobj,
                                         acquire_point,
@@ -418,7 +418,7 @@ xwl_window_swap_pixmap(struct xwl_window *xwl_window)
     PixmapPtr window_pixmap;
     Bool implicit_sync = TRUE;
 
-    window_pixmap = (*xwl_screen->screen->GetWindowPixmap) (xwl_window->window);
+    window_pixmap = (*xwl_screen->screen->GetWindowPixmap) (xwl_window->toplevel);
 
     xwl_window_buffer_add_damage_region(xwl_window);
 
@@ -441,8 +441,8 @@ xwl_window_swap_pixmap(struct xwl_window *xwl_window)
         while (nBox--) {
             copy_pixmap_area(window_pixmap,
                              xwl_window_buffer->pixmap,
-                             pBox->x1 + xwl_window->window->borderWidth,
-                             pBox->y1 + xwl_window->window->borderWidth,
+                             pBox->x1 + xwl_window->toplevel->borderWidth,
+                             pBox->y1 + xwl_window->toplevel->borderWidth,
                              pBox->x2 - pBox->x1,
                              pBox->y2 - pBox->y1);
 
@@ -451,7 +451,7 @@ xwl_window_swap_pixmap(struct xwl_window *xwl_window)
 
         RegionEmpty(xwl_window_buffer->damage_region);
         xorg_list_del(&xwl_window_buffer->link_buffer);
-        xwl_window_set_pixmap(xwl_window->window, xwl_window_buffer->pixmap);
+        xwl_window_set_pixmap(xwl_window->toplevel, xwl_window_buffer->pixmap);
 
         /* Can't re-use client pixmap as a window buffer */
         if (xwl_is_client_pixmap(window_pixmap)) {

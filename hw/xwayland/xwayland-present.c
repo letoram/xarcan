@@ -785,7 +785,7 @@ xwl_present_check_flip(RRCrtcPtr crtc,
      * window's, e.g. because a client redirected this window or one of its
      * parents.
      */
-    if (screen->GetWindowPixmap(xwl_window->window) != screen->GetWindowPixmap(present_window))
+    if (screen->GetWindowPixmap(xwl_window->toplevel) != screen->GetWindowPixmap(present_window))
         return FALSE;
 
     /*
@@ -793,7 +793,7 @@ xwl_present_check_flip(RRCrtcPtr crtc,
      * dimensions as their xwl_window parent window. For the case of
      * different sizes subsurfaces are presumably the way forward.
      */
-    if (!RegionEqual(&xwl_window->window->winSize, &present_window->winSize))
+    if (!RegionEqual(&xwl_window->toplevel->winSize, &present_window->winSize))
         return FALSE;
 
     return TRUE;

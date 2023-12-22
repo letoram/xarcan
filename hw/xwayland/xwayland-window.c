@@ -87,7 +87,7 @@ window_get_damage(WindowPtr window)
 RegionPtr
 xwl_window_get_damage_region(struct xwl_window *xwl_window)
 {
-    return DamageRegion(window_get_damage(xwl_window->window));
+    return DamageRegion(window_get_damage(xwl_window->toplevel));
 }
 
 struct xwl_window *
@@ -133,9 +133,9 @@ xwl_window_set_allow_commits(struct xwl_window *xwl_window, Bool allow,
 
     xwl_window->allow_commits = allow;
     DebugF("XWAYLAND: win %d allow_commits = %d (%s)\n",
-           xwl_window->window->drawable.id, allow, debug_msg);
+           xwl_window->toplevel->drawable.id, allow, debug_msg);
 
-    damage = window_get_damage(xwl_window->window);
+    damage = window_get_damage(xwl_window->toplevel);
     if (allow &&
         xorg_list_is_empty(&xwl_window->link_damage) &&
         damage &&
@@ -207,7 +207,7 @@ damage_report(DamagePtr pDamage, RegionPtr pRegion, void *data)
     if (xorg_list_is_empty(&xwl_window->link_damage))
         xorg_list_add(&xwl_window->link_damage, &xwl_screen->damage_window_list);
 
-    window_pixmap = xwl_screen->screen->GetWindowPixmap(xwl_window->window);
+    window_pixmap = xwl_screen->screen->GetWindowPixmap(xwl_window->toplevel);
     if (xwl_is_client_pixmap(window_pixmap))
         xwl_screen->screen->DestroyPixmap(xwl_window_swap_pixmap(xwl_window));
 }
@@ -447,7 +447,7 @@ xwl_window_should_enable_viewport(struct xwl_window *xwl_window,
     if (!xwl_screen->rootless)
         return FALSE;
 
-    window = window_get_client_toplevel(xwl_window->window);
+    window = window_get_client_toplevel(xwl_window->toplevel);
     if (!window)
         return FALSE;
 
@@ -479,7 +479,7 @@ xwl_window_should_enable_viewport(struct xwl_window *xwl_window,
      */
     xwl_output = xwl_screen_get_first_output(xwl_screen);
     emulated_mode = xwl_output_get_emulated_mode_for_client(xwl_output, owner);
-    if (xwl_output && xwl_window->window->overrideRedirect &&
+    if (xwl_output && xwl_window->toplevel->overrideRedirect &&
         emulated_mode && emulated_mode->from_vidmode &&
         drawable->x == 0 && drawable->y == 0 &&
         drawable->width  == xwl_screen_get_width(xwl_screen) &&
@@ -561,7 +561,7 @@ xwl_window_init_allow_commits(struct xwl_window *xwl_window)
     PropertyPtr prop = NULL;
     int ret;
 
-    ret = dixLookupProperty(&prop, xwl_window->window,
+    ret = dixLookupProperty(&prop, xwl_window->toplevel,
                             xwl_window->xwl_screen->allow_commits_prop,
                             serverClient, DixReadAccess);
     if (ret == Success && prop)
@@ -590,7 +590,7 @@ send_window_client_message(struct xwl_window *xwl_window, Atom type_atom, uint64
 
     e.u.u.type = ClientMessage;
     e.u.u.detail = 32;
-    e.u.clientMessage.window = xwl_window->window->drawable.id;
+    e.u.clientMessage.window = xwl_window->toplevel->drawable.id;
     e.u.clientMessage.u.l.type = type_atom;
     e.u.clientMessage.u.l.longs0 = serial_lo(value);
     e.u.clientMessage.u.l.longs1 = serial_hi(value);
@@ -685,7 +685,7 @@ xwl_window_rootful_update_fullscreen(struct xwl_window *xwl_window,
     if (!xwl_screen->fullscreen)
         return;
 
-    if (xwl_window->window != xwl_screen->screen->root)
+    if (xwl_window->toplevel != xwl_screen->screen->root)
         return;
 
     if (xwl_window->wl_output_fullscreen != xwl_output->output)
@@ -1148,7 +1148,7 @@ static Bool
 xwl_create_root_surface(struct xwl_window *xwl_window)
 {
     struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
-    WindowPtr window = xwl_window->window;
+    WindowPtr window = xwl_window->toplevel;
     struct wl_region *region;
 
 
@@ -1252,7 +1252,7 @@ ensure_surface_for_window(WindowPtr window)
         return FALSE;
 
     xwl_window->xwl_screen = xwl_screen;
-    xwl_window->window = window;
+    xwl_window->toplevel = window;
     xwl_window->fractional_scale_numerator = FRACTIONAL_SCALE_DENOMINATOR;
     xwl_window->viewport_scale_x = 1.0;
     xwl_window->viewport_scale_y = 1.0;
@@ -1723,15 +1723,15 @@ xwl_window_attach_buffer(struct xwl_window *xwl_window)
     if (RegionNumRects(region) > 256) {
         box = RegionExtents(region);
         xwl_surface_damage(xwl_screen, xwl_window->surface,
-                           box->x1 + xwl_window->window->borderWidth,
-                           box->y1 + xwl_window->window->borderWidth,
+                           box->x1 + xwl_window->toplevel->borderWidth,
+                           box->y1 + xwl_window->toplevel->borderWidth,
                            box->x2 - box->x1, box->y2 - box->y1);
     } else {
         box = RegionRects(region);
         for (i = 0; i < RegionNumRects(region); i++, box++) {
             xwl_surface_damage(xwl_screen, xwl_window->surface,
-                               box->x1 + xwl_window->window->borderWidth,
-                               box->y1 + xwl_window->window->borderWidth,
+                               box->x1 + xwl_window->toplevel->borderWidth,
+                               box->y1 + xwl_window->toplevel->borderWidth,
                                box->x2 - box->x1, box->y2 - box->y1);
         }
     }
@@ -1748,7 +1748,7 @@ xwl_window_post_damage(struct xwl_window *xwl_window)
         return;
 
     xwl_window_create_frame_callback(xwl_window);
-    DamageEmpty(window_get_damage(xwl_window->window));
+    DamageEmpty(window_get_damage(xwl_window->toplevel));
 }
 
 Bool

@@ -412,7 +412,7 @@ PixmapPtr
 xwl_glamor_create_pixmap_for_window(struct xwl_window *xwl_window)
 {
     struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
-    WindowPtr window = xwl_window->window;
+    WindowPtr window = xwl_window->toplevel;
     unsigned border_width = 2 * window->borderWidth;
 
     if (!xwl_screen->glamor)
