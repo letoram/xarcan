@@ -1110,6 +1110,9 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
     xwl_screen->ChangeWindowAttributes = pScreen->ChangeWindowAttributes;
     pScreen->ChangeWindowAttributes = xwl_change_window_attributes;
 
+    xwl_screen->ClipNotify = pScreen->ClipNotify;
+    pScreen->ClipNotify = xwl_clip_notify;
+
     xwl_screen->ResizeWindow = pScreen->ResizeWindow;
     pScreen->ResizeWindow = xwl_resize_window;
 

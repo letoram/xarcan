@@ -87,7 +87,7 @@ window_get_damage(WindowPtr window)
 RegionPtr
 xwl_window_get_damage_region(struct xwl_window *xwl_window)
 {
-    return DamageRegion(window_get_damage(xwl_window->toplevel));
+    return DamageRegion(window_get_damage(xwl_window->surface_window));
 }
 
 struct xwl_window *
@@ -135,7 +135,7 @@ xwl_window_set_allow_commits(struct xwl_window *xwl_window, Bool allow,
     DebugF("XWAYLAND: win %d allow_commits = %d (%s)\n",
            xwl_window->toplevel->drawable.id, allow, debug_msg);
 
-    damage = window_get_damage(xwl_window->toplevel);
+    damage = window_get_damage(xwl_window->surface_window);
     if (allow &&
         xorg_list_is_empty(&xwl_window->link_damage) &&
         damage &&
@@ -202,7 +202,7 @@ damage_report(DamagePtr pDamage, RegionPtr pRegion, void *data)
     if (xorg_list_is_empty(&xwl_window->link_damage))
         xorg_list_add(&xwl_window->link_damage, &xwl_screen->damage_window_list);
 
-    window_pixmap = xwl_screen->screen->GetWindowPixmap(xwl_window->toplevel);
+    window_pixmap = xwl_screen->screen->GetWindowPixmap(xwl_window->surface_window);
     if (xwl_is_client_pixmap(window_pixmap))
         xwl_screen->screen->DestroyPixmap(xwl_window_swap_pixmap(xwl_window));
 }
@@ -215,18 +215,18 @@ damage_destroy(DamagePtr pDamage, void *data)
 static Bool
 register_damage(struct xwl_window *xwl_window)
 {
-    WindowPtr toplevel = xwl_window->toplevel;
+    WindowPtr surface_window = xwl_window->surface_window;
     DamagePtr damage;
 
     damage = DamageCreate(damage_report, damage_destroy, DamageReportNonEmpty,
-                          FALSE, toplevel->drawable.pScreen, xwl_window);
+                          FALSE, surface_window->drawable.pScreen, xwl_window);
     if (damage == NULL) {
         ErrorF("Failed creating damage\n");
         return FALSE;
     }
 
-    DamageRegister(&toplevel->drawable, damage);
-    dixSetPrivate(&toplevel->devPrivates, &xwl_damage_private_key, damage);
+    DamageRegister(&surface_window->drawable, damage);
+    dixSetPrivate(&surface_window->devPrivates, &xwl_damage_private_key, damage);
 
     return TRUE;
 }
@@ -234,17 +234,17 @@ register_damage(struct xwl_window *xwl_window)
 static void
 unregister_damage(struct xwl_window *xwl_window)
 {
-    WindowPtr toplevel = xwl_window->toplevel;
+    WindowPtr surface_window = xwl_window->surface_window;
     DamagePtr damage;
 
-    damage = dixLookupPrivate(&toplevel->devPrivates, &xwl_damage_private_key);
+    damage = dixLookupPrivate(&surface_window->devPrivates, &xwl_damage_private_key);
     if (!damage)
         return;
 
     DamageUnregister(damage);
     DamageDestroy(damage);
 
-    dixSetPrivate(&toplevel->devPrivates, &xwl_damage_private_key, NULL);
+    dixSetPrivate(&surface_window->devPrivates, &xwl_damage_private_key, NULL);
 }
 
 static Bool
@@ -540,15 +540,15 @@ xwl_window_check_resolution_change_emulation(struct xwl_window *xwl_window)
 Bool
 xwl_window_is_toplevel(WindowPtr window)
 {
-    if (window_is_wm_window(window))
+    if (!window->parent || window_is_wm_window(window))
         return FALSE;
 
     /* CSD and override-redirect toplevel windows */
-    if (window_get_damage(window))
+    if (!window->parent->parent)
         return TRUE;
 
     /* Normal toplevel client windows, reparented to a window-manager window */
-    return window->parent && window_is_wm_window(window->parent);
+    return window_is_wm_window(window->parent);
 }
 
 static void
@@ -1221,6 +1221,65 @@ err_surf:
     return FALSE;
 }
 
+static void
+xwl_window_update_surface_window(struct xwl_window *xwl_window)
+{
+    WindowPtr surface_window = xwl_window->toplevel;
+    ScreenPtr screen = surface_window->drawable.pScreen;
+    PixmapPtr surface_pixmap;
+    DamagePtr window_damage;
+    RegionRec damage_region;
+    WindowPtr window;
+
+    surface_pixmap = screen->GetWindowPixmap(surface_window);
+
+    for (window = surface_window->firstChild; window; window = window->firstChild) {
+        PixmapPtr window_pixmap;
+
+        if (!RegionEqual(&window->winSize, &surface_window->winSize))
+            break;
+
+        /* The surface window must be top-level for its window pixmap */
+        window_pixmap = screen->GetWindowPixmap(window);
+        if (window_pixmap == surface_pixmap)
+            continue;
+
+        surface_pixmap = window_pixmap;
+
+        /* A descendant with alpha channel cannot be the surface window, since
+         * any non-opaque areas need to take the contents of ancestors into
+         * account.
+         */
+        if (window->drawable.depth == 32)
+            continue;
+
+        surface_window = window;
+    }
+
+    if (xwl_window->surface_window == surface_window)
+        return;
+
+    window_damage = window_get_damage(xwl_window->surface_window);
+    if (window_damage) {
+        RegionInit(&damage_region, NullBox, 1);
+        RegionCopy(&damage_region, DamageRegion(window_damage));
+        unregister_damage(xwl_window);
+    }
+
+    if (surface_window->drawable.depth != xwl_window->surface_window->drawable.depth)
+        xwl_window_buffers_dispose(xwl_window);
+
+    xwl_window->surface_window = surface_window;
+    register_damage(xwl_window);
+
+    if (window_damage) {
+        RegionPtr new_region = DamageRegion(window_get_damage(surface_window));
+
+        RegionUnion(new_region, new_region, &damage_region);
+        RegionUninit(&damage_region);
+    }
+}
+
 static struct xwl_window *
 ensure_surface_for_window(WindowPtr window)
 {
@@ -1250,6 +1309,7 @@ ensure_surface_for_window(WindowPtr window)
 
     xwl_window->xwl_screen = xwl_screen;
     xwl_window->toplevel = window;
+    xwl_window->surface_window = window;
     xwl_window->fractional_scale_numerator = FRACTIONAL_SCALE_DENOMINATOR;
     xwl_window->viewport_scale_x = 1.0;
     xwl_window->viewport_scale_y = 1.0;
@@ -1289,6 +1349,8 @@ ensure_surface_for_window(WindowPtr window)
     xorg_list_init(&xwl_window->frame_callback_list);
 
     xwl_window_buffers_init(xwl_window);
+
+    xwl_window_update_surface_window(xwl_window);
 
     xwl_window_init_allow_commits(xwl_window);
 
@@ -1360,7 +1422,7 @@ xwl_realize_window(WindowPtr window)
     if (!xwl_window)
         return FALSE;
 
-    if (window == xwl_window->toplevel &&
+    if (window == xwl_window->surface_window &&
         !window_get_damage(window))
         return register_damage(xwl_window);
 
@@ -1572,6 +1634,22 @@ xwl_change_window_attributes(WindowPtr window, unsigned long mask)
 }
 
 void
+xwl_clip_notify(WindowPtr window, int dx, int dy)
+{
+    ScreenPtr screen = window->drawable.pScreen;
+    struct xwl_screen *xwl_screen = xwl_screen_get(screen);
+    struct xwl_window *xwl_window = xwl_window_from_window(window);
+
+    screen->ClipNotify = xwl_screen->ClipNotify;
+    (*screen->ClipNotify) (window, dx, dy);
+    xwl_screen->ClipNotify = screen->ClipNotify;
+    screen->ClipNotify = xwl_clip_notify;
+
+    if (xwl_window)
+        xwl_window_update_surface_window(xwl_window);
+}
+
+void
 xwl_resize_window(WindowPtr window,
                   int x, int y,
                   unsigned int width, unsigned int height,
@@ -1696,6 +1774,7 @@ static Bool
 xwl_window_attach_buffer(struct xwl_window *xwl_window)
 {
     struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
+    WindowPtr surface_window = xwl_window->surface_window;
     RegionPtr region;
     BoxPtr box;
     struct wl_buffer *buffer;
@@ -1720,15 +1799,15 @@ xwl_window_attach_buffer(struct xwl_window *xwl_window)
     if (RegionNumRects(region) > 256) {
         box = RegionExtents(region);
         xwl_surface_damage(xwl_screen, xwl_window->surface,
-                           box->x1 + xwl_window->toplevel->borderWidth,
-                           box->y1 + xwl_window->toplevel->borderWidth,
+                           box->x1 + surface_window->borderWidth,
+                           box->y1 + surface_window->borderWidth,
                            box->x2 - box->x1, box->y2 - box->y1);
     } else {
         box = RegionRects(region);
         for (i = 0; i < RegionNumRects(region); i++, box++) {
             xwl_surface_damage(xwl_screen, xwl_window->surface,
-                               box->x1 + xwl_window->toplevel->borderWidth,
-                               box->y1 + xwl_window->toplevel->borderWidth,
+                               box->x1 + surface_window->borderWidth,
+                               box->y1 + surface_window->borderWidth,
                                box->x2 - box->x1, box->y2 - box->y1);
         }
     }
@@ -1745,7 +1824,7 @@ xwl_window_post_damage(struct xwl_window *xwl_window)
         return;
 
     xwl_window_create_frame_callback(xwl_window);
-    DamageEmpty(window_get_damage(xwl_window->toplevel));
+    DamageEmpty(window_get_damage(xwl_window->surface_window));
 }
 
 Bool

@@ -68,6 +68,7 @@ struct xwl_screen {
     int nokeymap;
     int hidpi;
 
+    ClipNotifyProcPtr ClipNotify;
     CreateScreenResourcesProcPtr CreateScreenResources;
     CloseScreenProcPtr CloseScreen;
     CreateWindowProcPtr CreateWindow;

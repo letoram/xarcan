@@ -785,7 +785,7 @@ xwl_present_check_flip(RRCrtcPtr crtc,
      * window's, e.g. because a client redirected this window or one of its
      * parents.
      */
-    if (screen->GetWindowPixmap(xwl_window->toplevel) != screen->GetWindowPixmap(present_window))
+    if (screen->GetWindowPixmap(xwl_window->surface_window) != screen->GetWindowPixmap(present_window))
         return FALSE;
 
     /*

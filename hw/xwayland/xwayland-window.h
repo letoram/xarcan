@@ -66,8 +66,22 @@ struct xwl_window {
     /* Top-level window for the Wayland surface:
      * - With rootful, the root window itself
      * - With rootless, a direct child of the root window
+     * Mainly useful when the top-level window is needed, can also be used for
+     * the X dimensions of the Wayland surface though.
      */
     WindowPtr toplevel;
+
+    /* The window associated with the Wayland surface:
+     * - If the top-level window has descendants which:
+     *   - Cover it completely
+     *   - Have no alpha channel
+     *   - Use a different window pixmap than their parent for storage
+     *   then the surface window is the lowest-level such descendant.
+     * - Otherwise it's the top-level window itself.
+     * Mainly useful for code dealing with (buffers for) the Wayland surface,
+     * can also be used for the X dimensions of the Wayland surface though.
+     */
+    WindowPtr surface_window;
 
     struct xorg_list link_damage;
     struct xorg_list link_window;
@@ -114,6 +128,7 @@ int xwl_window_get_max_output_scale(struct xwl_window *xwl_window);
 Bool xwl_realize_window(WindowPtr window);
 Bool xwl_unrealize_window(WindowPtr window);
 Bool xwl_change_window_attributes(WindowPtr window, unsigned long mask);
+void xwl_clip_notify(WindowPtr window, int dx, int dy);
 void xwl_resize_window(WindowPtr window,
                        int x, int y,
                        unsigned int width, unsigned int height,
