@@ -91,7 +91,7 @@ endif
 
 conf_data.set('HAVE_LIBBSD', libbsd_dep.found() ? '1' : false)
 # Note: this symbol is used by libXtrans.
-conf_data.set('HAVE_SYSTEMD_DAEMON', libsystemd_daemon_dep.found() ? '1' : false)
+conf_data.set('HAVE_SYSTEMD_DAEMON', build_systemd ? '1' : false)
 conf_data.set('CONFIG_UDEV', build_udev ? '1' : false)
 conf_data.set('CONFIG_UDEV_KMS', build_udev_kms ? '1' : false)
 conf_data.set('HAVE_DBUS', build_dbus ? '1' : false)

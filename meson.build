@@ -107,6 +107,7 @@ xfont2_dep = dependency('xfont2', version: '>= 2.0')
 dbus_required = get_option('systemd_logind') == 'true'
 dbus_dep = dependency('dbus-1', version: '>= 1.0', required: dbus_required)
 
+build_systemd = get_option('systemd_notify') == 'true'
 # libsystemd-daemon was moved into libsystemd in version 209
 libsystemd_daemon_dep = dependency('libsystemd', version: '>= 209', required: false)
 if not libsystemd_daemon_dep.found()
