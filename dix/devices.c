@@ -1335,6 +1335,7 @@ InitValuatorClassDeviceStruct(DeviceIntPtr dev, int numAxes, Atom *labels,
     ValuatorClassPtr valc;
 
     BUG_RETURN_VAL(dev == NULL, FALSE);
+    BUG_RETURN_VAL(numAxes == 0, FALSE);
 
     if (numAxes > MAX_VALUATORS) {
         LogMessage(X_WARNING,
