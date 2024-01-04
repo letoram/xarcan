@@ -120,8 +120,9 @@ glamor_set_planemask(int depth, unsigned long planemask)
 }
 
 Bool
-glamor_set_alu(ScreenPtr screen, unsigned char alu)
+glamor_set_alu(DrawablePtr drawable, unsigned char alu)
 {
+    ScreenPtr screen = drawable->pScreen;
     glamor_screen_private *glamor_priv = glamor_get_screen_private(screen);
 
     if (glamor_priv->is_gles) {

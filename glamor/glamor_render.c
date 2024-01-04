@@ -1235,7 +1235,7 @@ glamor_composite_with_shader(CARD8 op,
 
     glamor_set_destination_pixmap_priv_nc(glamor_priv, dest_pixmap, dest_pixmap_priv);
     glamor_composite_set_shader_blend(glamor_priv, dest_pixmap_priv, &key, shader, &op_info);
-    glamor_set_alu(screen, GXcopy);
+    glamor_set_alu(dest->pDrawable, GXcopy);
 
     glamor_priv->has_source_coords = key.source != SHADER_SOURCE_SOLID;
     glamor_priv->has_mask_coords = (key.mask != SHADER_MASK_NONE &&
