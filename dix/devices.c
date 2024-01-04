@@ -778,7 +778,7 @@ InitAndStartDevices(void)
 /**
  * Free the given device class and reset the pointer to NULL.
  */
-static void
+void
 FreeDeviceClass(int type, void **class)
 {
     if (!(*class))
