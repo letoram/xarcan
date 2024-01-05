@@ -1134,6 +1134,26 @@ UndisplayDevices(void)
         screen->DisplayCursor(dev, screen, NullCursor);
 }
 
+static int
+CloseOneDevice(const DeviceIntPtr dev, DeviceIntPtr *listHead)
+{
+    DeviceIntPtr tmp, next, prev = NULL;
+
+    for (tmp = *listHead; tmp; (prev = tmp), (tmp = next)) {
+        next = tmp->next;
+        if (tmp == dev) {
+            if (prev == NULL)
+                *listHead = next;
+            else
+                prev->next = next;
+
+            CloseDevice(tmp);
+            return Success;
+        }
+    }
+    return BadMatch;
+}
+
 /**
  * Remove a device from the device list, closes it and thus frees all
  * resources.
@@ -1150,12 +1170,12 @@ UndisplayDevices(void)
 int
 RemoveDevice(DeviceIntPtr dev, BOOL sendevent)
 {
-    DeviceIntPtr prev, tmp, next;
     int ret = BadMatch;
     ScreenPtr screen = screenInfo.screens[0];
     int deviceid;
     int initialized;
     int flags[MAXDEVICES] = { 0 };
+    int flag;
 
     DebugF("(dix) removing device %d\n", dev->id);
 
@@ -1173,41 +1193,13 @@ RemoveDevice(DeviceIntPtr dev, BOOL sendevent)
         flags[dev->id] = XIDeviceDisabled;
     }
 
+    flag = IsMaster(dev) ? XIMasterRemoved : XISlaveRemoved;
+
     input_lock();
 
-    prev = NULL;
-    for (tmp = inputInfo.devices; tmp; (prev = tmp), (tmp = next)) {
-        next = tmp->next;
-        if (tmp == dev) {
-
-            if (prev == NULL)
-                inputInfo.devices = next;
-            else
-                prev->next = next;
-
-            flags[tmp->id] = IsMaster(tmp) ? XIMasterRemoved : XISlaveRemoved;
-            CloseDevice(tmp);
-            ret = Success;
-            break;
-        }
-    }
-
-    prev = NULL;
-    for (tmp = inputInfo.off_devices; tmp; (prev = tmp), (tmp = next)) {
-        next = tmp->next;
-        if (tmp == dev) {
-            flags[tmp->id] = IsMaster(tmp) ? XIMasterRemoved : XISlaveRemoved;
-            CloseDevice(tmp);
-
-            if (prev == NULL)
-                inputInfo.off_devices = next;
-            else
-                prev->next = next;
-
-            ret = Success;
-            break;
-        }
-    }
+    if ((ret = CloseOneDevice(dev, &inputInfo.devices)) == Success ||
+        (ret = CloseOneDevice(dev, &inputInfo.off_devices)) == Success)
+        flags[deviceid] = flag;
 
     input_unlock();
 
