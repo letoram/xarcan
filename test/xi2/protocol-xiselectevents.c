@@ -63,21 +63,19 @@
 
 #include "protocol-common.h"
 
+DECLARE_WRAP_FUNCTION(XISetEventMask, int, DeviceIntPtr dev,
+                      WindowPtr win, ClientPtr client,
+                      int len, unsigned char *mask);
+
+
 static unsigned char *data[4096 * 20];  /* the request data buffer */
 
 extern ClientRec client_window;
 
-int
-__real_XISetEventMask(DeviceIntPtr dev, WindowPtr win, ClientPtr client,
-                      int len, unsigned char *mask);
-
-int
-__wrap_XISetEventMask(DeviceIntPtr dev, WindowPtr win, ClientPtr client,
-                      int len, unsigned char *mask)
+static int
+override_XISetEventMask(DeviceIntPtr dev, WindowPtr win, ClientPtr client,
+                        int len, unsigned char *mask)
 {
-    if (!enable_XISetEventMask_wrap)
-        return __real_XISetEventMask(dev, win, client, len, mask);
-
     return Success;
 }
 
@@ -287,6 +285,8 @@ test_XISelectEvents(void)
     int i;
     xXIEventMask *mask;
     xXISelectEventsReq *req;
+
+    wrapped_XISetEventMask = override_XISetEventMask;
 
     init_simple();
 

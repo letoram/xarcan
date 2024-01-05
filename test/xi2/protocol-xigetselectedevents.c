@@ -53,6 +53,7 @@
 #include "protocol-common.h"
 
 DECLARE_WRAP_FUNCTION(WriteToClient, void, ClientPtr client, int len, void *data);
+DECLARE_WRAP_FUNCTION(AddResource, Bool, XID id, RESTYPE type, void *value);
 
 static void reply_XIGetSelectedEvents(ClientPtr client, int len, void *data);
 static void reply_XIGetSelectedEvents_data(ClientPtr client, int len, void *data);
@@ -66,8 +67,8 @@ static struct {
 extern ClientRec client_window;
 
 /* AddResource is called from XISetSEventMask, we don't need this */
-Bool
-__wrap_AddResource(XID id, RESTYPE type, void *value)
+static Bool
+override_AddResource(XID id, RESTYPE type, void *value)
 {
     return TRUE;
 }
@@ -148,9 +149,9 @@ test_XIGetSelectedEvents(void)
     unsigned char *mask;
     DeviceIntRec dev;
 
+    wrapped_AddResource = override_AddResource;
+
     init_simple();
-    enable_GrabButton_wrap = 0;
-    enable_XISetEventMask_wrap = 0;
     client = init_client(0, NULL);
 
     request_init(&request, XIGetSelectedEvents);

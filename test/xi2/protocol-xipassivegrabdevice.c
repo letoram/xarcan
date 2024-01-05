@@ -45,6 +45,11 @@
 #include "protocol-common.h"
 
 DECLARE_WRAP_FUNCTION(WriteToClient, void, ClientPtr client, int len, void *data);
+DECLARE_WRAP_FUNCTION(GrabButton, int,
+                      ClientPtr client, DeviceIntPtr dev,
+                      DeviceIntPtr modifier_device, int button,
+                      GrabParameters *param, enum InputLevel grabtype,
+                      GrabMask *mask);
 
 extern ClientRec client_window;
 static ClientRec client_request;
@@ -56,26 +61,16 @@ static struct test_data {
     int num_modifiers;
 } testdata;
 
-int __wrap_GrabButton(ClientPtr client, DeviceIntPtr dev,
-                      DeviceIntPtr modifier_device, int button,
-                      GrabParameters *param, enum InputLevel grabtype,
-                      GrabMask *mask);
-int __real_GrabButton(ClientPtr client, DeviceIntPtr dev,
-                      DeviceIntPtr modifier_device, int button,
-                      GrabParameters *param, enum InputLevel grabtype,
-                      GrabMask *mask);
+
 static void reply_XIPassiveGrabDevice_data(ClientPtr client, int len,
                                            void *data);
 
-int
-__wrap_GrabButton(ClientPtr client, DeviceIntPtr dev,
+static int
+override_GrabButton(ClientPtr client, DeviceIntPtr dev,
                   DeviceIntPtr modifier_device, int button,
                   GrabParameters *param, enum InputLevel grabtype,
                   GrabMask *mask)
 {
-    if (!enable_GrabButton_wrap)
-        __real_GrabButton(client, dev, modifier_device, button, param, grabtype, mask);
-
     /* Fail every odd modifier */
     if (param->modifiers % 2)
         return BadAccess;
@@ -175,6 +170,8 @@ test_XIPassiveGrabDevice(void)
     int i;
     xXIPassiveGrabDeviceReq *request = (xXIPassiveGrabDeviceReq *) data;
     unsigned char *mask;
+
+    wrapped_GrabButton = override_GrabButton;
 
     init_simple();
 

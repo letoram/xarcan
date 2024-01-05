@@ -44,12 +44,5 @@ const testfunc_t* protocol_xiwarppointer_test(void);
 const testfunc_t* protocol_eventconvert_test(void);
 const testfunc_t* xi2_test(void);
 
-#ifndef INSIDE_PROTOCOL_COMMON
-
-extern int enable_XISetEventMask_wrap;
-extern int enable_GrabButton_wrap;
-
-#endif /* INSIDE_PROTOCOL_COMMON */
-
 #endif /* TESTS_H */
 
