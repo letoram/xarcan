@@ -98,18 +98,18 @@ test_ChangeDeviceControl(void)
 
     client_request = init_client(request->length, request);
 
-    printf("Testing invalid lengths:\n");
-    printf(" -- no control struct\n");
+    dbg("Testing invalid lengths:\n");
+    dbg(" -- no control struct\n");
     request_ChangeDeviceControl(&client_request, request, control, BadLength);
 
-    printf(" -- xDeviceResolutionCtl\n");
+    dbg(" -- xDeviceResolutionCtl\n");
     request_init(request, ChangeDeviceControl);
     request->control = DEVICE_RESOLUTION;
     control->length = (sizeof(xDeviceResolutionCtl) >> 2);
     request->length += control->length - 2;
     request_ChangeDeviceControl(&client_request, request, control, BadLength);
 
-    printf(" -- xDeviceEnableCtl\n");
+    dbg(" -- xDeviceEnableCtl\n");
     request_init(request, ChangeDeviceControl);
     request->control = DEVICE_ENABLE;
     control->length = (sizeof(xDeviceEnableCtl) >> 2);

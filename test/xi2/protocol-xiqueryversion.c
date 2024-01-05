@@ -154,23 +154,23 @@ test_XIQueryVersion(void)
 
     wrapped_WriteToClient = reply_XIQueryVersion;
 
-    printf("Server version 2.0 - client versions [1..3].0\n");
+    dbg("Server version 2.0 - client versions [1..3].0\n");
     /* some simple tests to catch common errors quickly */
     request_XIQueryVersion(2, 0, 1, 0, BadValue);
     request_XIQueryVersion(2, 0, 2, 0, Success);
     request_XIQueryVersion(2, 0, 3, 0, Success);
 
-    printf("Server version 3.0 - client versions [1..3].0\n");
+    dbg("Server version 3.0 - client versions [1..3].0\n");
     request_XIQueryVersion(3, 0, 1, 0, BadValue);
     request_XIQueryVersion(3, 0, 2, 0, Success);
     request_XIQueryVersion(3, 0, 3, 0, Success);
 
-    printf("Server version 2.0 - client versions [1..3].[1..3]\n");
+    dbg("Server version 2.0 - client versions [1..3].[1..3]\n");
     request_XIQueryVersion(2, 0, 1, 1, BadValue);
     request_XIQueryVersion(2, 0, 2, 2, Success);
     request_XIQueryVersion(2, 0, 3, 3, Success);
 
-    printf("Server version 2.2 - client versions [1..3].0\n");
+    dbg("Server version 2.2 - client versions [1..3].0\n");
     request_XIQueryVersion(2, 2, 1, 0, BadValue);
     request_XIQueryVersion(2, 2, 2, 0, Success);
     request_XIQueryVersion(2, 2, 3, 0, Success);
@@ -179,7 +179,7 @@ test_XIQueryVersion(void)
     /* this one takes a while */
     unsigned int cmin, cmaj, smin, smaj;
 
-    printf("Testing all combinations.\n");
+    dbg("Testing all combinations.\n");
     for (smaj = 2; smaj <= 0xFFFF; smaj++)
         for (smin = 0; smin <= 0xFFFF; smin++)
             for (cmin = 0; cmin <= 0xFFFF; cmin++)

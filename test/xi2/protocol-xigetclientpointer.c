@@ -113,26 +113,26 @@ test_XIGetClientPointer(void)
 
     client_request = init_client(request.length, &request);
 
-    printf("Testing invalid window\n");
+    dbg("Testing invalid window\n");
     request.win = INVALID_WINDOW_ID;
     request_XIGetClientPointer(&client_request, &request, BadWindow);
 
-    printf("Testing invalid length\n");
+    dbg("Testing invalid length\n");
     client_request.req_len -= 4;
     request_XIGetClientPointer(&client_request, &request, BadLength);
     client_request.req_len += 4;
 
     test_data.cp_is_set = FALSE;
 
-    printf("Testing window None, unset ClientPointer.\n");
+    dbg("Testing window None, unset ClientPointer.\n");
     request.win = None;
     request_XIGetClientPointer(&client_request, &request, Success);
 
-    printf("Testing valid window, unset ClientPointer.\n");
+    dbg("Testing valid window, unset ClientPointer.\n");
     request.win = CLIENT_WINDOW_ID;
     request_XIGetClientPointer(&client_request, &request, Success);
 
-    printf("Testing valid window, set ClientPointer.\n");
+    dbg("Testing valid window, set ClientPointer.\n");
     client_window.clientPtr = devices.vcp;
     test_data.dev = devices.vcp;
     test_data.cp_is_set = TRUE;
@@ -141,7 +141,7 @@ test_XIGetClientPointer(void)
 
     client_window.clientPtr = NULL;
 
-    printf("Testing window None, set ClientPointer.\n");
+    dbg("Testing window None, set ClientPointer.\n");
     client_request.clientPtr = devices.vcp;
     test_data.dev = devices.vcp;
     test_data.cp_is_set = TRUE;

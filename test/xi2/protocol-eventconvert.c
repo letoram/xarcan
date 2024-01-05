@@ -742,7 +742,7 @@ test_values_XIDeviceChangedEvent(DeviceChangedEvent *in,
                        flags & SCROLL_FLAG_PREFERRED);
         }
         default:
-            printf("Invalid class type.\n\n");
+            dbg("Invalid class type.\n\n");
             assert(1);
             break;
         }

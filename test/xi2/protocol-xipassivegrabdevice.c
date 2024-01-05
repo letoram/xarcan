@@ -182,12 +182,12 @@ test_XIPassiveGrabDevice(void)
     wrapped_WriteToClient = reply_XIPassiveGrabDevice;
     client_request = init_client(request->length, request);
 
-    printf("Testing invalid device\n");
+    dbg("Testing invalid device\n");
     request->deviceid = 12;
     request_XIPassiveGrabDevice(&client_request, request, BadDevice,
                                 request->deviceid);
 
-    printf("Testing invalid length\n");
+    dbg("Testing invalid length\n");
     request->length -= 2;
     request_XIPassiveGrabDevice(&client_request, request, BadLength,
                                 client_request.errorValue);
@@ -196,14 +196,14 @@ test_XIPassiveGrabDevice(void)
     request->grab_window = CLIENT_WINDOW_ID;
     request->deviceid = XIAllMasterDevices;
 
-    printf("Testing invalid grab types\n");
+    dbg("Testing invalid grab types\n");
     for (i = XIGrabtypeGestureSwipeBegin + 1; i < 0xFF; i++) {
         request->grab_type = i;
         request_XIPassiveGrabDevice(&client_request, request, BadValue,
                                     request->grab_type);
     }
 
-    printf("Testing invalid grab type + detail combinations\n");
+    dbg("Testing invalid grab type + detail combinations\n");
     request->grab_type = XIGrabtypeEnter;
     request->detail = 1;
     request_XIPassiveGrabDevice(&client_request, request, BadValue,
@@ -215,7 +215,7 @@ test_XIPassiveGrabDevice(void)
 
     request->detail = 0;
 
-    printf("Testing invalid masks\n");
+    dbg("Testing invalid masks\n");
     mask = (unsigned char *) &request[1];
 
     request->mask_len = bytes_to_int32(XI2LASTEVENT + 1);

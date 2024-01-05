@@ -319,16 +319,16 @@ test_XIQueryDevice(void)
     wrapped_WriteToClient = reply_XIQueryDevice;
     request_init(&request, XIQueryDevice);
 
-    printf("Testing XIAllDevices.\n");
+    dbg("Testing XIAllDevices.\n");
     request_XIQueryDevice(&test_data, XIAllDevices, Success);
-    printf("Testing XIAllMasterDevices.\n");
+    dbg("Testing XIAllMasterDevices.\n");
     request_XIQueryDevice(&test_data, XIAllMasterDevices, Success);
 
-    printf("Testing existing device ids.\n");
+    dbg("Testing existing device ids.\n");
     for (i = 2; i < 6; i++)
         request_XIQueryDevice(&test_data, i, Success);
 
-    printf("Testing non-existing device ids.\n");
+    dbg("Testing non-existing device ids.\n");
     for (i = 6; i <= 0xFFFF; i++)
         request_XIQueryDevice(&test_data, i, BadDevice);
 }

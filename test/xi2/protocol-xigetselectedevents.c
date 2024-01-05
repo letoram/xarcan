@@ -156,11 +156,11 @@ test_XIGetSelectedEvents(void)
 
     request_init(&request, XIGetSelectedEvents);
 
-    printf("Testing for BadWindow on invalid window.\n");
+    dbg("Testing for BadWindow on invalid window.\n");
     request.win = None;
     request_XIGetSelectedEvents(&request, BadWindow);
 
-    printf("Testing for zero-length (unset) masks.\n");
+    dbg("Testing for zero-length (unset) masks.\n");
     /* No masks set yet */
     test_data.num_masks_expected = 0;
     request.win = ROOT_WINDOW_ID;
@@ -171,7 +171,7 @@ test_XIGetSelectedEvents(void)
 
     memset(test_data.mask, 0, sizeof(test_data.mask));
 
-    printf("Testing for valid masks\n");
+    dbg("Testing for valid masks\n");
     memset(&dev, 0, sizeof(dev));       /* dev->id is enough for XISetEventMask */
     request.win = ROOT_WINDOW_ID;
 
@@ -197,7 +197,7 @@ test_XIGetSelectedEvents(void)
         }
     }
 
-    printf("Testing removing all masks\n");
+    dbg("Testing removing all masks\n");
     /* Unset all masks one-by-one */
     for (j = MAXDEVICES - 1; j >= 0; j--) {
         if (j < devices.num_devices + 2)
