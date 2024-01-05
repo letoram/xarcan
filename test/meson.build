@@ -115,9 +115,9 @@ if get_option('xvfb')
             )
         endforeach
         test_parameters = [
-                [rendercheck_tests, '', piglit_env, '', false], 
-                [rendercheck_tests_gles2_success, '_gles2', gles20_env, '-gles2', false], 
-                [rendercheck_a8, '_gles2', gles20_env, '-gles2', true], 
+                [rendercheck_tests, '', piglit_env, '', false],
+                [rendercheck_tests_gles2_success, '_gles2', gles20_env, '-gles2', false],
+                [rendercheck_a8, '_gles2', gles20_env, '-gles2', true],
                 [rendercheck_tests_gles3, '_gles2', piglit_env, '-gles3', false]
             ]
 

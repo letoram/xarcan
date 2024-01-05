@@ -1031,8 +1031,7 @@ CloseDevice(DeviceIntPtr dev)
 /**
  * Shut down all devices of one list and free all resources.
  */
-static
-    void
+static void
 CloseDeviceList(DeviceIntPtr *listHead)
 {
     /* Used to mark devices that we tried to free */
