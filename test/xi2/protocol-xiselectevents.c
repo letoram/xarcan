@@ -288,6 +288,8 @@ test_XISelectEvents(void)
     xXIEventMask *mask;
     xXISelectEventsReq *req;
 
+    init_simple();
+
     req = (xXISelectEventsReq *) data;
 
     request_init(req, XISelectEvents);
@@ -364,12 +366,13 @@ test_XISelectEvents(void)
     request_XISelectEvents_masks(req);
 }
 
-int
+const testfunc_t*
 protocol_xiselectevents_test(void)
 {
-    init_simple();
+    static const testfunc_t testfuncs[] = {
+        test_XISelectEvents,
+        NULL,
+    };
 
-    test_XISelectEvents();
-
-    return 0;
+    return testfuncs;
 }

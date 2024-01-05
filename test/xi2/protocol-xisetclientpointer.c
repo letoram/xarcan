@@ -85,6 +85,9 @@ test_XISetClientPointer(void)
     int i;
     xXISetClientPointerReq request;
 
+    init_simple();
+    client_window = init_client(0, NULL);
+
     request_init(&request, XISetClientPointer);
 
     request.win = CLIENT_WINDOW_ID;
@@ -124,13 +127,13 @@ test_XISetClientPointer(void)
 
 }
 
-int
+const testfunc_t*
 protocol_xisetclientpointer_test(void)
 {
-    init_simple();
-    client_window = init_client(0, NULL);
+    static const testfunc_t testfuncs[] = {
+        test_XISetClientPointer,
+        NULL,
+    };
 
-    test_XISetClientPointer();
-
-    return 0;
+    return testfuncs;
 }

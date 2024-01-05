@@ -402,11 +402,13 @@ static void logging_format(void)
 }
 #pragma GCC diagnostic pop /* "-Wformat-security" */
 
-int
+const testfunc_t*
 signal_logging_test(void)
 {
-    number_formatting();
-    logging_format();
-
-    return 0;
+    static const testfunc_t testfuncs[] = {
+        number_formatting,
+        logging_format,
+        NULL,
+    };
+    return testfuncs;
 }

@@ -139,6 +139,8 @@ test_XIQueryPointer(void)
     int i;
     xXIQueryPointerReq request;
 
+    init_simple();
+
     memset(&request, 0, sizeof(request));
 
     request_init(&request, XIQueryPointer);
@@ -192,12 +194,12 @@ test_XIQueryPointer(void)
     request_XIQueryPointer(&client_request, &request, BadLength);
 }
 
-int
+const testfunc_t*
 protocol_xiquerypointer_test(void)
 {
-    init_simple();
-
-    test_XIQueryPointer();
-
-    return 0;
+    static const testfunc_t testfuncs[] = {
+        test_XIQueryPointer,
+        NULL,
+    };
+    return testfuncs;
 }

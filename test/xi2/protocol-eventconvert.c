@@ -1206,15 +1206,17 @@ test_convert_XIBarrierEvent(void)
     test_XIBarrierEvent(&in);
 }
 
-int
+const testfunc_t*
 protocol_eventconvert_test(void)
 {
-    test_convert_XIRawEvent();
-    test_convert_XIFocusEvent();
-    test_convert_XIDeviceEvent();
-    test_convert_XIDeviceChangedEvent();
-    test_convert_XITouchOwnershipEvent();
-    test_convert_XIBarrierEvent();
-
-    return 0;
+    static const testfunc_t testfuncs[] = {
+        test_convert_XIRawEvent,
+        test_convert_XIFocusEvent,
+        test_convert_XIDeviceEvent,
+        test_convert_XIDeviceChangedEvent,
+        test_convert_XITouchOwnershipEvent,
+        test_convert_XIBarrierEvent,
+        NULL,
+    };
+    return testfuncs;
 }

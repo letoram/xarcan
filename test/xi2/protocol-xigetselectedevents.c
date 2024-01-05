@@ -145,9 +145,14 @@ test_XIGetSelectedEvents(void)
 {
     int i, j;
     xXIGetSelectedEventsReq request;
-    ClientRec client = init_client(0, NULL);
+    ClientRec client;
     unsigned char *mask;
     DeviceIntRec dev;
+
+    init_simple();
+    enable_GrabButton_wrap = 0;
+    enable_XISetEventMask_wrap = 0;
+    client = init_client(0, NULL);
 
     request_init(&request, XIGetSelectedEvents);
 
@@ -208,14 +213,14 @@ test_XIGetSelectedEvents(void)
     }
 }
 
-int
+const testfunc_t*
 protocol_xigetselectedevents_test(void)
 {
-    init_simple();
-    enable_GrabButton_wrap = 0;
-    enable_XISetEventMask_wrap = 0;
-
-    test_XIGetSelectedEvents();
+    static const testfunc_t testfuncs[] = {
+        test_XIGetSelectedEvents,
+        NULL,
+    };
+    return testfuncs;
 
     return 0;
 }

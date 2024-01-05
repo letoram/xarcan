@@ -85,6 +85,8 @@ static unsigned char *data[4096];       /* the request buffer */
 static void
 test_ChangeDeviceControl(void)
 {
+    init_simple();
+
     xChangeDeviceControlReq *request = (xChangeDeviceControlReq *) data;
     xDeviceCtl *control = (xDeviceCtl *) (&request[1]);
 
@@ -115,12 +117,12 @@ test_ChangeDeviceControl(void)
     /* XXX: Test functionality! */
 }
 
-int
+const testfunc_t*
 protocol_xchangedevicecontrol_test(void)
 {
-    init_simple();
-
-    test_ChangeDeviceControl();
-
-    return 0;
+    static const testfunc_t testfuncs[] = {
+        test_ChangeDeviceControl,
+        NULL,
+    };
+    return testfuncs;
 }

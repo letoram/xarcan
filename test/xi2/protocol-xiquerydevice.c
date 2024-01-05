@@ -317,6 +317,8 @@ test_XIQueryDevice(void)
     xXIQueryDeviceReq request;
     struct test_data data;
 
+    init_simple();
+
     reply_handler = reply_XIQueryDevice;
     global_userdata = &data;
     request_init(&request, XIQueryDevice);
@@ -338,12 +340,13 @@ test_XIQueryDevice(void)
 
 }
 
-int
+const testfunc_t*
 protocol_xiquerydevice_test(void)
 {
-    init_simple();
+    static const testfunc_t testfuncs[] = {
+        test_XIQueryDevice,
+        NULL,
+    };
 
-    test_XIQueryDevice();
-
-    return 0;
+    return testfuncs;
 }

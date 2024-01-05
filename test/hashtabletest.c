@@ -24,7 +24,7 @@ print_int(void* ptr, void* v)
     printf("%d", *x);
 }
 
-static int
+static void
 test1(void)
 {
     HashTable h;
@@ -79,10 +79,10 @@ test1(void)
 
     ht_destroy(h);
 
-    return ok;
+    assert(ok);
 }
 
-static int
+static void
 test2(void)
 {
     HashTable h;
@@ -122,10 +122,10 @@ test2(void)
         printf("Test with empty keys FAILED\n");
     }
 
-    return ok;
+    assert(ok);
 }
 
-static int
+static void
 test3(void)
 {
     int ok = 1;
@@ -152,15 +152,17 @@ test3(void)
 
     ht_destroy(h);
 
-    return ok;
+    assert(ok);
 }
 
-int
+const testfunc_t*
 hashtabletest_test(void)
 {
-    int ok = test1();
-    ok = ok && test2();
-    ok = ok && test3();
-
-    return ok ? 0 : 1;
+    static const testfunc_t testfuncs[] = {
+        test1,
+        test2,
+        test3,
+        NULL,
+    };
+    return testfuncs;
 }

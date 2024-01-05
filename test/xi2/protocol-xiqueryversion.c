@@ -151,6 +151,8 @@ request_XIQueryVersion(int smaj, int smin, int cmaj, int cmin, int error)
 static void
 test_XIQueryVersion(void)
 {
+    init_simple();
+
     reply_handler = reply_XIQueryVersion;
 
     printf("Server version 2.0 - client versions [1..3].0\n");
@@ -202,6 +204,8 @@ test_XIQueryVersion_multiple(void)
     XIClientPtr pXIClient;
     struct test_data versions;
     int rc;
+
+    init_simple();
 
     request_init(&request, XIQueryVersion);
     client = init_client(request.length, &request);
@@ -290,13 +294,14 @@ test_XIQueryVersion_multiple(void)
     assert(rc == BadValue);
 }
 
-int
+const testfunc_t*
 protocol_xiqueryversion_test(void)
 {
-    init_simple();
+    static const testfunc_t testfuncs[] = {
+        test_XIQueryVersion,
+        test_XIQueryVersion_multiple,
+        NULL,
+    };
 
-    test_XIQueryVersion();
-    test_XIQueryVersion_multiple();
-
-    return 0;
+    return testfuncs;
 }

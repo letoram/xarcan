@@ -1926,28 +1926,31 @@ dix_enqueue_events(void)
     inputInfo.devices = NULL;
 }
 
-int
+const testfunc_t*
 input_test(void)
 {
-    dix_enqueue_events();
-    dix_double_fp_conversion();
-    dix_input_valuator_masks();
-    dix_input_valuator_masks_unaccel();
-    dix_input_attributes();
-    dix_init_valuators();
-    dix_event_to_core_conversion();
-    dix_event_to_xi1_conversion();
-    dix_check_grab_values();
-    xi2_struct_sizes();
-    dix_grab_matching();
-    dix_valuator_mode();
-    include_byte_padding_macros();
-    include_bit_test_macros();
-    xi_unregister_handlers();
-    dix_valuator_alloc();
-    dix_get_master();
-    input_option_test();
-    mieq_test();
+    static const testfunc_t testfuncs[] = {
+        dix_enqueue_events,
+        dix_double_fp_conversion,
+        dix_input_valuator_masks,
+        dix_input_valuator_masks_unaccel,
+        dix_input_attributes,
+        dix_init_valuators,
+        dix_event_to_core_conversion,
+        dix_event_to_xi1_conversion,
+        dix_check_grab_values,
+        xi2_struct_sizes,
+        dix_grab_matching,
+        dix_valuator_mode,
+        include_byte_padding_macros,
+        include_bit_test_macros,
+        xi_unregister_handlers,
+        dix_valuator_alloc,
+        dix_get_master,
+        input_option_test,
+        mieq_test,
+        NULL,
+    };
 
-    return 0;
+    return testfuncs;
 }

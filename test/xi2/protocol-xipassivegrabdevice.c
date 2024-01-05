@@ -175,6 +175,8 @@ test_XIPassiveGrabDevice(void)
     xXIPassiveGrabDeviceReq *request = (xXIPassiveGrabDeviceReq *) data;
     unsigned char *mask;
 
+    init_simple();
+
     request_init(request, XIPassiveGrabDevice);
 
     request->grab_window = CLIENT_WINDOW_ID;
@@ -247,12 +249,13 @@ test_XIPassiveGrabDevice(void)
     request_XIPassiveGrabDevice(&client_request, request, Success, 0);
 }
 
-int
+const testfunc_t*
 protocol_xipassivegrabdevice_test(void)
 {
-    init_simple();
+    static const testfunc_t testfuncs[] = {
+        test_XIPassiveGrabDevice,
+        NULL,
+    };
 
-    test_XIPassiveGrabDevice();
-
-    return 0;
+    return testfuncs;
 }
