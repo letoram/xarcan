@@ -214,7 +214,7 @@ if build_xorg
         'xi2/protocol-eventconvert.c',
         'xi2/xi2.c',
        ]
-       unit_defines += ['-DLDWRAP_TESTS']
+       unit_c_args += ['-DLDWRAP_TESTS']
        unit_includes += [include_directories('xi1', 'xi2')]
        ldwraps = [
         '-Wl,-wrap,dixLookupWindow',
