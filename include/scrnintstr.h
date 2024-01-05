@@ -359,6 +359,13 @@ typedef Bool (*SharePixmapBackingProcPtr)(PixmapPtr, ScreenPtr, void **);
 
 typedef Bool (*SetSharedPixmapBackingProcPtr)(PixmapPtr, void *);
 
+typedef DrawablePtr (*InterposeDrawableSrcDstProcPtr)(ClientPtr origin,
+                                                      DrawablePtr /* src */,
+                                                      DrawablePtr/* dst */
+                                                      );
+
+typedef PixmapPtr (*CompNewPixmapPtrProc)(WindowPtr pWin, int x, int y, int w, int h);
+
 #define HAS_SYNC_SHARED_PIXMAP 1
 /* The SyncSharedPixmap hook has two purposes:
  *
@@ -385,7 +392,6 @@ typedef Bool (*StartPixmapTrackingProcPtr)(DrawablePtr, PixmapPtr,
 typedef Bool (*PresentSharedPixmapProcPtr)(PixmapPtr);
 
 typedef Bool (*RequestSharedPixmapNotifyDamageProcPtr)(PixmapPtr);
-
 typedef Bool (*StopPixmapTrackingProcPtr)(DrawablePtr, PixmapPtr);
 
 typedef Bool (*StopFlippingPixmapTrackingProcPtr)(DrawablePtr,
@@ -604,6 +610,8 @@ typedef struct _Screen {
     SetScreenPixmapProcPtr SetScreenPixmap;
     NameWindowPixmapProcPtr NameWindowPixmap;
 
+    PixmapPtr pScratchPixmap;   /* scratch pixmap "pool" */
+
     unsigned int totalPixmapSize;
 
     MarkWindowProcPtr MarkWindow;
@@ -656,8 +664,12 @@ typedef struct _Screen {
     struct xorg_list pixmap_dirty_list;
 
     ReplaceScanoutPixmapProcPtr ReplaceScanoutPixmap;
+    InterposeDrawableSrcDstProcPtr InterposeDrawableSrcDst;
     XYToWindowProcPtr XYToWindow;
     DPMSProcPtr DPMS;
+    ClientPtr DispatchReqSrc;
+
+    CompNewPixmapPtrProc compNewPixmap;
 } ScreenRec;
 
 static inline RegionPtr

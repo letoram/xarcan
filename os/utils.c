@@ -370,9 +370,19 @@ LockServer(void)
             }
             else if (((t < 0) && (errno == EPERM)) || (t == 0)) {
                 /*
-                 * Process is still active.
+                 * Process is still active. Try and increment the DISPLAY up.
                  */
                 unlink(tmp);
+                long num = strtol(display, NULL, 10);
+                if (num < 100 && num >= 0){
+                      num++;
+                      free(display);
+                      display = malloc(3);
+                      sprintf((char*)display, "%d", (int)num);
+                      return LockServer();
+                }
+
+
                 FatalError
                     ("Server is already active for display %s\n%s %s\n%s\n",
                      port, "\tIf this server is no longer running, remove",

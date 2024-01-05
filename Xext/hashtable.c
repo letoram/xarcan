@@ -71,6 +71,9 @@ ht_create(int             keySize,
 void
 ht_destroy(HashTable ht)
 {
+    if (!ht)
+        return;
+
     int c;
     BucketPtr it, tmp;
     int numBuckets = 1 << ht->bucketBits;

@@ -127,7 +127,7 @@ dix_main(int argc, char *argv[], char *envp[])
     int i;
     HWEventQueueType alwaysCheckForInput[2];
 
-    display = "0";
+    display = strdup("0");
 
     InitRegions();
 
@@ -352,5 +352,7 @@ dix_main(int argc, char *argv[], char *envp[])
         free(ConnectionInfo);
         ConnectionInfo = NULL;
     }
+		free(display);
+		display = NULL;
     return 0;
 }

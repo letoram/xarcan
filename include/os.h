@@ -1,4 +1,4 @@
-/***********************************************************
+/**********************************************************
 
 Copyright 1987, 1998  The Open Group
 
@@ -50,12 +50,15 @@ SOFTWARE.
 #include "misc.h"
 #include <stdarg.h>
 #include <stdint.h>
-#if defined(HAVE_REALLOCARRAY)
-#include <stdlib.h>       /* for reallocarray */
-#endif
 #include <string.h>
 #ifdef MONOTONIC_CLOCK
 #include <time.h>
+#endif
+#if defined(HAVE_LIBBSD) && defined(HAVE_REALLOCARRAY)
+#include <bsd/stdlib.h>       /* for reallocarray */
+#endif
+#if defined(HAVE_LIBBSD) && defined(HAVE_STRLCPY)
+#include <bsd/string.h>       /* for strlcpy, strlcat */
 #endif
 
 #define SCREEN_SAVER_ON   0
@@ -124,7 +127,7 @@ extern _X_EXPORT int WriteToClient(ClientPtr /*who */ , int /*count */ ,
 
 extern _X_EXPORT void ResetOsBuffers(void);
 
-extern _X_EXPORT void NotifyParentProcess(void);
+extern _X_EXPORT void (*NotifyParentProcess)(void);
 
 extern _X_EXPORT void CreateWellKnownSockets(void);
 
@@ -170,7 +173,7 @@ extern _X_EXPORT void MakeClientGrabPervious(ClientPtr /*client */ );
 
 extern _X_EXPORT void ListenOnOpenFD(int /* fd */ , int /* noxauth */ );
 
-extern _X_EXPORT Bool AddClientOnOpenFD(int /* fd */ );
+extern _X_EXPORT ClientPtr AddClientOnOpenFD(int /* fd */ );
 
 #ifdef MONOTONIC_CLOCK
 extern void ForceClockId(clockid_t /* forced_clockid */);
