@@ -40,11 +40,13 @@
 
 #include "protocol-common.h"
 
+DECLARE_WRAP_FUNCTION(WriteToClient, void, ClientPtr client, int len, void *data);
+
 extern ClientRec client_window;
 static ClientRec client_request;
 
 static void
-reply_ChangeDeviceControl(ClientPtr client, int len, char *data, void *userdata)
+reply_ChangeDeviceControl(ClientPtr client, int len, void *data)
 {
     xChangeDeviceControlReply *rep = (xChangeDeviceControlReply *) data;
 
@@ -92,7 +94,7 @@ test_ChangeDeviceControl(void)
 
     request_init(request, ChangeDeviceControl);
 
-    reply_handler = reply_ChangeDeviceControl;
+    wrapped_WriteToClient  = reply_ChangeDeviceControl;
 
     client_request = init_client(request->length, request);
 

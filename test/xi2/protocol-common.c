@@ -287,12 +287,9 @@ init_simple(void)
     devices = init_devices();
 }
 
-void
-__wrap_WriteToClient(ClientPtr client, int len, void *data)
+WRAP_FUNCTION(WriteToClient, void, ClientPtr client, int len, void *data)
 {
-    assert(reply_handler != NULL);
-
-    (*reply_handler) (client, len, data, global_userdata);
+    IMPLEMENT_WRAP_FUNCTION(WriteToClient, client, len, data);
 }
 
 /* dixLookupWindow requires a lot of setup not necessary for this test.

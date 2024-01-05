@@ -143,7 +143,6 @@ void init_window(WindowPtr window, WindowPtr parent, int id);
 void init_simple(void);
 
 /* Declarations for various overrides in the test files. */
-void __wrap_WriteToClient(ClientPtr client, int len, void *data);
 int __wrap_XISetEventMask(DeviceIntPtr dev, WindowPtr win, ClientPtr client,
                           int len, unsigned char *mask);
 int __wrap_dixLookupWindow(WindowPtr *win, XID id, ClientPtr client,

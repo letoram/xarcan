@@ -44,6 +44,8 @@
 
 #include "protocol-common.h"
 
+DECLARE_WRAP_FUNCTION(WriteToClient, void, ClientPtr client, int len, void *data);
+
 extern ClientRec client_window;
 static ClientRec client_request;
 
@@ -63,7 +65,7 @@ int __real_GrabButton(ClientPtr client, DeviceIntPtr dev,
                       GrabParameters *param, enum InputLevel grabtype,
                       GrabMask *mask);
 static void reply_XIPassiveGrabDevice_data(ClientPtr client, int len,
-                                           char *data, void *closure);
+                                           void *data);
 
 int
 __wrap_GrabButton(ClientPtr client, DeviceIntPtr dev,
@@ -82,7 +84,7 @@ __wrap_GrabButton(ClientPtr client, DeviceIntPtr dev,
 }
 
 static void
-reply_XIPassiveGrabDevice(ClientPtr client, int len, char *data, void *closure)
+reply_XIPassiveGrabDevice(ClientPtr client, int len, void *data)
 {
     xXIPassiveGrabDeviceReply *rep = (xXIPassiveGrabDeviceReply *) data;
 
@@ -99,12 +101,11 @@ reply_XIPassiveGrabDevice(ClientPtr client, int len, char *data, void *closure)
     /* ProcXIPassiveGrabDevice sends the data in two batches, let the second
      * handler handle the modifier data */
     if (rep->num_modifiers > 0)
-        reply_handler = reply_XIPassiveGrabDevice_data;
+        wrapped_WriteToClient = reply_XIPassiveGrabDevice_data;
 }
 
 static void
-reply_XIPassiveGrabDevice_data(ClientPtr client, int len, char *data,
-                               void *closure)
+reply_XIPassiveGrabDevice_data(ClientPtr client, int len, void *data)
 {
     int i;
 
@@ -124,7 +125,7 @@ reply_XIPassiveGrabDevice_data(ClientPtr client, int len, char *data,
         assert(mods->pad1 == 0);
     }
 
-    reply_handler = reply_XIPassiveGrabDevice;
+    wrapped_WriteToClient = reply_XIPassiveGrabDevice;
 }
 
 static void
@@ -181,7 +182,7 @@ test_XIPassiveGrabDevice(void)
 
     request->grab_window = CLIENT_WINDOW_ID;
 
-    reply_handler = reply_XIPassiveGrabDevice;
+    wrapped_WriteToClient = reply_XIPassiveGrabDevice;
     client_request = init_client(request->length, request);
 
     printf("Testing invalid device\n");

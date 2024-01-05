@@ -1,6 +1,23 @@
 #ifndef TESTS_H
 #define TESTS_H
 
+#define DECLARE_WRAP_FUNCTION(f_, rval_, ...) \
+    extern rval_ (*wrapped_ ## f_)(__VA_ARGS__) \
+
+#define IMPLEMENT_WRAP_FUNCTION(f_, ...) \
+    if (wrapped_ ## f_) wrapped_ ## f_(__VA_ARGS__); \
+    else __real_ ## f_(__VA_ARGS__)
+
+#define IMPLEMENT_WRAP_FUNCTION_WITH_RETURN(f_, ...) \
+    if (wrapped_ ## f_) return wrapped_ ## f_(__VA_ARGS__); \
+    else return __real_ ## f_(__VA_ARGS__)
+
+#define WRAP_FUNCTION(f_, rval_, ...) \
+    rval_ (*wrapped_ ## f_)(__VA_ARGS__); \
+    extern rval_ __real_ ## f_(__VA_ARGS__); \
+    rval_ __wrap_ ## f_(__VA_ARGS__); \
+    rval_ __wrap_ ## f_(__VA_ARGS__)
+
 typedef void (*testfunc_t)(void);
 
 const testfunc_t* fixes_test(void);

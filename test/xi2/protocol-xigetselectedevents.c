@@ -52,10 +52,10 @@
 
 #include "protocol-common.h"
 
-static void reply_XIGetSelectedEvents(ClientPtr client, int len, char *data,
-                                      void *userdata);
-static void reply_XIGetSelectedEvents_data(ClientPtr client, int len,
-                                           char *data, void *userdata);
+DECLARE_WRAP_FUNCTION(WriteToClient, void, ClientPtr client, int len, void *data);
+
+static void reply_XIGetSelectedEvents(ClientPtr client, int len, void *data);
+static void reply_XIGetSelectedEvents_data(ClientPtr client, int len, void *data);
 
 static struct {
     int num_masks_expected;
@@ -73,7 +73,7 @@ __wrap_AddResource(XID id, RESTYPE type, void *value)
 }
 
 static void
-reply_XIGetSelectedEvents(ClientPtr client, int len, char *data, void *userdata)
+reply_XIGetSelectedEvents(ClientPtr client, int len, void *data)
 {
     xXIGetSelectedEventsReply *rep = (xXIGetSelectedEventsReply *) data;
 
@@ -87,12 +87,11 @@ reply_XIGetSelectedEvents(ClientPtr client, int len, char *data, void *userdata)
 
     assert(rep->num_masks == test_data.num_masks_expected);
 
-    reply_handler = reply_XIGetSelectedEvents_data;
+    wrapped_WriteToClient = reply_XIGetSelectedEvents_data;
 }
 
 static void
-reply_XIGetSelectedEvents_data(ClientPtr client, int len, char *data,
-                               void *userdata)
+reply_XIGetSelectedEvents_data(ClientPtr client, int len, void *data)
 {
     int i;
     xXIEventMask *mask;
@@ -127,12 +126,12 @@ request_XIGetSelectedEvents(xXIGetSelectedEventsReq * req, int error)
 
     client = init_client(req->length, req);
 
-    reply_handler = reply_XIGetSelectedEvents;
+    wrapped_WriteToClient = reply_XIGetSelectedEvents;
 
     rc = ProcXIGetSelectedEvents(&client);
     assert(rc == error);
 
-    reply_handler = reply_XIGetSelectedEvents;
+    wrapped_WriteToClient = reply_XIGetSelectedEvents;
     client.swapped = TRUE;
     swapl(&req->win);
     swaps(&req->length);

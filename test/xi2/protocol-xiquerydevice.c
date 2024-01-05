@@ -42,6 +42,8 @@
 #include "xiquerydevice.h"
 
 #include "protocol-common.h"
+
+DECLARE_WRAP_FUNCTION(WriteToClient, void, ClientPtr client, int len, void *data);
 /*
  * Protocol testing for XIQueryDevice request and reply.
  *
@@ -52,24 +54,20 @@
  * Repeatedly test with varying deviceids and check against data in reply.
  */
 
-struct test_data {
+static struct test_data {
     int which_device;
     int num_devices_in_reply;
-};
+} test_data;
 
 extern ClientRec client_window;
 
-static void reply_XIQueryDevice_data(ClientPtr client, int len, char *data,
-                                     void *closure);
-static void reply_XIQueryDevice(ClientPtr client, int len, char *data,
-                                void *closure);
+static void reply_XIQueryDevice_data(ClientPtr client, int len, void *data);
 
 /* reply handling for the first bytes that constitute the reply */
 static void
-reply_XIQueryDevice(ClientPtr client, int len, char *data, void *userdata)
+reply_XIQueryDevice(ClientPtr client, int len, void *data)
 {
     xXIQueryDeviceReply *rep = (xXIQueryDeviceReply *) data;
-    struct test_data *querydata = (struct test_data *) userdata;
 
     if (client->swapped) {
         swapl(&rep->length);
@@ -79,29 +77,29 @@ reply_XIQueryDevice(ClientPtr client, int len, char *data, void *userdata)
 
     reply_check_defaults(rep, len, XIQueryDevice);
 
-    if (querydata->which_device == XIAllDevices)
+    if (test_data.which_device == XIAllDevices)
         assert(rep->num_devices == devices.num_devices);
-    else if (querydata->which_device == XIAllMasterDevices)
+    else if (test_data.which_device == XIAllMasterDevices)
         assert(rep->num_devices == devices.num_master_devices);
     else
         assert(rep->num_devices == 1);
 
-    querydata->num_devices_in_reply = rep->num_devices;
-    reply_handler = reply_XIQueryDevice_data;
+    test_data.num_devices_in_reply = rep->num_devices;
+
+    wrapped_WriteToClient = reply_XIQueryDevice_data;
 }
 
 /* reply handling for the trailing bytes that constitute the device info */
 static void
-reply_XIQueryDevice_data(ClientPtr client, int len, char *data, void *closure)
+reply_XIQueryDevice_data(ClientPtr client, int len, void *data)
 {
     int i, j;
-    struct test_data *querydata = (struct test_data *) closure;
 
     DeviceIntPtr dev;
     xXIDeviceInfo *info = (xXIDeviceInfo *) data;
     xXIAnyInfo *any;
 
-    for (i = 0; i < querydata->num_devices_in_reply; i++) {
+    for (i = 0; i < test_data.num_devices_in_reply; i++) {
         if (client->swapped) {
             swaps(&info->deviceid);
             swaps(&info->attachment);
@@ -110,8 +108,8 @@ reply_XIQueryDevice_data(ClientPtr client, int len, char *data, void *closure)
             swaps(&info->name_len);
         }
 
-        if (querydata->which_device > XIAllMasterDevices)
-            assert(info->deviceid == querydata->which_device);
+        if (test_data.which_device > XIAllMasterDevices)
+            assert(info->deviceid == test_data.which_device);
 
         assert(info->deviceid >= 2);    /* 0 and 1 is reserved */
 
@@ -287,7 +285,7 @@ request_XIQueryDevice(struct test_data *querydata, int deviceid, int error)
 
     request_init(&request, XIQueryDevice);
     client = init_client(request.length, &request);
-    reply_handler = reply_XIQueryDevice;
+    wrapped_WriteToClient = reply_XIQueryDevice;
 
     querydata->which_device = deviceid;
 
@@ -298,7 +296,7 @@ request_XIQueryDevice(struct test_data *querydata, int deviceid, int error)
     if (rc != Success)
         assert(client.errorValue == deviceid);
 
-    reply_handler = reply_XIQueryDevice;
+    wrapped_WriteToClient = reply_XIQueryDevice;
 
     client.swapped = TRUE;
     swaps(&request.length);
@@ -315,29 +313,24 @@ test_XIQueryDevice(void)
 {
     int i;
     xXIQueryDeviceReq request;
-    struct test_data data;
 
     init_simple();
 
-    reply_handler = reply_XIQueryDevice;
-    global_userdata = &data;
+    wrapped_WriteToClient = reply_XIQueryDevice;
     request_init(&request, XIQueryDevice);
 
     printf("Testing XIAllDevices.\n");
-    request_XIQueryDevice(&data, XIAllDevices, Success);
+    request_XIQueryDevice(&test_data, XIAllDevices, Success);
     printf("Testing XIAllMasterDevices.\n");
-    request_XIQueryDevice(&data, XIAllMasterDevices, Success);
+    request_XIQueryDevice(&test_data, XIAllMasterDevices, Success);
 
     printf("Testing existing device ids.\n");
     for (i = 2; i < 6; i++)
-        request_XIQueryDevice(&data, i, Success);
+        request_XIQueryDevice(&test_data, i, Success);
 
     printf("Testing non-existing device ids.\n");
     for (i = 6; i <= 0xFFFF; i++)
-        request_XIQueryDevice(&data, i, BadDevice);
-
-    reply_handler = NULL;
-
+        request_XIQueryDevice(&test_data, i, BadDevice);
 }
 
 const testfunc_t*
