@@ -307,6 +307,16 @@ static PixmapPtr arcanGetWindowPixmap(WindowPtr wnd)
 
 /* Reject or substitute DispatchReqScr if the window has been marked as
  * protected. */
+    arcanWindowPriv *apriv = dixLookupPrivate(&wnd->devPrivates, &windowPriv);
+		if (apriv && apriv->shmif){
+		    arcanShmifPriv *shmif = apriv->shmif->user;
+			  if (shmif->bound){
+						return shmif->pixmap;
+				}
+				else
+					trace("getWindowPixmap(unbound)");
+		}
+
     if (1 || (scrpriv->hooks.getWindowPixmap && !pScreen->DispatchReqSrc)){
         scrpriv->screen->GetWindowPixmap = scrpriv->hooks.getWindowPixmap;
         res = scrpriv->hooks.getWindowPixmap(wnd);
@@ -3130,6 +3140,23 @@ arcanSetWindowPixmap(WindowPtr wnd, PixmapPtr pixmap)
 {
     arcanScrPriv* ascr = getArcanScreen(wnd);
     trace("arcanSetWindowPixmap(%"PRIxPTR", %"PRIxPTR")", (uintptr_t) wnd, (uintptr_t) pixmap);
+
+    arcanPixmapPriv *priv = dixLookupPrivate(
+                                             &pixmap->devPrivates,
+                                             &pixmapPriv);
+
+/* This might be compose reassigning the pixmap of one window to that of
+ * another immediately after arcanCompNewPixmap without passing Realize first -
+ * Krita does this for instance */
+    if (priv){
+        arcanWindowPriv *aWnd = ensureArcanWndPrivate(wnd);
+        if (aWnd->shmif && aWnd->shmif->user){
+            arcanShmifPriv *contpriv = aWnd->shmif->user;
+            contpriv->pixmap = pixmap;
+            contpriv->window = wnd; /* should be no-op */
+            contpriv->bound = true;
+        }
+    }
 
     if (ascr->hooks.setWindowPixmap){
         ascr->screen->SetWindowPixmap = ascr->hooks.setWindowPixmap;
