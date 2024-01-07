@@ -3342,9 +3342,11 @@ flushPendingPresent(WindowPtr wnd, int type, uint64_t msc)
 
     if (type == 1){
         trace("kind=present_feedback:wnd=%08" PRIx32 ":msc=%"PRIu64, wnd->drawable.id, msc);
+        xa_present_buffer_release(pwnd);
     }
     else if (type == 2){
         trace("kind=vblank_feedback:wnd=%08" PRIx32 ":msc=%"PRIu64, wnd->drawable.id, msc);
+        xa_present_buffer_release(pwnd); /* not correct, should trigger on #1 and we miss ID to deal with long swap chain */
         xa_present_msc_bump(pwnd, msc);
     }
 }

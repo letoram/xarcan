@@ -43,7 +43,7 @@
 #include "xa-present.h"
 #include "glamor.h"
 
-#define xa_present_CAPS PresentCapabilityAsync
+#define XA_PRESENT_CAPS PresentCapabilityAsync | PresentCapabilityAsyncMayTear
 
 static DevPrivateKeyRec xa_present_window_private_key;
 
@@ -81,9 +81,22 @@ xa_present_window_get_priv(WindowPtr window)
 }
 
 static struct xa_present_event *
-xa_present_event_from_id(uint64_t event_id)
+xa_present_event_from_id(WindowPtr present_window, uint64_t event_id)
 {
-    return (struct xa_present_event*)(uintptr_t)event_id;
+    present_window_priv_ptr window_priv = present_get_window_priv(present_window, TRUE);
+    struct xa_present_event *event;
+
+    xorg_list_for_each_entry(event, &window_priv->vblank, vblank.window_list) {
+        if (event->vblank.event_id == event_id)
+            return event;
+    }
+    return NULL;
+}
+
+static struct xa_present_event *
+xa_present_event_from_vblank(present_vblank_ptr vblank)
+{
+    return container_of(vblank, struct xa_present_event, vblank);
 }
 
 static present_vblank_ptr
@@ -118,7 +131,7 @@ xa_present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc);
 static uint32_t
 xa_present_query_capabilities(present_screen_priv_ptr screen_priv)
 {
-    return xa_present_CAPS;
+    return XA_PRESENT_CAPS;
 }
 
 static int
@@ -190,7 +203,7 @@ static void
 xa_present_free_idle_vblank(present_vblank_ptr vblank)
 {
     present_pixmap_idle(vblank->pixmap, vblank->window, vblank->serial, vblank->idle_fence);
-    xa_present_free_event(xa_present_event_from_id((uintptr_t)vblank));
+    xa_present_free_event(xa_present_event_from_vblank(vblank));
 }
 
 static WindowPtr
@@ -222,7 +235,15 @@ xa_present_flips_stop(WindowPtr window)
         xa_present_free_idle_vblank(vblank);
 
     if (xa_present_window->flip_active) {
-        xa_present_free_idle_vblank(xa_present_window->flip_active);
+        struct xa_present_event *event;
+
+        vblank = xa_present_window->flip_active;
+        event = xa_present_event_from_vblank(vblank);
+        if (event->pixmap)
+            xa_present_free_idle_vblank(vblank);
+        else
+            xa_present_free_event(event);
+
         xa_present_window->flip_active = NULL;
     }
 
@@ -234,6 +255,7 @@ xa_present_flip_notify_vblank(present_vblank_ptr vblank, uint64_t ust, uint64_t 
 {
     WindowPtr                   window = vblank->window;
     struct xa_present_window *xa_present_window = xa_present_window_priv(window);
+    uint8_t mode = PresentCompleteModeFlip;
 
     DebugPresent(("\ttype=notify_flip:id=%" PRIu64 ":ptr=%p:msc=%" PRIu64 ":tgt_msc=%" PRIu64 ":pmap=%08" PRIx32 ":wnd=%08" PRIx32 "\n",
                   vblank->event_id, vblank, vblank->exec_msc, vblank->target_msc,
@@ -246,7 +268,7 @@ xa_present_flip_notify_vblank(present_vblank_ptr vblank, uint64_t ust, uint64_t 
 
     if (xa_present_window->flip_active) {
         struct xa_present_event *event =
-            xa_present_event_from_id((uintptr_t)xa_present_window->flip_active);
+            xa_present_event_from_vblank(xa_present_window->flip_active);
 
         if (!event->pixmap)
             xa_present_free_event(event);
@@ -259,7 +281,10 @@ xa_present_flip_notify_vblank(present_vblank_ptr vblank, uint64_t ust, uint64_t 
 
     xa_present_window->flip_active = vblank;
 
-    present_vblank_notify(vblank, PresentCompleteKindPixmap, PresentCompleteModeFlip, ust, crtc_msc);
+    if (vblank->reason == PRESENT_FLIP_REASON_BUFFER_FORMAT)
+        mode = PresentCompleteModeSuboptimalCopy;
+
+    present_vblank_notify(vblank, PresentCompleteKindPixmap, mode, ust, crtc_msc);
 
     if (vblank->abort_flip)
         xa_present_flips_stop(window);
@@ -312,32 +337,30 @@ xa_present_cleanup(WindowPtr window)
     free(xa_present_window);
 }
 
-static void
-xa_present_buffer_release(void *data)
+void
+xa_present_buffer_release(struct xa_present_window* window)
 {
-    struct xa_present_window *xa_present_window;
-    struct xa_present_event *event = data;
-    present_vblank_ptr vblank;
-
-    if (!event)
+    present_vblank_ptr vblank = xa_present_get_pending_flip(window);
+    if (!vblank)
         return;
 
-    vblank = &event->vblank;
     present_pixmap_idle(vblank->pixmap, vblank->window, vblank->serial, vblank->idle_fence);
 
+/*
     xa_present_window = xa_present_window_priv(vblank->window);
     if (xa_present_window->flip_active == vblank ||
         xa_present_get_pending_flip(xa_present_window) == vblank)
         xa_present_release_pixmap(event);
     else
         xa_present_free_event(event);
+ */
 }
 
 void
 xa_present_msc_bump(struct xa_present_window *xa_present_window, uint64_t msc)
 {
     present_vblank_ptr flip_pending = xa_present_get_pending_flip(xa_present_window);
-		xa_present_window->msc = msc;
+    xa_present_window->msc = msc;
     present_vblank_ptr vblank, tmp;
 
     xa_present_window->ust = GetTimeInMicros();
@@ -351,10 +374,9 @@ xa_present_msc_bump(struct xa_present_window *xa_present_window, uint64_t msc)
                           vblank->event_id, xa_present_window->ust, msc));
 
             xa_present_execute(vblank, xa_present_window->ust, msc);
-            xa_present_buffer_release(xa_present_event_from_id(vblank->event_id));
         }
-				else
-					DebugPresent(("type=wait_for:tgt_msc=%"PRIu64":msc=%"PRIu64"\n", vblank->exec_msc, msc));
+        else
+            DebugPresent(("type=wait_for:tgt_msc=%"PRIu64":msc=%"PRIu64"\n", vblank->exec_msc, msc));
     }
 }
 
@@ -388,11 +410,16 @@ xa_present_queue_vblank(ScreenPtr screen,
                          uint64_t msc)
 {
     struct xa_present_window *xa_present_window = xa_present_window_get_priv(present_window);
-    struct xa_present_event *event = xa_present_event_from_id(event_id);
+    struct xa_present_event *event = xa_present_event_from_id(present_window, event_id);
+
+    if (!event) {
+        ErrorF("present: Error getting event\n");
+        return BadImplementation;
+    }
 
     event->vblank.exec_msc = msc;
 
-/*    xorg_list_del(&event->vblank.event_queue); */
+    xorg_list_del(&event->vblank.event_queue);
     xorg_list_append(&event->vblank.event_queue, &xa_present_window->wait_list);
 
     return Success;
@@ -554,15 +581,10 @@ xa_present_clear_window_flip(WindowPtr window)
 }
 
 static Bool
-xa_present_flip(WindowPtr present_window,
-                 RRCrtcPtr crtc,
-                 uint64_t event_id,
-                 PixmapPtr pixmap,
-                 Bool sync_flip,
-                 RegionPtr damage)
+xa_present_flip(present_vblank_ptr vblank, RegionPtr damage)
 {
-    arcanWindowPriv* awnd = arcanWindowFromWnd(present_window);
-    arcanPixmapPriv* apmap = arcanPixmapFromPixmap(pixmap);
+    arcanWindowPriv* awnd = arcanWindowFromWnd(vblank->window);
+    arcanPixmapPriv* apmap = arcanPixmapFromPixmap(vblank->pixmap);
 
     if (!awnd || !apmap){
         return FALSE;
@@ -578,6 +600,11 @@ xa_present_flip(WindowPtr present_window,
                              });
 
         uintptr_t adisp, actx;
+        awnd->shmif->dirty.x1 = 0;
+        awnd->shmif->dirty.y1 = 0;
+        awnd->shmif->dirty.x2 = awnd->shmif->w;
+        awnd->shmif->dirty.y2 = awnd->shmif->h;
+
         arcan_shmifext_egl_meta(awnd->shmif, &adisp, NULL, &actx);
         arcan_shmifext_signal(awnd->shmif,
                               adisp,
@@ -618,7 +645,6 @@ xa_present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
     if (flip_pending && vblank->flip && vblank->pixmap && vblank->window) {
         DebugPresent(("\ttype=exec_pending:id=%" PRIu64 ":ptr=%p:pending_ptr=%p\n",
                       vblank->event_id, vblank, flip_pending));
-				xorg_list_del(&vblank->event_queue); /* difference with xwl-present? */
         xorg_list_append(&vblank->event_queue, &xa_present_window->flip_queue);
         vblank->flip_ready = TRUE;
         return;
@@ -646,8 +672,7 @@ xa_present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
             } else
                 damage = RegionDuplicate(&window->clipList);
 
-            if (xa_present_flip(vblank->window, vblank->crtc, vblank->event_id,
-                                 vblank->pixmap, vblank->sync_flip, damage)) {
+            if (xa_present_flip(vblank, damage)) {
                 WindowPtr toplvl_window = xa_present_toplvl_pixmap_window(vblank->window);
                 PixmapPtr old_pixmap = screen->GetWindowPixmap(window);
 
@@ -715,6 +740,7 @@ xa_present_pixmap(WindowPtr window,
                    present_notify_ptr notifies,
                    int num_notifies)
 {
+    static uint64_t xwl_present_event_id;
     uint64_t                    ust = 0;
     uint64_t                    target_msc;
     uint64_t                    crtc_msc = 0;
@@ -774,18 +800,22 @@ xa_present_pixmap(WindowPtr window,
 
     vblank = &event->vblank;
     if (!present_vblank_init(vblank, window, pixmap, serial, valid, update, x_off, y_off,
-                             target_crtc, wait_fence, idle_fence, options, xa_present_CAPS,
+                             target_crtc, wait_fence, idle_fence, options, XA_PRESENT_CAPS,
                              notifies, num_notifies, target_msc, crtc_msc)) {
         present_vblank_destroy(vblank);
         return BadAlloc;
     }
 
-    vblank->event_id = (uintptr_t)event;
+    vblank->event_id = ++xwl_present_event_id;
+    event->async_may_tear = options & PresentOptionAsyncMayTear;
 
-    /* Xwayland presentations always complete (at least) one frame after they
+    /* Synchronous Xwayland presentations always complete (at least) one frame after they
      * are executed
      */
-    vblank->exec_msc = vblank->target_msc - 1;
+    if (event->async_may_tear)
+        vblank->exec_msc = vblank->target_msc;
+    else
+        vblank->exec_msc = vblank->target_msc - 1;
 
     vblank->queued = TRUE;
     if (crtc_msc < vblank->exec_msc) {
@@ -802,12 +832,23 @@ xa_present_pixmap(WindowPtr window,
 void
 xa_present_unrealize_window(struct xa_present_window *xa_present_window)
 {
+/* Make sure the timer callback doesn't get called
+ * ignore for now as our times are tied to the arcan-shmif-window
+    xwl_present_window->timer_armed = 0;
+    xwl_present_reset_timer(xwl_present_window);
+*/
 }
 
 Bool
 xa_present_init(ScreenPtr screen)
 {
     present_screen_priv_ptr screen_priv;
+
+    /* xwl checks for this here, we do it outside
+     * struct xwl_screen *xwl_screen = xwl_screen_get(screen);
+       if (!xwl_screen->glamor || !xwl_screen->egl_backend)
+           return FALSE;
+     */
 
     if (!present_screen_register_priv_keys())
         return FALSE;

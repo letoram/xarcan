@@ -55,8 +55,8 @@ struct xa_present_window {
 
 struct xa_present_event {
     present_vblank_rec vblank;
-
     PixmapPtr pixmap;
+		Bool async_may_tear;
 };
 
 void xa_present_reset_timer(struct xa_present_window *);
@@ -64,6 +64,7 @@ void xa_present_msc_bump(struct xa_present_window *xa_present_window, uint64_t m
 Bool xa_present_init(ScreenPtr screen);
 void xa_present_cleanup(WindowPtr window);
 void xa_present_unrealize_window(struct xa_present_window*);
+void xa_present_buffer_release(struct xa_present_window*);
 struct xa_present_window* xa_present_window_priv(WindowPtr window);
 #endif /* GLAMOR_HAS_GBM */
 
