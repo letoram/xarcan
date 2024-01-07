@@ -308,14 +308,14 @@ static PixmapPtr arcanGetWindowPixmap(WindowPtr wnd)
 /* Reject or substitute DispatchReqScr if the window has been marked as
  * protected. */
     arcanWindowPriv *apriv = dixLookupPrivate(&wnd->devPrivates, &windowPriv);
-		if (apriv && apriv->shmif){
-		    arcanShmifPriv *shmif = apriv->shmif->user;
-			  if (shmif->bound){
-						return shmif->pixmap;
-				}
-				else
-					trace("getWindowPixmap(unbound)");
-		}
+    if (apriv && apriv->shmif){
+        arcanShmifPriv *shmif = apriv->shmif->user;
+        if (shmif->bound){
+            return shmif->pixmap;
+        }
+        else
+            trace("getWindowPixmap(unbound)");
+    }
 
     if (1 || (scrpriv->hooks.getWindowPixmap && !pScreen->DispatchReqSrc)){
         scrpriv->screen->GetWindowPixmap = scrpriv->hooks.getWindowPixmap;
@@ -977,6 +977,8 @@ arcanScreenInitialize(KdScreenInfo * screen, arcanScrPriv * scrpriv)
         setGlamorMask(screen);
     else
         setArcanMask(screen);
+
+    FakeScreenFps = arcan_init->rate;
 
     return arcanMapFramebuffer(screen);
 }
@@ -1685,7 +1687,7 @@ pixmapFromShmif(ScreenPtr pScreen, struct arcan_shmif_cont *C, unsigned usage)
     pPixmap->drawable.type = DRAWABLE_PIXMAP;
     pPixmap->drawable.class = 0;
     pPixmap->drawable.pScreen = pScreen;
-    pPixmap->drawable.bitsPerPixel = 24;
+    pPixmap->drawable.bitsPerPixel = 32;
     pPixmap->drawable.id = 0;
     pPixmap->drawable.serialNumber = NEXT_SERIAL_NUMBER;
     pPixmap->drawable.x = 0;
@@ -1978,7 +1980,7 @@ static PixmapPtr arcanCompNewPixmap(WindowPtr pWin, int x, int y, int w, int h)
  * a free-for-all in X11 and with it enabled, firefox subsurfaces etc. would
  * appear black rather than have a blended shadow, but xterm/xeyes etc. would
  * not have any visible background. */
-    C->hints = SHMIF_RHINT_ORIGO_UL | SHMIF_RHINT_SUBREGION |
+    C->hints = SHMIF_RHINT_ORIGO_UL    | SHMIF_RHINT_SUBREGION     |
                SHMIF_RHINT_CSPACE_SRGB | SHMIF_RHINT_IGNORE_ALPHA;
 
 /* This gives us STEPFRAME events latched to frame delivery and combines with
@@ -2625,7 +2627,9 @@ arcanRandRScreenResize(ScreenPtr pScreen,
  * for a dedicated XRandr like path) */
         RROutputSetModes(scrpriv->randrOutput, &mode, 1, 1);
         RRCrtcGammaSetSize(scrpriv->randrCrtc, scrpriv->block.plane_sizes[0] / 3);
-        RROutputSetPhysicalSize(scrpriv->randrOutput, size.mmWidth, size.mmHeight);
+
+        if (size.mmWidth && size.mmHeight)
+            RROutputSetPhysicalSize(scrpriv->randrOutput, size.mmWidth, size.mmHeight);
 
 /*
  RCrtcNotify(scrpriv->randrOutput, mode, 0, 0, RR_ROTATE_0, NULL, 1, ???)
@@ -2810,6 +2814,27 @@ arcanRandRInit(ScreenPtr pScreen)
 
     RROutputSetCrtcs(scrpriv->randrOutput, &scrpriv->randrCrtc, 1);
     RROutputSetConnection(scrpriv->randrOutput, RR_Connected);
+
+    RRScreenSize size = {
+        .width = arcan_init->display_width_px,
+        .height = arcan_init->display_height_px,
+        .mmWidth = (float)arcan_init->display_height_px / (0.1 * arcan_init->density),
+        .mmHeight = (float)arcan_init->display_height_px / (0.1 * arcan_init->density)
+    };
+
+    RRScreenSetSizeRange(
+        pScreen,
+        640, 480,
+        arcan_init->display_width_px, arcan_init->display_height_px
+    );
+    RRModePtr mode = arcan_cvt(
+                               arcan_init->display_width_px,
+                               arcan_init->display_height_px,
+                               (float) arcan_init->rate / 1000.0, 0, 0
+                              );
+    RROutputSetModes(scrpriv->randrOutput, &mode, 1, 1);
+    RRScreenSizeNotify(pScreen);
+    RROutputSetPhysicalSize(scrpriv->randrOutput, size.mmWidth, size.mmHeight);
 
     return TRUE;
 }
@@ -3265,7 +3290,7 @@ updateWindowFocus(WindowPtr wnd, bool focus)
 
             cmdRaiseWindow(wnd->drawable.id);
             trace("sendingTakeFocus(%d)", wnd->drawable.id);
-            return;
+/*            return;  */
         }
     }
 
@@ -3281,6 +3306,7 @@ updateWindowFocus(WindowPtr wnd, bool focus)
                   TRUE
                  );
     cmdRaiseWindow(wnd->drawable.id);
+    QueueKeyboardEvents(arcanInputPriv.ki->dixdev, EnterNotify, 8);
     traceFocus(kdev, "setFocus, new keyboard:");
     traceFocus(pdev, "setFocus, new mouse:");
 
