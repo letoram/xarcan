@@ -56,13 +56,15 @@ struct xwl_gbm_private {
     drmDevice *device;
     char *device_name;
     struct gbm_device *gbm;
-    struct wl_drm *drm;
     int drm_fd;
     Bool fd_render_node;
     Bool drm_authenticated;
-    uint32_t capabilities;
     Bool dmabuf_capable;
     Bool glamor_gles;
+
+    /* Set if wl_drm is available */
+    struct wl_drm *drm;
+    uint32_t capabilities;
 };
 
 struct xwl_pixmap {
@@ -562,7 +564,8 @@ xwl_glamor_gbm_get_wl_buffer_for_pixmap(PixmapPtr pixmap)
            zwp_linux_buffer_params_v1_create_immed(params, width, height,
                                                    format, 0);
         zwp_linux_buffer_params_v1_destroy(params);
-    } else if (num_planes == 1 && modifier == DRM_FORMAT_MOD_INVALID) {
+    } else if (num_planes == 1 && modifier == DRM_FORMAT_MOD_INVALID &&
+               xwl_gbm->drm) {
         xwl_pixmap->buffer =
             wl_drm_create_prime_buffer(xwl_gbm->drm, prime_fds[0], width, height,
                                        format,
@@ -1028,8 +1031,8 @@ xwl_glamor_gbm_has_wl_interfaces(struct xwl_screen *xwl_screen)
 {
     struct xwl_gbm_private *xwl_gbm = xwl_gbm_get(xwl_screen);
 
-    if (xwl_gbm->drm == NULL) {
-        LogMessageVerb(X_INFO, 3, "glamor: 'wl_drm' not supported\n");
+    if (xwl_gbm->drm == NULL && xwl_screen->dmabuf_protocol_version < 4) {
+        LogMessageVerb(X_INFO, 3, "glamor: 'wl_drm' not supported and linux-dmabuf v4 not supported\n");
         return FALSE;
     }
 
@@ -1134,12 +1137,56 @@ xwl_glamor_try_gles_api(struct xwl_screen *xwl_screen)
 }
 
 static Bool
+xwl_glamor_gbm_init_main_dev(struct xwl_screen *xwl_screen)
+{
+    struct xwl_gbm_private *xwl_gbm = xwl_gbm_get(xwl_screen);
+    drmDevice *main_dev;
+
+    while (!xwl_screen->default_feedback.feedback_done) {
+        if (wl_display_dispatch(xwl_screen->display) < 0) {
+            ErrorF("Failed to dispatch Wayland display\n");
+            return FALSE;
+        }
+    }
+
+    main_dev = xwl_screen->default_feedback.main_dev;
+    if (!(main_dev->available_nodes & (1 << DRM_NODE_RENDER))) {
+        ErrorF("Main linux-dmabuf device has no render node\n");
+        return FALSE;
+    }
+
+    xwl_gbm->device_name = strdup(main_dev->nodes[DRM_NODE_RENDER]);
+    if (!xwl_gbm->device_name) {
+        return FALSE;
+    }
+
+    xwl_gbm->drm_fd = open(xwl_gbm->device_name, O_RDWR | O_CLOEXEC);
+    if (xwl_gbm->drm_fd < 0) {
+        ErrorF("wayland-egl: could not open %s (%s)\n",
+               xwl_gbm->device_name, strerror(errno));
+        return FALSE;
+    }
+
+    if (drmGetDevice2(xwl_gbm->drm_fd, 0, &xwl_gbm->device) != 0) {
+        ErrorF("wayland-egl: Could not fetch DRM device %s\n",
+               xwl_gbm->device_name);
+        return FALSE;
+    }
+
+    xwl_gbm->fd_render_node = TRUE;
+    return TRUE;
+}
+
+static Bool
 xwl_glamor_gbm_init_egl(struct xwl_screen *xwl_screen)
 {
     struct xwl_gbm_private *xwl_gbm = xwl_gbm_get(xwl_screen);
     EGLint major, minor;
     const GLubyte *renderer;
     const char *gbm_backend_name;
+
+    if (!xwl_gbm->drm && !xwl_glamor_gbm_init_main_dev(xwl_screen))
+        return FALSE;
 
     if (!xwl_gbm->fd_render_node && !xwl_gbm->drm_authenticated) {
         ErrorF("Failed to get wl_drm, disabling Glamor and DRI3\n");
