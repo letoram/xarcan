@@ -58,10 +58,10 @@ struct xwl_gbm_private {
     struct gbm_device *gbm;
     struct wl_drm *drm;
     int drm_fd;
-    int fd_render_node;
+    Bool fd_render_node;
     Bool drm_authenticated;
     uint32_t capabilities;
-    int dmabuf_capable;
+    Bool dmabuf_capable;
     Bool glamor_gles;
 };
 
@@ -945,7 +945,7 @@ xwl_drm_handle_device(void *data, struct wl_drm *drm, const char *device)
    }
 
    if (drmGetNodeTypeFromFd(xwl_gbm->drm_fd) == DRM_NODE_RENDER) {
-       xwl_gbm->fd_render_node = 1;
+       xwl_gbm->fd_render_node = TRUE;
        xwl_screen->expecting_event--;
    } else {
        drmGetMagic(xwl_gbm->drm_fd, &magic);
