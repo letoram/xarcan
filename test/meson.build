@@ -187,15 +187,14 @@ if build_xorg
      'xfree86.c',
      'xtest.c',
     ]
-    unit_defines = ['-DXORG_TESTS']
+    unit_c_args = ['-DXORG_TESTS']
     unit_includes = [inc, xorg_inc]
 
     if build_res
         unit_sources += ['hashtabletest.c']
-        unit_defines += ['-DRES_TESTS']
+        unit_c_args += ['-DRES_TESTS']
     endif
 
-    unit_c_args = unit_defines
     if meson.get_compiler('c').has_link_argument('-Wl,-wrap')
        # LTO breaks with -Wl,-wrap on certain configurations
        unit_c_args += ['-fno-lto']
