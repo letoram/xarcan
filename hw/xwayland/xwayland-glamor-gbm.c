@@ -861,21 +861,17 @@ static const char *
 get_render_node_path_for_device(const drmDevicePtr drm_device,
                                 const char *device_path)
 {
-    char *render_node_path = NULL;
-    char device_found = 0;
+    const char *render_node_path;
     int i;
 
+    if (!(drm_device->available_nodes & (1 << DRM_NODE_RENDER)))
+        return NULL;
+    render_node_path = drm_device->nodes[DRM_NODE_RENDER];
+
     for (i = 0; i < DRM_NODE_MAX; i++) {
-        if ((drm_device->available_nodes & (1 << i)) == 0)
-           continue;
-
-        if (!strcmp (device_path, drm_device->nodes[i]))
-            device_found = 1;
-
-        if (is_device_path_render_node(drm_device->nodes[i]))
-            render_node_path = drm_device->nodes[i];
-
-        if (device_found && render_node_path)
+        if (!(drm_device->available_nodes & (1 << i)))
+            continue;
+        if (strcmp(device_path, drm_device->nodes[i]) == 0)
             return render_node_path;
     }
 
