@@ -140,7 +140,7 @@ static struct xwl_window_buffer *
 xwl_window_buffer_get_available(struct xwl_window *xwl_window)
 {
     if (xorg_list_is_empty(&xwl_window->window_buffers_available))
-        return xwl_window_buffer_new(xwl_window);
+        return NULL;
 
     return xorg_list_last_entry(&xwl_window->window_buffers_available,
                                 struct xwl_window_buffer,
@@ -341,13 +341,10 @@ xwl_window_buffers_get_pixmap(struct xwl_window *xwl_window,
         return window_pixmap;
 #endif /* XWL_HAS_GLAMOR */
 
-    xwl_window_buffer = xwl_window_buffer_get_available(xwl_window);
-    if (!xwl_window_buffer)
-        return window_pixmap;
-
     xwl_window_buffer_add_damage_region(xwl_window, damage_region);
 
-    if (xwl_window_buffer->pixmap) {
+    xwl_window_buffer = xwl_window_buffer_get_available(xwl_window);
+    if (xwl_window_buffer) {
         RegionPtr full_damage = xwl_window_buffer->damage_region;
         BoxPtr pBox = RegionRects(full_damage);
         int nBox = RegionNumRects(full_damage);
@@ -364,10 +361,16 @@ xwl_window_buffers_get_pixmap(struct xwl_window *xwl_window,
 
             pBox++;
         }
+
+        RegionEmpty(xwl_window_buffer->damage_region);
     } else {
+        xwl_window_buffer = xwl_window_buffer_new(xwl_window);
+
         new_window_pixmap = xwl_window_allocate_pixmap(xwl_window);
-        if (!new_window_pixmap)
+        if (!new_window_pixmap) {
+            xwl_window_buffer_maybe_dispose(xwl_window_buffer);
             return window_pixmap;
+        }
 
         copy_pixmap_area(window_pixmap,
                          new_window_pixmap,
@@ -376,7 +379,6 @@ xwl_window_buffers_get_pixmap(struct xwl_window *xwl_window,
                          window_pixmap->drawable.height);
     }
 
-    RegionEmpty(xwl_window_buffer->damage_region);
     xwl_window_buffer->pixmap = window_pixmap;
 
     /* Hold a reference on the buffer until it's released by the compositor */
