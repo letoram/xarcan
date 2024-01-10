@@ -190,11 +190,122 @@ xwl_window_update_property(struct xwl_window *xwl_window,
 }
 
 static void
+need_source_validate_dec(struct xwl_screen *xwl_screen)
+{
+    xwl_screen->need_source_validate--;
+
+    if (!xwl_screen->need_source_validate)
+        xwl_screen->screen->SourceValidate = xwl_screen->SourceValidate;
+}
+
+static void
+xwl_source_validate(DrawablePtr drawable, int x, int y, int width, int height,
+                    unsigned int sub_window_mode)
+{
+    struct xwl_window *xwl_window;
+    WindowPtr window, iterator;
+    RegionRec region;
+    BoxRec box;
+
+    if (sub_window_mode != IncludeInferiors ||
+        drawable->type != DRAWABLE_WINDOW)
+        return;
+
+    window = (WindowPtr)drawable;
+    xwl_window = xwl_window_from_window(window);
+    if (!xwl_window || !xwl_window->surface_window_damage ||
+        !RegionNotEmpty(xwl_window->surface_window_damage))
+        return;
+
+    for (iterator = xwl_window->toplevel;
+         ;
+         iterator = iterator->firstChild) {
+        if (iterator == xwl_window->surface_window)
+            return;
+
+        if (iterator == window)
+            break;
+    }
+
+    box.x1 = x;
+    box.y1 = y;
+    box.x2 = x + width;
+    box.y2 = y + height;
+    RegionInit(&region, &box, 1);
+    RegionIntersect(&region, &region, xwl_window->surface_window_damage);
+
+    if (RegionNotEmpty(&region)) {
+        ScreenPtr screen = drawable->pScreen;
+        PixmapPtr dst_pix, src_pix;
+        BoxPtr pbox;
+        GCPtr pGC;
+        int nbox;
+
+        dst_pix = screen->GetWindowPixmap(window);
+        pGC = GetScratchGC(dst_pix->drawable.depth, screen);
+        if (!pGC)
+            FatalError("GetScratchGC failed for depth %d", dst_pix->drawable.depth);
+        ValidateGC(&dst_pix->drawable, pGC);
+
+        src_pix = screen->GetWindowPixmap(xwl_window->surface_window);
+
+        RegionSubtract(xwl_window->surface_window_damage,
+                       xwl_window->surface_window_damage,
+                       &region);
+
+        if (!RegionNotEmpty(xwl_window->surface_window_damage))
+            need_source_validate_dec(xwl_window->xwl_screen);
+
+#if defined(COMPOSITE)
+        if (dst_pix->screen_x || dst_pix->screen_y)
+            RegionTranslate(&region, -dst_pix->screen_x, -dst_pix->screen_y);
+#endif
+
+        pbox = RegionRects(&region);
+        nbox = RegionNumRects(&region);
+        while (nbox--) {
+            (void) (*pGC->ops->CopyArea) (&src_pix->drawable,
+                                          &dst_pix->drawable,
+                                          pGC,
+                                          pbox->x1, pbox->y1,
+                                          pbox->x2 - pbox->x1, pbox->y2 - pbox->y1,
+                                          pbox->x1, pbox->y1);
+        }
+        FreeScratchGC(pGC);
+    }
+
+    RegionUninit(&region);
+}
+
+static void
+need_source_validate_inc(struct xwl_screen *xwl_screen)
+{
+    if (!xwl_screen->need_source_validate) {
+        ScreenPtr screen = xwl_screen->screen;
+
+        xwl_screen->SourceValidate = screen->SourceValidate;
+        screen->SourceValidate = xwl_source_validate;
+    }
+
+    xwl_screen->need_source_validate++;
+}
+
+static void
 damage_report(DamagePtr pDamage, RegionPtr pRegion, void *data)
 {
     struct xwl_window *xwl_window = data;
     struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
     PixmapPtr window_pixmap;
+
+    if (xwl_window->surface_window_damage &&
+        RegionNotEmpty(pRegion)) {
+        if (!RegionNotEmpty(xwl_window->surface_window_damage))
+            need_source_validate_inc(xwl_screen);
+
+        RegionUnion(xwl_window->surface_window_damage,
+                    xwl_window->surface_window_damage,
+                    DamageRegion(pDamage));
+    }
 
     if (xwl_screen->ignore_damage)
         return;
@@ -1259,6 +1370,25 @@ xwl_window_update_surface_window(struct xwl_window *xwl_window)
     if (xwl_window->surface_window == surface_window)
         return;
 
+    if (xwl_window->surface_window_damage) {
+        if (xwl_present_maybe_unredirect_window(xwl_window->surface_window) &&
+            screen->SourceValidate == xwl_source_validate) {
+            WindowPtr toplevel = xwl_window->toplevel;
+
+            xwl_source_validate(&toplevel->drawable,
+                                toplevel->drawable.x, toplevel->drawable.y,
+                                toplevel->drawable.width,
+                                toplevel->drawable.height,
+                                IncludeInferiors);
+        }
+
+        if (RegionNotEmpty(xwl_window->surface_window_damage))
+            need_source_validate_dec(xwl_window->xwl_screen);
+
+        RegionDestroy(xwl_window->surface_window_damage);
+        xwl_window->surface_window_damage = NULL;
+    }
+
     window_damage = window_get_damage(xwl_window->surface_window);
     if (window_damage) {
         RegionInit(&damage_region, NullBox, 1);
@@ -1666,6 +1796,12 @@ xwl_config_notify(WindowPtr window,
     xwl_window = xwl_window_from_window(window);
 
     size_changed = width != window->drawable.width || height != window->drawable.height;
+    if (size_changed && xwl_window && xwl_window->toplevel == window &&
+        screen->SourceValidate == xwl_source_validate) {
+        xwl_source_validate(&window->drawable, window->drawable.x, window->drawable.y,
+                            window->drawable.width, window->drawable.height,
+                            IncludeInferiors);
+    }
 
     screen->ConfigNotify = xwl_screen->ConfigNotify;
     ret = screen->ConfigNotify(window, x, y, width, height, bw, sib);

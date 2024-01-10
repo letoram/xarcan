@@ -81,6 +81,7 @@ struct xwl_screen {
     ChangeWindowAttributesProcPtr ChangeWindowAttributes;
     ReparentWindowProcPtr ReparentWindow;
     MoveWindowProcPtr MoveWindow;
+    SourceValidateProcPtr SourceValidate;
 
     int (*GrabServer) (ClientPtr client);
     int (*UngrabServer) (ClientPtr client);
@@ -90,6 +91,8 @@ struct xwl_screen {
     struct xorg_list damage_window_list;
     struct xorg_list window_list;
     Bool ignore_damage;
+
+    int need_source_validate;
 
     int wayland_fd;
     struct wl_display *display;
