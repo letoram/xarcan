@@ -1113,9 +1113,13 @@ keyboard_handle_keymap(void *data, struct wl_keyboard *keyboard,
                        uint32_t format, int fd, uint32_t size)
 {
     struct xwl_seat *xwl_seat = data;
+    struct xwl_screen *xwl_screen = xwl_seat->xwl_screen;
     DeviceIntPtr master;
     XkbDescPtr xkb;
     XkbChangesRec changes = { 0 };
+
+    if (xwl_screen->nokeymap)
+        return;
 
     if (xwl_seat->keymap)
         munmap(xwl_seat->keymap, xwl_seat->keymap_size);

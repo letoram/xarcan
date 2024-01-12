@@ -124,6 +124,15 @@ support touch input.
 Force additional non-native modes to be exposed when viewporter is not
 supported by the Wayland compositor.
 .TP 8
+.B \-nokeymap
+Instructs \fIXwayland\fP to ignore the keymap set by the Wayland compositor.
+
+By default, \fIXwayland\fP (as any Wayland client) uses the keymap set by the
+Wayland compositor using the standard Wayland protocol.
+
+This option is meant for some specific use cases where it may be desirable to
+let the X11 clients control the keymap used in Xwayland, ignoring the keymap
+specified by the Wayland compositor.
 .B \-output \fIname\fP
 Specifies on which output \fIXwayland\fP fullscreen rootful should be placed.
 The name must match the name of an existing Wayland output (output names can

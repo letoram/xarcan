@@ -869,6 +869,9 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
             ErrorF("This build does not have XDG portal support\n");
 #endif
         }
+        else if (strcmp(argv[i], "-nokeymap") == 0) {
+            xwl_screen->nokeymap = 1;
+        }
     }
 
     if (!xwl_screen->rootless) {
