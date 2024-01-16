@@ -281,6 +281,10 @@ xwl_window_set_pixmap(WindowPtr window, PixmapPtr pixmap)
 #endif
 
     TraverseTree(window, xwl_set_pixmap_visit_window, &visit);
+
+    if (window == screen->root &&
+        screen->GetScreenPixmap(screen) == visit.old)
+        screen->SetScreenPixmap(pixmap);
 }
 
 static PixmapPtr
