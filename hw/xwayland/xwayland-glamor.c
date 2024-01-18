@@ -97,9 +97,6 @@ xwl_glamor_check_flip(WindowPtr present_window, PixmapPtr pixmap)
     if (pixmap->drawable.depth != backing_pixmap->drawable.depth)
         return FALSE;
 
-    if (!xwl_glamor_pixmap_get_wl_buffer(pixmap))
-        return FALSE;
-
     if (xwl_screen->egl_backend->check_flip)
         return xwl_screen->egl_backend->check_flip(pixmap);
 

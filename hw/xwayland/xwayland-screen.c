@@ -1015,11 +1015,9 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
            xwl_screen->glamor = XWL_GLAMOR_NONE;
         }
     }
-#ifdef GLAMOR_HAS_GBM
-    if (xwl_screen->glamor)
-        xwl_screen->present = xwl_present_init(pScreen);
-#endif /* GLAMOR_HAS_GBM */
-#endif /* XWL_HAS_GLAMOR */
+#endif
+
+    xwl_screen->present = xwl_present_init(pScreen);
 
     if (!xwl_screen->glamor) {
         xwl_screen->CreateScreenResources = pScreen->CreateScreenResources;

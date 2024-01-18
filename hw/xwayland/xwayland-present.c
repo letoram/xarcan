@@ -25,14 +25,17 @@
 
 #include <xwayland-config.h>
 
+#ifdef XWL_HAS_GLAMOR
+#include <glamor.h>
+#endif
 #include <windowstr.h>
 #include <present.h>
 
 #include "xwayland-present.h"
 #include "xwayland-screen.h"
+#include "xwayland-shm.h"
 #include "xwayland-window.h"
 #include "xwayland-pixmap.h"
-#include "glamor.h"
 
 #include "tearing-control-v1-client-protocol.h"
 
@@ -608,7 +611,13 @@ xwl_present_abort_vblank(ScreenPtr screen,
 static void
 xwl_present_flush(WindowPtr window)
 {
-    glamor_block_handler(window->drawable.pScreen);
+#ifdef XWL_HAS_GLAMOR
+    ScreenPtr screen = window->drawable.pScreen;
+    struct xwl_screen *xwl_screen = xwl_screen_get(screen);
+
+    if (xwl_screen->glamor)
+        glamor_block_handler(screen);
+#endif
 }
 
 static void
@@ -670,6 +679,9 @@ xwl_present_check_flip(RRCrtcPtr crtc,
             present_window->drawable.height != pixmap->drawable.height)
         return FALSE;
 
+    if (!xwl_pixmap_get_wl_buffer(pixmap))
+        return FALSE;
+
     /* Window must be same region as toplevel window */
     if ( !RegionEqual(&present_window->winSize, &toplvl_window->winSize) )
         return FALSE;
@@ -678,8 +690,11 @@ xwl_present_check_flip(RRCrtcPtr crtc,
     if (!RegionEqual(&present_window->clipList, &present_window->winSize))
         return FALSE;
 
-    if (!xwl_glamor_check_flip(present_window, pixmap))
+#ifdef XWL_HAS_GLAMOR
+    if (xwl_window->xwl_screen->glamor &&
+        !xwl_glamor_check_flip(present_window, pixmap))
         return FALSE;
+#endif
 
     /* Can't flip if the window pixmap doesn't match the xwl_window parent
      * window's, e.g. because a client redirected this window or one of its
@@ -766,7 +781,7 @@ xwl_present_flip(present_vblank_ptr vblank, RegionPtr damage)
     if (!xwl_window)
         return FALSE;
 
-    buffer = xwl_glamor_pixmap_get_wl_buffer(pixmap);
+    buffer = xwl_pixmap_get_wl_buffer(pixmap);
     if (!buffer) {
         ErrorF("present: Error getting buffer\n");
         return FALSE;
@@ -1053,11 +1068,7 @@ xwl_present_unrealize_window(struct xwl_present_window *xwl_present_window)
 Bool
 xwl_present_init(ScreenPtr screen)
 {
-    struct xwl_screen *xwl_screen = xwl_screen_get(screen);
     present_screen_priv_ptr screen_priv;
-
-    if (!xwl_screen->glamor || !xwl_screen->egl_backend)
-        return FALSE;
 
     if (!present_screen_register_priv_keys())
         return FALSE;

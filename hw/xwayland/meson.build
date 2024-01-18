@@ -9,6 +9,7 @@ srcs = [
     'xwayland-glamor.h',
     'xwayland-pixmap.c',
     'xwayland-pixmap.h',
+    'xwayland-present.c',
     'xwayland-present.h',
     'xwayland-screen.c',
     'xwayland-screen.h',
@@ -107,7 +108,6 @@ if build_glamor
     if gbm_dep.found()
         srcs += [
                   'xwayland-glamor-gbm.c',
-                  'xwayland-present.c'
                 ]
     endif
     if build_eglstream
