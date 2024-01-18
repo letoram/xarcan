@@ -883,6 +883,11 @@ xwl_present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
                 vblank->pixmap->screen_y = old_pixmap->screen_y;
 #endif
                 present_set_tree_pixmap(toplvl_window, old_pixmap, vblank->pixmap);
+
+                if (toplvl_window == screen->root &&
+                    screen->GetScreenPixmap(screen) == old_pixmap)
+                    screen->SetScreenPixmap(vblank->pixmap);
+
                 vblank->pixmap->refcnt++;
                 dixDestroyPixmap(old_pixmap, old_pixmap->drawable.id);
 
