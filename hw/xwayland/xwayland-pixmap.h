@@ -38,6 +38,7 @@ typedef void (*xwl_buffer_release_cb) (void *data);
 
 void xwl_pixmap_set_private(PixmapPtr pixmap, struct xwl_pixmap *xwl_pixmap);
 struct xwl_pixmap *xwl_pixmap_get(PixmapPtr pixmap);
+struct wl_buffer *xwl_pixmap_get_wl_buffer(PixmapPtr pixmap);
 Bool xwl_pixmap_set_buffer_release_cb(PixmapPtr pixmap,
                                       xwl_buffer_release_cb func, void *data);
 void xwl_pixmap_del_buffer_release_cb(PixmapPtr pixmap);

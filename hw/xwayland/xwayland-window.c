@@ -39,6 +39,7 @@
 
 #include "xwayland-types.h"
 #include "xwayland-input.h"
+#include "xwayland-pixmap.h"
 #include "xwayland-present.h"
 #include "xwayland-screen.h"
 #include "xwayland-window.h"
@@ -1394,13 +1395,7 @@ xwl_window_attach_buffer(struct xwl_window *xwl_window)
 
     region = DamageRegion(window_get_damage(xwl_window->window));
     pixmap = xwl_window_buffers_get_pixmap(xwl_window, region);
-
-#ifdef XWL_HAS_GLAMOR
-    if (xwl_screen->glamor)
-        buffer = xwl_glamor_pixmap_get_wl_buffer(pixmap);
-    else
-#endif
-        buffer = xwl_shm_pixmap_get_wl_buffer(pixmap);
+    buffer = xwl_pixmap_get_wl_buffer(pixmap);
 
     if (!buffer) {
         ErrorF("Error getting buffer\n");
