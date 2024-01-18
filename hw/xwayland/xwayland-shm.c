@@ -314,7 +314,12 @@ xwl_shm_destroy_pixmap(PixmapPtr pixmap)
 struct wl_buffer *
 xwl_shm_pixmap_get_wl_buffer(PixmapPtr pixmap)
 {
-    return xwl_pixmap_get(pixmap)->buffer;
+    struct xwl_pixmap *xwl_pixmap = xwl_pixmap_get(pixmap);
+
+    if (!xwl_pixmap)
+        return NULL;
+
+    return xwl_pixmap->buffer;
 }
 
 Bool
