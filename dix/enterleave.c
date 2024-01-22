@@ -619,11 +619,11 @@ FixDeviceValuator(DeviceIntPtr dev, deviceValuator * ev, ValuatorClassPtr v,
     ev->first_valuator = first;
     switch (ev->num_valuators) {
     case 6:
-        ev->valuator2 = v->axisVal[first + 5];
+        ev->valuator5 = v->axisVal[first + 5];
     case 5:
-        ev->valuator2 = v->axisVal[first + 4];
+        ev->valuator4 = v->axisVal[first + 4];
     case 4:
-        ev->valuator2 = v->axisVal[first + 3];
+        ev->valuator3 = v->axisVal[first + 3];
     case 3:
         ev->valuator2 = v->axisVal[first + 2];
     case 2:
