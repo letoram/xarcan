@@ -226,6 +226,7 @@ if (host_machine.system() != 'darwin' and
     ]
 
     if build_glamor
+        xwayland_dep += dependency('xshmfence', version: xshmfence_req, required: xwayland_required)
         xwayland_dep += dependency('libdrm', version: libdrm_req, required: xwayland_required)
         xwayland_dep += dependency('epoxy', required: xwayland_required)
     endif
