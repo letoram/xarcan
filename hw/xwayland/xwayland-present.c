@@ -852,6 +852,7 @@ xwl_present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
     WindowPtr               window = vblank->window;
     struct xwl_present_window *xwl_present_window = xwl_present_window_get_priv(window);
     present_vblank_ptr flip_pending = xwl_present_get_pending_flip(xwl_present_window);
+    struct xwl_present_event *event = xwl_present_event_from_vblank(vblank);
 
     xorg_list_del(&vblank->event_queue);
 
@@ -868,7 +869,7 @@ xwl_present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
 
     vblank->queued = FALSE;
 
-    if (vblank->pixmap && vblank->window) {
+    if (vblank->pixmap && vblank->window && !event->copy_executed) {
         ScreenPtr screen = window->drawable.pScreen;
 
         if (vblank->flip) {
@@ -943,9 +944,8 @@ xwl_present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
         present_execute_copy(vblank, crtc_msc);
         assert(!vblank->queued);
 
-        /* Clear the pixmap field, so this will fall through to present_execute_post next time */
-        dixDestroyPixmap(vblank->pixmap, vblank->pixmap->drawable.id);
-        vblank->pixmap = NULL;
+        /* Set the copy_executed field, so this will fall through to present_execute_post next time */
+        event->copy_executed = TRUE;
 
         if (xwl_present_queue_vblank(screen, window, vblank->crtc,
                                      vblank->event_id, crtc_msc + 1)
@@ -1020,6 +1020,9 @@ xwl_present_pixmap(WindowPtr window,
                 continue;
 
             if (vblank->target_msc != target_msc)
+                continue;
+
+            if (xwl_present_event_from_vblank(vblank)->copy_executed)
                 continue;
 
             present_vblank_scrap(vblank);

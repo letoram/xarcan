@@ -59,6 +59,7 @@ struct xwl_present_event {
 
     PixmapPtr pixmap;
     Bool async_may_tear;
+    Bool copy_executed;
 };
 
 Bool xwl_present_entered_for_each_frame_callback(void);
