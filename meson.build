@@ -67,6 +67,7 @@ wayland_req = '>= 1.21.0'
 wayland_protocols_req = '>= 1.30'
 gbm_req = '>= 10.2'
 xf86dgaproto_req = '>= 2.0.99.1'
+xshmfence_req = '>= 1.1'
 
 xproto_dep = dependency('xproto', version: '>= 7.0.31', fallback: ['xorgproto', 'ext_xorgproto'])
 randrproto_dep = dependency('randrproto', version: '>= 1.6.0', fallback: ['xorgproto', 'ext_xorgproto'])
@@ -94,7 +95,7 @@ xineramaproto_dep = dependency('xineramaproto', fallback: ['xorgproto', 'ext_xor
 xf86bigfontproto_dep = dependency('xf86bigfontproto', version: '>= 1.2.0', fallback: ['xorgproto', 'ext_xorgproto'], required: get_option('xf86bigfont'))
 xf86vidmodeproto_dep = dependency('xf86vidmodeproto', version: '>= 2.2.99.1', fallback: ['xorgproto', 'ext_xorgproto'])
 applewmproto_dep = dependency('applewmproto', version: '>= 1.4', fallback: ['xorgproto', 'ext_xorgproto'], required: false)
-xshmfence_dep = dependency('xshmfence', version: '>= 1.1', required: false)
+xshmfence_dep = dependency('xshmfence', version: xshmfence_req, required: false)
 xwaylandproto_dep = dependency('xwaylandproto', version: '>= 1.0', fallback: ['xorgproto', 'ext_xorgproto'], required: false)
 dpmsproto_dep = dependency('dpmsproto', version: '>= 1.2', required: get_option('dpms'))
 
