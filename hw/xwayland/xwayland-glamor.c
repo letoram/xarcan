@@ -212,7 +212,7 @@ xwl_screen_get_main_dev(struct xwl_screen *xwl_screen)
 
 static Bool
 xwl_get_formats(struct xwl_format *format_array, int format_array_len,
-               uint32_t *num_formats, uint32_t **formats)
+               CARD32 *num_formats, CARD32 **formats)
 {
     *num_formats = 0;
     *formats = NULL;
@@ -233,9 +233,9 @@ xwl_get_formats(struct xwl_format *format_array, int format_array_len,
 
 static Bool
 xwl_get_formats_for_device(struct xwl_dmabuf_feedback *xwl_feedback, drmDevice *device,
-                           uint32_t *num_formats, uint32_t **formats)
+                           CARD32 *num_formats, CARD32 **formats)
 {
-    uint32_t *ret = NULL;
+    CARD32 *ret = NULL;
     uint32_t count = 0;
 
     /* go through all matching sets of tranches for the window's device */
