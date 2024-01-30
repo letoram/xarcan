@@ -56,6 +56,7 @@ void AddGlyph(GlyphSetPtr glyphSet, GlyphPtr glyph, Glyph id);
 Bool DeleteGlyph(GlyphSetPtr glyphSet, Glyph id);
 GlyphPtr FindGlyph(GlyphSetPtr glyphSet, Glyph id);
 GlyphPtr AllocateGlyph(xGlyphInfo * gi, int format);
+void FreeGlyph(GlyphPtr glyph, int format);
 Bool ResizeGlyphSet(GlyphSetPtr glyphSet, CARD32 change);
 GlyphSetPtr AllocateGlyphSet(int fdepth, PictFormatPtr format);
 int FreeGlyphSet(void *value, XID gid);
