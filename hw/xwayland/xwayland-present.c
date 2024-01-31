@@ -81,6 +81,7 @@ xwl_present_window_get_priv(WindowPtr window)
         xorg_list_init(&xwl_present_window->wait_list);
         xorg_list_init(&xwl_present_window->flip_queue);
         xorg_list_init(&xwl_present_window->idle_queue);
+        xorg_list_init(&xwl_present_window->blocked_queue);
 
         dixSetPrivate(&window->devPrivates,
                       &xwl_present_window_private_key,
@@ -172,7 +173,8 @@ xwl_present_has_pending_events(struct xwl_present_window *xwl_present_window)
     present_vblank_ptr flip_pending = xwl_present_get_pending_flip(xwl_present_window);
 
     return (flip_pending && flip_pending->sync_flip) ||
-           !xorg_list_is_empty(&xwl_present_window->wait_list);
+           !xorg_list_is_empty(&xwl_present_window->wait_list) ||
+           !xorg_list_is_empty(&xwl_present_window->blocked_queue);
 }
 
 void
@@ -982,6 +984,34 @@ xwl_present_wait_acquire_fence_avail(struct xwl_screen *xwl_screen,
     return FALSE;
 }
 
+static void
+xwl_present_flush_blocked(struct xwl_present_window *xwl_present_window,
+                          uint64_t crtc_msc)
+{
+    struct xwl_screen *xwl_screen =
+        xwl_screen_get(xwl_present_window->window->drawable.pScreen);
+    struct xwl_present_event *blocked_event, *tmp;
+
+    if (!xwl_present_window->blocking_event)
+        return;
+
+    xwl_present_window->blocking_event = 0;
+
+    xorg_list_for_each_entry_safe(blocked_event, tmp,
+                                  &xwl_present_window->blocked_queue,
+                                  blocked) {
+        present_vblank_ptr blocked_vblank = &blocked_event->vblank;
+        xorg_list_del(&blocked_event->blocked);
+        if (present_execute_wait(blocked_vblank, crtc_msc) ||
+            xwl_present_wait_acquire_fence_avail(xwl_screen, blocked_vblank)) {
+            xwl_present_window->blocking_event = blocked_vblank->event_id;
+            return;
+        }
+
+        xwl_present_re_execute(blocked_vblank);
+    }
+}
+
 /*
  * Once the required MSC has been reached, execute the pending request.
  *
@@ -999,15 +1029,28 @@ xwl_present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
     present_vblank_ptr flip_pending = xwl_present_get_pending_flip(xwl_present_window);
     struct xwl_present_event *event = xwl_present_event_from_vblank(vblank);
     struct xwl_screen *xwl_screen = xwl_screen_get(window->drawable.pScreen);
+    Bool notify_only = !vblank->window || !vblank->pixmap;
 
     xorg_list_del(&vblank->event_queue);
 
+    if (!notify_only && !event->copy_executed &&
+        xwl_present_window->blocking_event &&
+        xwl_present_window->blocking_event != event->vblank.event_id) {
+        /* an earlier request is blocking execution */
+        xorg_list_append(&event->blocked, &xwl_present_window->blocked_queue);
+        return;
+    }
+
 retry:
     if (present_execute_wait(vblank, crtc_msc) ||
-        xwl_present_wait_acquire_fence_avail(xwl_screen, vblank))
+        xwl_present_wait_acquire_fence_avail(xwl_screen, vblank)) {
+        if (!notify_only)
+            /* block execution of subsequent requests until this request is ready */
+            xwl_present_window->blocking_event = event->vblank.event_id;
         return;
+    }
 
-    if (flip_pending && vblank->flip && vblank->pixmap && vblank->window) {
+    if (flip_pending && vblank->flip && !notify_only) {
         DebugPresent(("\tr %" PRIu64 " %p (pending %p)\n",
                       vblank->event_id, vblank, flip_pending));
         xorg_list_append(&vblank->event_queue, &xwl_present_window->flip_queue);
@@ -1017,8 +1060,9 @@ retry:
 
     vblank->queued = FALSE;
 
-    if (vblank->pixmap && vblank->window && !event->copy_executed) {
+    if (!notify_only && !event->copy_executed) {
         ScreenPtr screen = window->drawable.pScreen;
+        int ret;
 
         if (vblank->flip) {
             RegionPtr damage;
@@ -1075,6 +1119,7 @@ retry:
                 /* Realign timer */
                 xwl_present_reset_timer(xwl_present_window);
 
+                xwl_present_flush_blocked(xwl_present_window, crtc_msc);
                 return;
             }
 
@@ -1096,9 +1141,12 @@ retry:
         /* Set the copy_executed field, so this will fall through to present_execute_post next time */
         event->copy_executed = TRUE;
 
-        if (xwl_present_queue_vblank(screen, window, vblank->crtc,
-                                     vblank->event_id, crtc_msc + 1)
-            == Success)
+        ret = xwl_present_queue_vblank(screen, window, vblank->crtc,
+                                       vblank->event_id, crtc_msc + 1);
+
+        xwl_present_flush_blocked(xwl_present_window, crtc_msc);
+
+        if (ret == Success)
             return;
     }
 
@@ -1134,7 +1182,7 @@ xwl_present_pixmap(WindowPtr window,
     uint64_t                    target_msc;
     uint64_t                    crtc_msc = 0;
     int                         ret;
-    present_vblank_ptr          vblank, tmp;
+    present_vblank_ptr          vblank;
     ScreenPtr                   screen = window->drawable.pScreen;
     present_window_priv_ptr     window_priv = present_get_window_priv(window, TRUE);
     present_screen_priv_ptr     screen_priv = present_screen_priv(screen);
@@ -1168,35 +1216,6 @@ xwl_present_pixmap(WindowPtr window,
                                         divisor,
                                         remainder,
                                         options);
-
-    /*
-     * Look for a matching presentation already on the list...
-     */
-
-    if (!update && pixmap) {
-        xorg_list_for_each_entry_safe(vblank, tmp, &window_priv->vblank, window_list) {
-
-            if (!vblank->pixmap)
-                continue;
-
-            if (!vblank->queued)
-                continue;
-
-            if (vblank->target_msc != target_msc)
-                continue;
-
-            if (xwl_present_event_from_vblank(vblank)->copy_executed)
-                continue;
-
-            if (vblank->release_syncobj)
-                vblank->release_syncobj->signal(vblank->release_syncobj,
-                                                vblank->release_point);
-
-            present_vblank_scrap(vblank);
-            if (vblank->flip_ready)
-                xwl_present_re_execute(vblank);
-        }
-    }
 
     event = calloc(1, sizeof(*event));
     if (!event)

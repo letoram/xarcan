@@ -50,8 +50,10 @@ struct xwl_present_window {
     struct xorg_list wait_list;
     struct xorg_list flip_queue;
     struct xorg_list idle_queue;
+    struct xorg_list blocked_queue;
 
     present_vblank_ptr flip_active;
+    uint64_t blocking_event;
 };
 
 struct xwl_present_event {
@@ -63,6 +65,8 @@ struct xwl_present_event {
     uint32_t options;
     uint64_t divisor;
     uint64_t remainder;
+
+    struct xorg_list blocked;
 };
 
 Bool xwl_present_entered_for_each_frame_callback(void);
