@@ -770,14 +770,16 @@ FreeGC(void *value, XID gid)
     GCPtr pGC = (GCPtr) value;
 
     CloseFont(pGC->font, (Font) 0);
-    (*pGC->funcs->DestroyClip) (pGC);
+    if (pGC->funcs)
+        (*pGC->funcs->DestroyClip) (pGC);
 
     if (!pGC->tileIsPixel)
         (*pGC->pScreen->DestroyPixmap) (pGC->tile.pixmap);
     if (pGC->stipple)
         (*pGC->pScreen->DestroyPixmap) (pGC->stipple);
 
-    (*pGC->funcs->DestroyGC) (pGC);
+    if (pGC->funcs)
+        (*pGC->funcs->DestroyGC) (pGC);
     if (pGC->dash != DefaultDash)
         free(pGC->dash);
     dixFreeObjectWithPrivates(pGC, PRIVATE_GC);
