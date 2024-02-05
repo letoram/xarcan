@@ -92,12 +92,11 @@ int10MemRec genericMem = {
 static void MapVRam(xf86Int10InfoPtr pInt);
 static void UnmapVRam(xf86Int10InfoPtr pInt);
 
+static void *sysMem = NULL;
+
 #ifdef _PC
 #define GET_HIGH_BASE(x) (((V_BIOS + (x) + getpagesize() - 1)/getpagesize()) \
                               * getpagesize())
-#endif
-
-static void *sysMem = NULL;
 
 static Bool
 readIntVec(struct pci_device *dev, unsigned char *buf, int len)
@@ -112,6 +111,7 @@ readIntVec(struct pci_device *dev, unsigned char *buf, int len)
 
     return TRUE;
 }
+#endif /* _PC */
 
 xf86Int10InfoPtr
 xf86ExtendedInitInt10(int entityIndex, int Flags)
