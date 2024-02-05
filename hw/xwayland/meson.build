@@ -103,7 +103,7 @@ endif
 
 xwayland_glamor = []
 eglstream_srcs = []
-if build_glamor
+if build_xwayland_glamor
     srcs += 'xwayland-glamor.c'
     if gbm_dep.found()
         srcs += [
