@@ -701,7 +701,7 @@ xwl_dri3_open_client(ClientPtr client,
     return Success;
 }
 
-_X_EXPORT PixmapPtr
+PixmapPtr
 glamor_pixmap_from_fds(ScreenPtr screen, CARD8 num_fds, const int *fds,
                        CARD16 width, CARD16 height,
                        const CARD32 *strides, const CARD32 *offsets,
@@ -766,7 +766,7 @@ error:
     return NULL;
 }
 
-_X_EXPORT int
+int
 glamor_egl_fds_from_pixmap(ScreenPtr screen, PixmapPtr pixmap, int *fds,
                            uint32_t *strides, uint32_t *offsets,
                            uint64_t *modifier)
@@ -836,7 +836,7 @@ glamor_egl_fds_from_pixmap(ScreenPtr screen, PixmapPtr pixmap, int *fds,
 /* Not actually used, just defined here so there's something for
  * _glamor_egl_fds_from_pixmap() to link against
  */
-_X_EXPORT int
+int
 glamor_egl_fd_from_pixmap(ScreenPtr screen, PixmapPtr pixmap,
                           CARD16 *stride, CARD32 *size)
 {
