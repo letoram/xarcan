@@ -158,9 +158,9 @@ try_raising_nofile_limit(void)
         return;
     }
 
-    LogMessageVerb(X_INFO, 3, "Raising the file descriptors limit to %li\n",
-                   rlim.rlim_max);
-#endif
+    LogMessageVerb(X_INFO, 3, "Raising the file descriptors limit to %llu\n",
+                   (long long unsigned int) rlim.rlim_max);
+#endif /* RLIMIT_NOFILE */
 }
 
 static void
