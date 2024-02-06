@@ -105,12 +105,12 @@ Equipment Corporation.
 #include <X11/fonts/fontstruct.h>
 #include <X11/fonts/libxfont2.h>
 #include "dixfontstr.h"
+#include "dix_priv.h"
 #include "gcstruct.h"
 #include "selection.h"
 #include "colormapst.h"
 #include "cursorstr.h"
 #include "scrnintstr.h"
-#include "opaque.h"
 #include "input.h"
 #include "servermd.h"
 #include "extnsionst.h"

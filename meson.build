@@ -655,6 +655,7 @@ inc = include_directories(
     'miext/shadow',
     'miext/sync',
     'dbe',
+    'dix',
     'dri3',
     'include',
     'present',

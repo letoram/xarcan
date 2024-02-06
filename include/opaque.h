@@ -66,7 +66,6 @@ extern _X_EXPORT int limitStackSpace;
 extern _X_EXPORT int limitNoFile;
 #endif
 extern _X_EXPORT Bool defeatAccessControl;
-extern _X_EXPORT long maxBigRequestSize;
 extern _X_EXPORT Bool whiteRoot;
 extern _X_EXPORT Bool bgNoneRoot;
 

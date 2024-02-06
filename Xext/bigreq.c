@@ -35,6 +35,7 @@ from The Open Group.
 #include "misc.h"
 #include "os.h"
 #include "dixstruct.h"
+#include "dix_priv.h"
 #include "extnsionst.h"
 #include <X11/extensions/bigreqsproto.h>
 #include "opaque.h"

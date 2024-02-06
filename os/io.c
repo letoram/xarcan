@@ -76,6 +76,7 @@ SOFTWARE.
 #include "osdep.h"
 #include "opaque.h"
 #include "dixstruct.h"
+#include "dix_priv.h"
 #include "misc.h"
 
 CallbackListPtr ReplyCallback;
