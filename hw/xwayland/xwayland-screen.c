@@ -25,6 +25,7 @@
 
 #include <xwayland-config.h>
 
+#include <math.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
@@ -143,6 +144,18 @@ xwl_screen_get_fixed_or_first_output(struct xwl_screen *xwl_screen)
         return xwl_screen->fixed_output;
 
     return xwl_screen_get_first_output(xwl_screen);
+}
+
+int
+xwl_screen_get_width(struct xwl_screen *xwl_screen)
+{
+    return round(xwl_screen->width);
+}
+
+int
+xwl_screen_get_height(struct xwl_screen *xwl_screen)
+{
+    return round(xwl_screen->height);
 }
 
 static void
@@ -966,7 +979,8 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
     miSetPixmapDepths();
 
     ret = fbScreenInit(pScreen, NULL,
-                       xwl_screen->width, xwl_screen->height,
+                       xwl_screen_get_width(xwl_screen),
+                       xwl_screen_get_height(xwl_screen),
                        monitorResolution, monitorResolution, 0,
                        BitsPerPixel(xwl_screen->depth));
     if (!ret)

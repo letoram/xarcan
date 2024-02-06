@@ -25,6 +25,8 @@
 
 #include <xwayland-config.h>
 
+#include <math.h>
+
 #include <X11/Xatom.h>
 #include "randrstr_priv.h"
 
@@ -186,8 +188,11 @@ update_backing_pixmaps(struct xwl_screen *xwl_screen, int width, int height)
 static void
 update_screen_size(struct xwl_screen *xwl_screen, int width, int height)
 {
-    xwl_screen->width = width;
-    xwl_screen->height = height;
+    if (xwl_screen_get_width(xwl_screen) != width)
+        xwl_screen->width = width;
+
+    if (xwl_screen_get_height(xwl_screen) != height)
+        xwl_screen->height = height;
 
     if (xwl_screen->root_clip_mode == ROOT_CLIP_FULL)
         SetRootClip(xwl_screen->screen, ROOT_CLIP_NONE);
@@ -486,8 +491,8 @@ xwl_output_get_emulated_root_size(struct xwl_output *xwl_output,
     emulated_mode = xwl_output_get_emulated_mode_for_client(xwl_output, client);
     /* If not an emulated mode, just return the actual screen size */
     if (!emulated_mode) {
-        *width = xwl_screen->width;
-        *height = xwl_screen->height;
+        *width = xwl_screen_get_width(xwl_screen);
+        *height = xwl_screen_get_height(xwl_screen);
         return;
     }
 
@@ -1247,10 +1252,12 @@ xwl_screen_init_randr_fixed(struct xwl_screen *xwl_screen)
     RROutputSetCrtcs(xwl_output->randr_output, &xwl_output->randr_crtc, 1);
 
     xwl_randr_add_modes_fixed(xwl_output,
-                              xwl_screen->width, xwl_screen->height);
+                              xwl_screen_get_width(xwl_screen),
+                              xwl_screen_get_height(xwl_screen));
     /* Current mode */
     mode = xwl_output_find_mode(xwl_output,
-                                xwl_screen->width, xwl_screen->height);
+                                xwl_screen_get_width(xwl_screen),
+                                xwl_screen_get_height(xwl_screen));
     RRCrtcNotify(xwl_output->randr_crtc, mode, 0, 0, RR_Rotate_0,
                  NULL, 1, &xwl_output->randr_output);
 

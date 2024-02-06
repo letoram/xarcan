@@ -1387,8 +1387,8 @@ xwl_touch_send_event(struct xwl_touch *xwl_touch,
     dx = xwl_touch->window->window->drawable.x;
     dy = xwl_touch->window->window->drawable.y;
 
-    x = (dx + xwl_touch->x) * 0xFFFF / xwl_seat->xwl_screen->width;
-    y = (dy + xwl_touch->y) * 0xFFFF / xwl_seat->xwl_screen->height;
+    x = (dx + xwl_touch->x) * 0xFFFF / xwl_screen_get_width(xwl_seat->xwl_screen);
+    y = (dy + xwl_touch->y) * 0xFFFF / xwl_screen_get_height(xwl_seat->xwl_screen);
 
     valuator_mask_zero(&mask);
     valuator_mask_set_double(&mask, 0, x);

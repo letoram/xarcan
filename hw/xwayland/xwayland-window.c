@@ -346,8 +346,8 @@ xwl_window_should_enable_viewport_fullscreen(struct xwl_window *xwl_window,
 
     *xwl_output_ret = xwl_output;
     emulated_mode_ret->server_output_id = 0;
-    emulated_mode_ret->width = xwl_screen->width;
-    emulated_mode_ret->height = xwl_screen->height;
+    emulated_mode_ret->width = xwl_screen_get_width(xwl_screen);
+    emulated_mode_ret->height = xwl_screen_get_height(xwl_screen);
     emulated_mode_ret->from_vidmode = FALSE;
 
     return TRUE;
@@ -411,8 +411,8 @@ xwl_window_should_enable_viewport(struct xwl_window *xwl_window,
     if (xwl_output && xwl_window->window->overrideRedirect &&
         emulated_mode && emulated_mode->from_vidmode &&
         drawable->x == 0 && drawable->y == 0 &&
-        drawable->width  == xwl_screen->width &&
-        drawable->height == xwl_screen->height) {
+        drawable->width  == xwl_screen_get_width(xwl_screen) &&
+        drawable->height == xwl_screen_get_height(xwl_screen)) {
 
         memcpy(emulated_mode_ret, emulated_mode, sizeof(struct xwl_emulated_mode));
         *xwl_output_ret = xwl_output;
@@ -637,7 +637,7 @@ xwl_window_rootful_set_app_id(struct xwl_window *xwl_window)
 }
 
 static void
-xwl_window_maybe_resize(struct xwl_window *xwl_window, int width, int height)
+xwl_window_maybe_resize(struct xwl_window *xwl_window, double width, double height)
 {
     struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
     struct xwl_output *xwl_output;
@@ -650,11 +650,14 @@ xwl_window_maybe_resize(struct xwl_window *xwl_window, int width, int height)
     if (width == xwl_screen->width && height == xwl_screen->height)
         return;
 
+    xwl_screen->width = width;
+    xwl_screen->height = height;
+
     xwl_output = xwl_screen_get_fixed_or_first_output(xwl_screen);
-    if (!xwl_randr_add_modes_fixed(xwl_output, width, height))
+    if (!xwl_randr_add_modes_fixed(xwl_output, round(width), round(height)))
         return;
 
-    mode = xwl_output_find_mode(xwl_output, width, height);
+    mode = xwl_output_find_mode(xwl_output,  round(width), round(height));
     xwl_output_set_mode_fixed(xwl_output, mode);
 
     xwl_window_attach_buffer(xwl_window);
@@ -692,15 +695,17 @@ handle_libdecor_configure(struct libdecor_frame *frame,
     struct xwl_window *xwl_window = data;
     struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
     int width, height;
+    double new_width, new_height;
 
-    if (!libdecor_configuration_get_content_size(configuration, frame, &width, &height)) {
-        width = xwl_screen->width;
-        height = xwl_screen->height;
+    if (libdecor_configuration_get_content_size(configuration, frame, &width, &height)) {
+        new_width = (double) width;
+        new_height = (double) height;
     }
 
-    xwl_window_maybe_resize(xwl_window, width, height);
+    xwl_window_maybe_resize(xwl_window, new_width, new_height);
     xwl_window_update_libdecor_size(xwl_window, configuration,
-                                    xwl_screen->width, xwl_screen->height);
+                                     xwl_screen_get_width(xwl_screen),
+                                     xwl_screen_get_height(xwl_screen));
     wl_surface_commit(xwl_window->surface);
 }
 
@@ -1023,7 +1028,12 @@ xwl_realize_window(WindowPtr window)
         }
 
         if (!window->parent) {
-            BoxRec box = { 0, 0, xwl_screen->width, xwl_screen->height };
+            BoxRec box = {
+                0,
+                0,
+                xwl_screen_get_width(xwl_screen),
+                xwl_screen_get_height(xwl_screen)
+            };
 
             RegionReset(&window->winSize, &box);
             RegionNull(&window->clipList);

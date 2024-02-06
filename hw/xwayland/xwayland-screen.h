@@ -45,8 +45,8 @@
 #endif
 
 struct xwl_screen {
-    int width;
-    int height;
+    double width;
+    double height;
     int depth;
     int output_name_serial;
     ScreenPtr screen;
@@ -157,6 +157,9 @@ Bool xwl_screen_has_resolution_change_emulation(struct xwl_screen *xwl_screen);
 void xwl_screen_check_resolution_change_emulation(struct xwl_screen *xwl_screen);
 struct xwl_output *xwl_screen_get_first_output(struct xwl_screen *xwl_screen);
 struct xwl_output *xwl_screen_get_fixed_or_first_output(struct xwl_screen *xwl_screen);
+int xwl_screen_get_width(struct xwl_screen *xwl_screen);
+int xwl_screen_get_height(struct xwl_screen *xwl_screen);
+
 Bool xwl_close_screen(ScreenPtr screen);
 Bool xwl_screen_init(ScreenPtr pScreen, int argc, char **argv);
 void xwl_sync_events (struct xwl_screen *xwl_screen);
