@@ -65,6 +65,7 @@
 
 #ifdef XFreeXDGA
 #include "dgaproc.h"
+#include "dgaproc_priv.h"
 #endif
 
 #include <X11/extensions/XI.h>

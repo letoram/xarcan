@@ -98,6 +98,7 @@
 
 #ifdef XFreeXDGA
 #include "dgaproc.h"
+#include "dgaproc_priv.h"
 #endif
 
 #include "xkbsrv.h"

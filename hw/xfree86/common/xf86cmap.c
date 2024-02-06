@@ -55,6 +55,7 @@
 #ifdef XFreeXDGA
 #include <X11/extensions/xf86dgaproto.h>
 #include "dgaproc.h"
+#include "dgaproc_priv.h"
 #endif
 
 #include "xf86cmap.h"

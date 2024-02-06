@@ -47,6 +47,7 @@
 #include "xf86str.h"
 #include "xf86Priv.h"
 #include "dgaproc.h"
+#include "dgaproc_priv.h"
 #include <X11/extensions/xf86dgaproto.h>
 #include "colormapst.h"
 #include "pixmapstr.h"
