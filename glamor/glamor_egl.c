@@ -465,7 +465,7 @@ glamor_egl_fds_from_pixmap(ScreenPtr screen, PixmapPtr pixmap, int *fds,
 #endif
 }
 
-_X_EXPORT int
+int
 glamor_egl_fd_from_pixmap(ScreenPtr screen, PixmapPtr pixmap,
                           CARD16 *stride, CARD32 *size)
 {
@@ -520,7 +520,7 @@ glamor_egl_fd_name_from_pixmap(ScreenPtr screen,
     return fd;
 }
 
-_X_EXPORT Bool
+Bool
 glamor_back_pixmap_from_fd(PixmapPtr pixmap,
                            int fd,
                            CARD16 width,
@@ -575,7 +575,7 @@ gbm_format_for_depth(CARD8 depth)
     }
 }
 
-_X_EXPORT PixmapPtr
+PixmapPtr
 glamor_pixmap_from_fds(ScreenPtr screen,
                        CARD8 num_fds, const int *fds,
                        CARD16 width, CARD16 height,
@@ -629,7 +629,7 @@ glamor_pixmap_from_fds(ScreenPtr screen,
     return pixmap;
 }
 
-_X_EXPORT PixmapPtr
+PixmapPtr
 glamor_pixmap_from_fd(ScreenPtr screen,
                       int fd,
                       CARD16 width,
@@ -651,7 +651,7 @@ glamor_pixmap_from_fd(ScreenPtr screen,
     return pixmap;
 }
 
-_X_EXPORT Bool
+Bool
 glamor_get_formats(ScreenPtr screen,
                    CARD32 *num_formats, CARD32 **formats)
 {
@@ -691,7 +691,7 @@ glamor_get_formats(ScreenPtr screen,
 #endif
 }
 
-_X_EXPORT Bool
+Bool
 glamor_get_modifiers(ScreenPtr screen, uint32_t format,
                      uint32_t *num_modifiers, uint64_t **modifiers)
 {
@@ -732,7 +732,7 @@ glamor_get_modifiers(ScreenPtr screen, uint32_t format,
 #endif
 }
 
-_X_EXPORT const char *
+const char *
 glamor_egl_get_driver_name(ScreenPtr screen)
 {
 #ifdef GLAMOR_HAS_EGL_QUERY_DRIVER
@@ -773,7 +773,7 @@ glamor_egl_destroy_pixmap(PixmapPtr pixmap)
     return ret;
 }
 
-_X_EXPORT void
+void
 glamor_egl_exchange_buffers(PixmapPtr front, PixmapPtr back)
 {
     EGLImageKHR temp_img;
