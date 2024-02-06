@@ -459,7 +459,7 @@ RRProviderInit(void)
     return TRUE;
 }
 
-extern _X_EXPORT Bool
+Bool
 RRProviderLookup(XID id, RRProviderPtr *provider_p)
 {
     int rc = dixLookupResourceByType((void **)provider_p, id,
