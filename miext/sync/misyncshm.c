@@ -163,7 +163,7 @@ static const SyncFdScreenFuncsRec miSyncShmScreenFuncs = {
     .GetFenceFd = miSyncShmGetFenceFd
 };
 
-_X_EXPORT Bool miSyncShmScreenInit(ScreenPtr pScreen)
+Bool miSyncShmScreenInit(ScreenPtr pScreen)
 {
     SyncScreenFuncsPtr  funcs;
 
