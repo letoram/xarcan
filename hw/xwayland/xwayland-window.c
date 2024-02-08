@@ -192,15 +192,10 @@ xwl_window_update_property(struct xwl_window *xwl_window,
 static void
 damage_report(DamagePtr pDamage, RegionPtr pRegion, void *data)
 {
-    WindowPtr window = data;
-    struct xwl_window *xwl_window = xwl_window_get(window);
-    struct xwl_screen *xwl_screen;
+    struct xwl_window *xwl_window = data;
+    struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
     PixmapPtr window_pixmap;
 
-    if (!xwl_window)
-        return;
-
-    xwl_screen = xwl_window->xwl_screen;
     if (xwl_screen->ignore_damage)
         return;
 
@@ -218,37 +213,38 @@ damage_destroy(DamagePtr pDamage, void *data)
 }
 
 static Bool
-register_damage(WindowPtr window)
+register_damage(struct xwl_window *xwl_window)
 {
+    WindowPtr toplevel = xwl_window->toplevel;
     DamagePtr damage;
 
     damage = DamageCreate(damage_report, damage_destroy, DamageReportNonEmpty,
-                          FALSE, window->drawable.pScreen, window);
+                          FALSE, toplevel->drawable.pScreen, xwl_window);
     if (damage == NULL) {
         ErrorF("Failed creating damage\n");
         return FALSE;
     }
 
-    DamageRegister(&window->drawable, damage);
-
-    dixSetPrivate(&window->devPrivates, &xwl_damage_private_key, damage);
+    DamageRegister(&toplevel->drawable, damage);
+    dixSetPrivate(&toplevel->devPrivates, &xwl_damage_private_key, damage);
 
     return TRUE;
 }
 
 static void
-unregister_damage(WindowPtr window)
+unregister_damage(struct xwl_window *xwl_window)
 {
+    WindowPtr toplevel = xwl_window->toplevel;
     DamagePtr damage;
 
-    damage = dixLookupPrivate(&window->devPrivates, &xwl_damage_private_key);
+    damage = dixLookupPrivate(&toplevel->devPrivates, &xwl_damage_private_key);
     if (!damage)
         return;
 
     DamageUnregister(damage);
     DamageDestroy(damage);
 
-    dixSetPrivate(&window->devPrivates, &xwl_damage_private_key, NULL);
+    dixSetPrivate(&toplevel->devPrivates, &xwl_damage_private_key, NULL);
 }
 
 static Bool
@@ -1366,7 +1362,7 @@ xwl_realize_window(WindowPtr window)
 
     if (window == xwl_window->toplevel &&
         !window_get_damage(window))
-        return register_damage(window);
+        return register_damage(xwl_window);
 
     return TRUE;
 }
@@ -1503,7 +1499,7 @@ xwl_unrealize_window(WindowPtr window)
     release_wl_surface_for_window(xwl_window);
     xorg_list_del(&xwl_window->link_damage);
     xorg_list_del(&xwl_window->link_window);
-    unregister_damage(window);
+    unregister_damage(xwl_window);
 
     xwl_window_buffers_dispose(xwl_window);
 
