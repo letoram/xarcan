@@ -65,10 +65,6 @@
 #include <sys/wait.h>
 #include <errno.h>
 
-#if defined(WIN32)
-#define HAS_NO_UIDS
-#endif
-
 static int
 doWriteConfigFile(const char *filename, XF86ConfigPtr cptr)
 {
@@ -126,7 +122,7 @@ doWriteConfigFile(const char *filename, XF86ConfigPtr cptr)
 int
 xf86writeConfigFile(const char *filename, XF86ConfigPtr cptr)
 {
-#ifndef HAS_NO_UIDS
+#ifndef WIN32
     int ret;
 
     if (getuid() != geteuid()) {
@@ -149,6 +145,6 @@ xf86writeConfigFile(const char *filename, XF86ConfigPtr cptr)
         return ret;
     }
     else
-#endif                          /* !HAS_NO_UIDS */
+#endif                          /* WIN32 */
         return doWriteConfigFile(filename, cptr);
 }
