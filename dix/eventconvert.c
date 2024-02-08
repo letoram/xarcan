@@ -39,6 +39,7 @@
 #include <X11/extensions/XI.h>
 #include <X11/extensions/XI2.h>
 
+#include "dix/dix_priv.h"
 #include "dix/eventconvert.h"
 
 #include "dix.h"

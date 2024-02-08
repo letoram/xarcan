@@ -39,6 +39,7 @@
 #include "inputstr.h"
 #include "exevents.h"
 
+#include "dix/dix_priv.h"
 #include "dix/eventconvert.h"
 
 #include "exglobals.h"

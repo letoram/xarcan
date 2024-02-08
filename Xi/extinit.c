@@ -55,15 +55,17 @@ SOFTWARE.
 #include <dix-config.h>
 #endif
 
-#include "inputstr.h"
-#include "gcstruct.h"           /* pointer for extnsionst.h */
-#include "extnsionst.h"         /* extension entry   */
 #include <X11/extensions/XI.h>
 #include <X11/extensions/XIproto.h>
 #include <X11/extensions/XI2proto.h>
 #include <X11/extensions/geproto.h>
-#include "geext.h"              /* extension interfaces for ge */
 
+#include "dix/dix_priv.h"
+
+#include "inputstr.h"
+#include "gcstruct.h"           /* pointer for extnsionst.h */
+#include "extnsionst.h"         /* extension entry   */
+#include "geext.h"              /* extension interfaces for ge */
 #include "dixevents.h"
 #include "exevents.h"
 #include "extinit.h"
