@@ -1225,7 +1225,7 @@ err_surf:
     return FALSE;
 }
 
-static Bool
+static struct xwl_window *
 ensure_surface_for_window(WindowPtr window)
 {
     ScreenPtr screen = window->drawable.pScreen;
@@ -1233,23 +1233,24 @@ ensure_surface_for_window(WindowPtr window)
     struct xwl_window *xwl_window;
     WindowPtr toplevel;
 
-    if (xwl_window_from_window(window))
-        return TRUE;
+    xwl_window = xwl_window_from_window(window);
+    if (xwl_window)
+        return xwl_window;
 
     xwl_screen = xwl_screen_get(screen);
 
     if (xwl_screen->rootless) {
         if (window->redirectDraw != RedirectDrawManual)
-            return TRUE;
+            return NULL;
     }
     else {
         if (window->parent)
-            return TRUE;
+            return NULL;
     }
 
     xwl_window = calloc(1, sizeof *xwl_window);
     if (xwl_window == NULL)
-        return FALSE;
+        return NULL;
 
     xwl_window->xwl_screen = xwl_screen;
     xwl_window->toplevel = window;
@@ -1312,11 +1313,11 @@ ensure_surface_for_window(WindowPtr window)
             xwl_screen->tearing_control_manager, xwl_window->surface);
     }
 
-    return TRUE;
+    return xwl_window;
 
 err:
     free(xwl_window);
-    return FALSE;
+    return NULL;
 }
 
 Bool
@@ -1325,6 +1326,7 @@ xwl_realize_window(WindowPtr window)
     ScreenPtr screen = window->drawable.pScreen;
     CompScreenPtr comp_screen = GetCompScreen(screen);
     struct xwl_screen *xwl_screen;
+    struct xwl_window *xwl_window;
     Bool ret;
 
     xwl_screen = xwl_screen_get(screen);
@@ -1366,7 +1368,11 @@ xwl_realize_window(WindowPtr window)
             return FALSE;
     }
 
-    return ensure_surface_for_window(window);
+    xwl_window = ensure_surface_for_window(window);
+    if (!xwl_window)
+        return FALSE;
+
+    return TRUE;
 }
 
 static void
@@ -1539,15 +1545,14 @@ xwl_window_set_window_pixmap(WindowPtr window,
     if (!RegionNotEmpty(&window->winSize))
         return;
 
-    ensure_surface_for_window(window);
+    xwl_window = ensure_surface_for_window(window);
 
-    if (old_pixmap->drawable.width == pixmap->drawable.width &&
-        old_pixmap->drawable.height == pixmap->drawable.height)
+    if (!xwl_window ||
+        (old_pixmap->drawable.width == pixmap->drawable.width &&
+         old_pixmap->drawable.height == pixmap->drawable.height))
        return;
 
-    xwl_window = xwl_window_get(window);
-    if (xwl_window)
-        xwl_window_buffers_dispose(xwl_window);
+    xwl_window_buffers_dispose(xwl_window);
 }
 
 Bool
