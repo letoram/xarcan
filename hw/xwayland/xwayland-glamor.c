@@ -26,6 +26,7 @@
 #include <xwayland-config.h>
 
 #include <compositeext.h>
+#include "compositeext_priv.h"
 
 #define MESA_EGL_NO_X11_HEADERS
 #define EGL_NO_X11

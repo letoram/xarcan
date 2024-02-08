@@ -46,6 +46,7 @@
 #endif
 
 #include "compint.h"
+#include "compositeext_priv.h"
 
 #ifdef PANORAMIX
 #include "panoramiXsrv.h"
