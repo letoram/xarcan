@@ -48,7 +48,7 @@ in this Software without prior written authorization from The Open Group.
 
 #include "misc.h"
 #include "os.h"
-#include "dixstruct.h"
+#include "dixstruct_priv.h"
 #include "resource.h"
 #include "scrnintstr.h"
 #include "windowstr.h"

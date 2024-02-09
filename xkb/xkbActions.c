@@ -36,12 +36,12 @@ THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <X11/keysym.h>
 
 #include "dix/dix_priv.h"
+#include "xkb/xkbsrv_priv.h"
 
 #include "misc.h"
 #include "inputstr.h"
 #include "exevents.h"
 #include "eventstr.h"
-#include <xkbsrv.h>
 #include "mi.h"
 #include "mipointer.h"
 #include "inpututils.h"

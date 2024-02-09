@@ -38,7 +38,7 @@ THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "exevents.h"
 #include "exglobals.h"
 #include "windowstr.h"
-#include <xkbsrv.h>
+#include "xkbsrv_priv.h"
 
 /***====================================================================***/
 
