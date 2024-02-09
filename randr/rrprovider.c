@@ -23,7 +23,7 @@
  * Authors: Dave Airlie
  */
 
-#include "randrstr.h"
+#include "randrstr_priv.h"
 #include "swaprep.h"
 
 #include <X11/Xatom.h>

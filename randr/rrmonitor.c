@@ -20,7 +20,7 @@
  * OF THIS SOFTWARE.
  */
 
-#include "randrstr.h"
+#include "randrstr_priv.h"
 #include "swaprep.h"
 
 static Atom

@@ -25,8 +25,8 @@
 
 #include <xwayland-config.h>
 
-#include <randrstr.h>
 #include <X11/Xatom.h>
+#include "randrstr_priv.h"
 
 #include "xwayland-cvt.h"
 #include "xwayland-output.h"

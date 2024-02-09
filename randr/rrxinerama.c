@@ -68,7 +68,7 @@
  *           David Thomas <davtom@dream.org.uk>.
  */
 
-#include "randrstr.h"
+#include "randrstr_priv.h"
 #include "swaprep.h"
 #include <X11/extensions/panoramiXproto.h>
 #include "protocol-versions.h"
