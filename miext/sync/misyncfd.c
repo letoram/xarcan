@@ -25,7 +25,7 @@
 #endif
 
 #include "scrnintstr.h"
-#include "misync.h"
+#include "misync_priv.h"
 #include "misyncstr.h"
 #include "misyncfd.h"
 #include "pixmapstr.h"

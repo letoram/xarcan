@@ -70,6 +70,7 @@ PERFORMANCE OF THIS SOFTWARE.
 #include "syncsdk.h"
 #include "protocol-versions.h"
 #include "inputstr.h"
+#include "misync_priv.h"
 
 #include <stdio.h>
 #if !defined(WIN32)
