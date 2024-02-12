@@ -123,8 +123,8 @@ struct _rrCrtc {
     RRTransformRec client_pending_transform;
     RRTransformRec client_current_transform;
     PictTransform transform;
-    struct pict_f_transform f_transform;
-    struct pict_f_transform f_inverse;
+    struct pixman_f_transform f_transform;
+    struct pixman_f_transform f_inverse;
 
     PixmapPtr scanout_pixmap;
     PixmapPtr scanout_pixmap_back;
@@ -706,8 +706,8 @@ extern _X_EXPORT void
 extern _X_EXPORT int
 RRCrtcTransformSet(RRCrtcPtr crtc,
                    PictTransformPtr transform,
-                   struct pict_f_transform *f_transform,
-                   struct pict_f_transform *f_inverse,
+                   struct pixman_f_transform *f_transform,
+                   struct pixman_f_transform *f_inverse,
                    char *filter, int filter_len, xFixed * params, int nparams);
 
 /*
