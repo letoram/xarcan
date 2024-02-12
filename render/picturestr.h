@@ -56,7 +56,6 @@ typedef struct _PictFormat {
 typedef struct pixman_vector PictVector, *PictVectorPtr;
 typedef struct pixman_transform PictTransform, *PictTransformPtr;
 
-#define PICT_GRADIENT_STOPTABLE_SIZE 1024
 #define SourcePictTypeSolidFill 0
 #define SourcePictTypeLinear 1
 #define SourcePictTypeRadial 2
@@ -347,30 +346,11 @@ extern _X_EXPORT DevPrivateKeyRec PictureScreenPrivateKeyRec;
 extern _X_EXPORT DevPrivateKeyRec PictureWindowPrivateKeyRec;
 #define	PictureWindowPrivateKey (&PictureWindowPrivateKeyRec)
 
-extern RESTYPE PictureType;
-extern RESTYPE PictFormatType;
-extern RESTYPE GlyphSetType;
-
 #define GetPictureScreen(s) ((PictureScreenPtr)dixLookupPrivate(&(s)->devPrivates, PictureScreenPrivateKey))
 #define GetPictureScreenIfSet(s) (dixPrivateKeyRegistered(PictureScreenPrivateKey) ? GetPictureScreen(s) : NULL)
 #define SetPictureScreen(s,p) dixSetPrivate(&(s)->devPrivates, PictureScreenPrivateKey, p)
 #define GetPictureWindow(w) ((PicturePtr)dixLookupPrivate(&(w)->devPrivates, PictureWindowPrivateKey))
 #define SetPictureWindow(w,p) dixSetPrivate(&(w)->devPrivates, PictureWindowPrivateKey, p)
-
-#define VERIFY_PICTURE(pPicture, pid, client, mode) {\
-    int tmprc = dixLookupResourceByType((void *)&(pPicture), pid,\
-	                                PictureType, client, mode);\
-    if (tmprc != Success)\
-	return tmprc;\
-}
-
-#define VERIFY_ALPHA(pPicture, pid, client, mode) {\
-    if (pid == None) \
-	pPicture = 0; \
-    else { \
-	VERIFY_PICTURE(pPicture, pid, client, mode); \
-    } \
-} \
 
 extern _X_EXPORT PictFormatPtr
  PictureWindowFormat(WindowPtr pWindow);
@@ -505,13 +485,6 @@ CompositeTriFan(CARD8 op,
                 PictFormatPtr maskFormat,
                 INT16 xSrc, INT16 ySrc, int npoints, xPointFixed * points);
 
-Bool
- AnimCurInit(ScreenPtr pScreen);
-
-int
-AnimCursorCreate(CursorPtr *cursors, CARD32 *deltas, int ncursor,
-                 CursorPtr *ppCursor, ClientPtr client, XID cid);
-
 extern _X_EXPORT void
 AddTraps(PicturePtr pPicture,
          INT16 xOff, INT16 yOff, int ntraps, xTrap * traps);
@@ -541,11 +514,6 @@ CreateConicalGradientPicture(Picture pid,
                              xFixed angle,
                              int nStops,
                              xFixed * stops, xRenderColor * colors, int *error);
-
-#ifdef PANORAMIX
-extern void PanoramiXRenderInit(void);
-extern void PanoramiXRenderReset(void);
-#endif
 
 /*
  * matrix.c

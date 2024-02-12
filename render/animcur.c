@@ -43,7 +43,7 @@
 #include "cursorstr.h"
 #include "dixfontstr.h"
 #include "opaque.h"
-#include "picturestr.h"
+#include "picturestr_priv.h"
 #include "inputstr.h"
 #include "xace.h"
 

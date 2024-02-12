@@ -41,7 +41,7 @@
 #include "servermd.h"
 #include <X11/extensions/render.h>
 #include <X11/extensions/renderproto.h>
-#include "picturestr.h"
+#include "picturestr_priv.h"
 #include "glyphstr.h"
 #include <X11/Xfuncproto.h>
 #include "cursorstr.h"

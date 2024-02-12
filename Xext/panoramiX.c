@@ -52,7 +52,7 @@ Equipment Corporation.
 #include "globals.h"
 #include "servermd.h"
 #include "resource.h"
-#include "picturestr.h"
+#include "picturestr_priv.h"
 #include "xfixesint.h"
 #include "damageextint.h"
 #ifdef COMPOSITE

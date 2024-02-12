@@ -39,7 +39,7 @@
 #include "dixstruct.h"
 #include "gcstruct.h"
 #include "servermd.h"
-#include "picturestr.h"
+#include "picturestr_priv.h"
 #include "xace.h"
 #ifdef PANORAMIX
 #include "panoramiXsrv.h"

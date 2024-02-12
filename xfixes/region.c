@@ -26,7 +26,7 @@
 
 #include "xfixesint.h"
 #include "scrnintstr.h"
-#include <picturestr.h>
+#include "picturestr_priv.h"
 
 #include <regionstr.h>
 #include <gcstruct.h>
