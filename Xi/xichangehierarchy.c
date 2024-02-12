@@ -41,12 +41,12 @@
 #include <X11/extensions/geproto.h>
 
 #include "dix/dix_priv.h"
+#include "dix/exevents_priv.h"
 
 #include "inputstr.h"           /* DeviceIntPtr      */
 #include "windowstr.h"          /* window structure  */
 #include "scrnintstr.h"         /* screen structure  */
 #include "extnsionst.h"
-#include "exevents.h"
 #include "exglobals.h"
 #include "geext.h"
 #include "xace.h"

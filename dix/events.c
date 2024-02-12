@@ -116,6 +116,7 @@ Equipment Corporation.
 
 #include "dix/dix_priv.h"
 #include "dix/eventconvert.h"
+#include "dix/exevents_priv.h"
 #include "xkb/xkbsrv_priv.h"
 
 #include "misc.h"
@@ -134,7 +135,6 @@ Equipment Corporation.
 #include "xace.h"
 #include "probes.h"
 #include "exglobals.h"
-#include "exevents.h"
 #include "extnsionst.h"
 #include "dixevents.h"
 #include "dixgrabs.h"

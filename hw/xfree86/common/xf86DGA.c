@@ -48,6 +48,7 @@
 
 #include "dix/dix_priv.h"
 #include "dix/eventconvert.h"
+#include "dix/exevents_priv.h"
 
 #include "xf86.h"
 #include "xf86str.h"
@@ -63,7 +64,6 @@
 #include "xkbsrv.h"
 #include "xf86Xinput.h"
 #include "exglobals.h"
-#include "exevents.h"
 #include "eventstr.h"
 #include "xf86Extensions.h"
 #include "mi.h"
