@@ -58,7 +58,7 @@
 #include "exevents.h"
 #include "eventstr.h"
 #include "inpututils.h"
-#include "extinit.h"
+#include "extinit_priv.h"
 
 /* XTest events are sent during request processing and may be interrupted by
  * a SIGIO. We need a separate event list to avoid events overwriting each

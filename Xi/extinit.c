@@ -68,7 +68,7 @@ SOFTWARE.
 #include "geext.h"              /* extension interfaces for ge */
 #include "dixevents.h"
 #include "exevents.h"
-#include "extinit.h"
+#include "extinit_priv.h"
 #include "exglobals.h"
 #include "swaprep.h"
 #include "privates.h"

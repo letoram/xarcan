@@ -33,7 +33,7 @@
 
 #include "dix/dix_priv.h"
 
-#include "extinit.h"            /* for XInputExtensionInit */
+#include "extinit_priv.h"
 #include "exglobals.h"
 #include "xkbsrv.h"             /* for XkbInitPrivates */
 #include "xserver-properties.h"

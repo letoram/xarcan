@@ -65,6 +65,7 @@ typedef WINAPI HRESULT(*SHGETFOLDERPATHPROC) (HWND hwndOwner,
 
 #include "winmonitors.h"
 #include "nonsdk_extinit.h"
+#include "extinit_priv.h"
 #include "pseudoramiX/pseudoramiX.h"
 
 #include "glx_extinit.h"
