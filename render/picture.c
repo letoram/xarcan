@@ -40,6 +40,7 @@
 #include "gcstruct.h"
 #include "servermd.h"
 #include "picturestr_priv.h"
+#include "glyphstr_priv.h"
 #include "xace.h"
 #ifdef PANORAMIX
 #include "panoramiXsrv.h"

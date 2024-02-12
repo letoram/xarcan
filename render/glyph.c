@@ -42,7 +42,7 @@
 #include "gcstruct.h"
 #include "servermd.h"
 #include "picturestr.h"
-#include "glyphstr.h"
+#include "glyphstr_priv.h"
 #include "mipict.h"
 
 /*

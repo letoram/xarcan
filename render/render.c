@@ -42,7 +42,7 @@
 #include <X11/extensions/render.h>
 #include <X11/extensions/renderproto.h>
 #include "picturestr_priv.h"
-#include "glyphstr.h"
+#include "glyphstr_priv.h"
 #include <X11/Xfuncproto.h>
 #include "cursorstr.h"
 #include "xace.h"
