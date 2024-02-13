@@ -43,7 +43,6 @@
 #include "inputstr.h"
 #include "opaque.h"
 #include "property.h"
-#define	XKBSRV_NEED_FILE_FUNCS
 #include <xkbsrv.h>
 #include "../xkb/xkbgeom.h"
 #include <X11/extensions/XKMformat.h>
