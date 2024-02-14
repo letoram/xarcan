@@ -442,7 +442,6 @@ DefineSelf(int fd)
 #if !defined(TCPCONN) && !defined(UNIXCONN)
     return;
 #else
-    register int n;
     int len;
     caddr_t addr;
     int family;

@@ -124,12 +124,14 @@ struct ospoll   *server_poll;
 Bool NewOutputPending;          /* not yet attempted to write some new output */
 Bool NoListenAll;               /* Don't establish any listening sockets */
 
-static Bool RunFromSmartParent; /* send SIGUSR1 to parent process */
 Bool RunFromSigStopParent;      /* send SIGSTOP to our own process; Upstart (or
                                    equivalent) will send SIGCONT back. */
 static char dynamic_display[7]; /* display name */
 Bool PartialNetwork;            /* continue even if unable to bind all addrs */
+#if !defined(WIN32)
 static Pid_t ParentProcess;
+static Bool RunFromSmartParent; /* send SIGUSR1 to parent process */
+#endif
 
 int GrabInProgress = 0;
 
