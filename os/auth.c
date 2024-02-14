@@ -48,6 +48,8 @@ from The Open Group.
 #endif
 #include   <stdlib.h>       /* for arc4random_buf() */
 
+#include "rpcauth.h"
+
 struct protocol {
     unsigned short name_length;
     const char *name;

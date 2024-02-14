@@ -43,6 +43,7 @@ from The Open Group.
 #include "os.h"
 #include "osdep.h"
 #include "dixstruct.h"
+#include "rpcauth.h"
 
 #include <rpc/rpc.h>
 

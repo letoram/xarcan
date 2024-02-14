@@ -191,6 +191,7 @@ SOFTWARE.
 #include "osdep.h"
 
 #include "xace.h"
+#include "rpcauth.h"
 
 Bool defeatAccessControl = FALSE;
 

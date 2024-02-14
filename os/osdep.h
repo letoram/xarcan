@@ -171,16 +171,6 @@ extern int XdmRemoveCookie(AuthRemCArgs);
 extern int XdmResetCookie(AuthRstCArgs);
 #endif
 
-/* in rpcauth.c */
-#ifdef SECURE_RPC
-extern void SecureRPCInit(AuthInitArgs);
-extern XID SecureRPCCheck(AuthCheckArgs);
-extern int SecureRPCAdd(AuthAddCArgs);
-extern int SecureRPCFromID(AuthFromIDArgs);
-extern int SecureRPCRemove(AuthRemCArgs);
-extern int SecureRPCReset(AuthRstCArgs);
-#endif
-
 #ifdef XDMCP
 /* in xdmcp.c */
 extern void XdmcpUseMsg(void);
