@@ -117,6 +117,7 @@ SOFTWARE.
 #endif
 
 #include "probes.h"
+#include "xdmcp.h"
 
 struct ospoll   *server_poll;
 

@@ -45,6 +45,7 @@ from The Open Group.
 #include <X11/Xtrans/Xtrans.h>
 #include "os.h"
 #include "osdep.h"
+#include "xdmcp.h"
 #include "dixstruct.h"
 
 #ifdef HASXDMAUTH

@@ -49,6 +49,7 @@ from The Open Group.
 #include   <stdlib.h>       /* for arc4random_buf() */
 
 #include "rpcauth.h"
+#include "xdmcp.h"
 
 struct protocol {
     unsigned short name_length;

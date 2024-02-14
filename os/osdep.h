@@ -169,32 +169,6 @@ extern int XdmAddCookie(AuthAddCArgs);
 extern int XdmFromID(AuthFromIDArgs);
 extern int XdmRemoveCookie(AuthRemCArgs);
 extern int XdmResetCookie(AuthRstCArgs);
-#endif
-
-#ifdef XDMCP
-/* in xdmcp.c */
-extern void XdmcpUseMsg(void);
-extern int XdmcpOptions(int argc, char **argv, int i);
-extern void XdmcpRegisterConnection(int type, const char *address, int addrlen);
-extern void XdmcpRegisterAuthorizations(void);
-extern void XdmcpRegisterAuthorization(const char *name, int namelen);
-extern void XdmcpInit(void);
-extern void XdmcpReset(void);
-extern void XdmcpOpenDisplay(int sock);
-extern void XdmcpCloseDisplay(int sock);
-extern void XdmcpRegisterAuthentication(const char *name,
-                                        int namelen,
-                                        const char *data,
-                                        int datalen,
-                                        ValidatorFunc Validator,
-                                        GeneratorFunc Generator,
-                                        AddAuthorFunc AddAuth);
-
-struct sockaddr_in;
-extern void XdmcpRegisterBroadcastAddress(const struct sockaddr_in *addr);
-#endif
-
-#ifdef HASXDMAUTH
 extern void XdmAuthenticationInit(const char *cookie, int cookie_length);
 #endif
 

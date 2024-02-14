@@ -192,6 +192,7 @@ SOFTWARE.
 
 #include "xace.h"
 #include "rpcauth.h"
+#include "xdmcp.h"
 
 Bool defeatAccessControl = FALSE;
 
