@@ -106,8 +106,6 @@ SOFTWARE.
 #include "dixstruct.h"
 #include "xace.h"
 
-#define Pid_t pid_t
-
 #ifdef HAVE_GETPEERUCRED
 #include <ucred.h>
 #include <zone.h>
@@ -132,7 +130,7 @@ Bool RunFromSigStopParent;      /* send SIGSTOP to our own process; Upstart (or
 static char dynamic_display[7]; /* display name */
 Bool PartialNetwork;            /* continue even if unable to bind all addrs */
 #if !defined(WIN32)
-static Pid_t ParentProcess;
+static pid_t ParentProcess;
 static Bool RunFromSmartParent; /* send SIGUSR1 to parent process */
 #endif
 
