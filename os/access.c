@@ -467,7 +467,9 @@ DefineSelf(int fd)
     } saddr;
 
     struct sockaddr_in *inetaddr;
+#if defined(IPv6) && defined(AF_INET6)
     struct sockaddr_in6 *inet6addr;
+#endif
     struct sockaddr_in broad_addr;
 
 #ifdef XTHREADS_NEEDS_BYNAMEPARAMS
