@@ -212,7 +212,6 @@ conf_data.set('DRI3', build_dri3 ? '1' : false)
 if build_glx
     conf_data.set_quoted('DRI_DRIVER_PATH', dri_dep.get_variable(pkgconfig : 'dridriverdir'))
 endif
-conf_data.set('HAS_SHM', build_mitshm ? '1' : false)
 conf_data.set('MITSHM', build_mitshm ? '1' : false)
 conf_data.set('PANORAMIX', build_xinerama ? '1' : false)
 conf_data.set('PRESENT', '1')
