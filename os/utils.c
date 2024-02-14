@@ -1492,14 +1492,12 @@ Win32TempDir(void)
 int
 System(const char *cmdline)
 {
-    STARTUPINFO si;
-    PROCESS_INFORMATION pi;
+    STARTUPINFO si = (STARTUPINFO) {
+        .cb = sizeof(si),
+    };
+    PROCESS_INFORMATION pi = (PROCESS_INFORMATION){0};
     DWORD dwExitCode;
     char *cmd = strdup(cmdline);
-
-    ZeroMemory(&si, sizeof(si));
-    si.cb = sizeof(si);
-    ZeroMemory(&pi, sizeof(pi));
 
     if (!CreateProcess(NULL, cmd, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
         LPVOID buffer;
