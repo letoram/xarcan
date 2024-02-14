@@ -133,4 +133,15 @@ extern void GenerateRandomData(int len, char *buf);
 void TimerInit(void);
 Bool TimerForce(OsTimerPtr timer);
 
+#ifdef WIN32
+#include <X11/Xwinsock.h>
+struct utsname {
+    char nodename[512];
+};
+
+static inline void uname(struct utsname *uts) {
+    gethostname(uts->nodename, sizeof(uts->nodename));
+}
+#endif /* WIN32 */
+
 #endif                          /* _OSDEP_H_ */

@@ -446,15 +446,7 @@ DefineSelf(int fd)
     caddr_t addr;
     int family;
     register HOST *host;
-
-#ifndef WIN32
     struct utsname name;
-#else
-    struct {
-        char nodename[512];
-    } name;
-#endif
-
     register struct hostent *hp;
 
     union {
@@ -480,11 +472,7 @@ DefineSelf(int fd)
      * uname() lets me access to the whole string (it smashes release, you
      * see), whereas gethostname() kindly truncates it for me.
      */
-#ifndef WIN32
     uname(&name);
-#else
-    gethostname(name.nodename, sizeof(name.nodename));
-#endif
 
     hp = _XGethostbyname(name.nodename, hparams);
     if (hp != NULL) {
