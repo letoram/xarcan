@@ -1,7 +1,7 @@
 #ifndef _XSERVER_OS_XDMAUTH_H
 #define _XSERVER_OS_XDMAUTH_H
 
-#include "osdep.h"
+#include "auth.h"
 
 XID XdmCheckCookie(AuthCheckArgs);
 int XdmAddCookie(AuthAddCArgs);

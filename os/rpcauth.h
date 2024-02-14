@@ -1,7 +1,7 @@
 #ifndef _XSERVER_OS_RPCAUTH_H
 #define _XSERVER_OS_RPCAUTH_H
 
-#include "osdep.h"
+#include "auth.h"
 
 void SecureRPCInit(AuthInitArgs);
 XID SecureRPCCheck(AuthCheckArgs);
