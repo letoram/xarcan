@@ -41,6 +41,7 @@
 #include "misc.h"
 #include "osdep.h"
 #include "xdmcp.h"
+#include "xdmauth.h"
 #include "input.h"
 #include "dixstruct.h"
 #include "opaque.h"

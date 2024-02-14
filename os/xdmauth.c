@@ -46,6 +46,7 @@ from The Open Group.
 #include "os.h"
 #include "osdep.h"
 #include "xdmcp.h"
+#include "xdmauth.h"
 #include "dixstruct.h"
 
 #ifdef HASXDMAUTH

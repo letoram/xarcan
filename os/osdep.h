@@ -162,14 +162,4 @@ extern int MitFromID(AuthFromIDArgs);
 extern int MitRemoveCookie(AuthRemCArgs);
 extern int MitResetCookie(AuthRstCArgs);
 
-/* in xdmauth.c */
-#ifdef HASXDMAUTH
-extern XID XdmCheckCookie(AuthCheckArgs);
-extern int XdmAddCookie(AuthAddCArgs);
-extern int XdmFromID(AuthFromIDArgs);
-extern int XdmRemoveCookie(AuthRemCArgs);
-extern int XdmResetCookie(AuthRstCArgs);
-extern void XdmAuthenticationInit(const char *cookie, int cookie_length);
-#endif
-
 #endif                          /* _OSDEP_H_ */
