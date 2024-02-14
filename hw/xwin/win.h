@@ -1038,6 +1038,9 @@ winCreateMsgWindowThread(void);
 void
 winOS(void);
 
+Bool
+winValidateArgs(void);
+
 /*
  * END DDX and DIX Function Prototypes
  */
