@@ -577,9 +577,9 @@ winFixupPaths(void)
         putenv(buffer);
     }
     if (getenv("HOME") == NULL) {
-        char buffer[MAX_PATH + 5];
+        char buffer[MAX_PATH + 5] = {0};
 
-        strncpy(buffer, "HOME=", 5);
+        strncpy(buffer, "HOME=", 6);
 
         /* query appdata directory */
         if (SHGetFolderPathA
