@@ -111,7 +111,11 @@ static PixmapFormatRec g_PixmapFormats[] = {
     {32, 32, BITMAP_SCANLINE_PAD}
 };
 
+#ifdef GLXEXT
+#ifdef XWIN_WINDOWS_DRI
 static Bool noDriExtension;
+#endif
+#endif
 
 static const ExtensionModule xwinExtensions[] = {
 #ifdef GLXEXT

@@ -415,7 +415,6 @@ LRESULT CALLBACK
 winTopLevelWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     POINT ptMouse;
-    PAINTSTRUCT ps;
     WindowPtr pWin = NULL;
     winPrivWinPtr pWinPriv = NULL;
     ScreenPtr s_pScreen = NULL;
@@ -578,6 +577,7 @@ winTopLevelWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 #ifdef XWIN_GLX_WINDOWS
         if (pWinPriv->fWglUsed) {
+            PAINTSTRUCT ps;
             /*
                For regions which are being drawn by GL, the shadow framebuffer doesn't have the
                correct bits, so don't bitblt from the shadow framebuffer
