@@ -154,12 +154,4 @@ extern Bool ComputeLocalClient(ClientPtr client);
 /* in auth.c */
 extern void GenerateRandomData(int len, char *buf);
 
-/* in mitauth.c */
-extern XID MitCheckCookie(AuthCheckArgs);
-extern XID MitGenerateCookie(AuthGenCArgs);
-extern int MitAddCookie(AuthAddCArgs);
-extern int MitFromID(AuthFromIDArgs);
-extern int MitRemoveCookie(AuthRemCArgs);
-extern int MitResetCookie(AuthRstCArgs);
-
 #endif                          /* _OSDEP_H_ */

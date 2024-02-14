@@ -51,6 +51,7 @@ from The Open Group.
 #include "rpcauth.h"
 #include "xdmcp.h"
 #include "xdmauth.h"
+#include "mitauth.h"
 
 struct protocol {
     unsigned short name_length;

@@ -38,6 +38,7 @@
 /* Includes for authorization */
 #include "securitysrv.h"
 #include "os/osdep.h"
+#include "os/mitauth.h"
 
 #include <xcb/xcb.h>
 
