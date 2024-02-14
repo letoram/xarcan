@@ -180,9 +180,7 @@ WaitForSomething(Bool are_ready)
 
     were_ready = FALSE;
 
-#ifdef BUSFAULT
     busfault_check();
-#endif
 
     /* We need a while loop here to handle
        crashed connections and the screen saver timeout */

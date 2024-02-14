@@ -199,9 +199,7 @@ OsInit(void)
             }
         }
 #endif /* !WIN32 || __CYGWIN__ */
-#ifdef BUSFAULT
         busfault_init();
-#endif
         server_poll = ospoll_create();
         if (!server_poll)
             FatalError("failed to allocate poll structure");
