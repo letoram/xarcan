@@ -208,6 +208,7 @@ xnestCollectEvents(void)
         case MapNotify:
         case ReparentNotify:
         case UnmapNotify:
+        case NoExpose:
             break;
 
         default:
