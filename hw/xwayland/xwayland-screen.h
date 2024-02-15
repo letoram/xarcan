@@ -71,6 +71,7 @@ struct xwl_screen {
     ClipNotifyProcPtr ClipNotify;
     CreateScreenResourcesProcPtr CreateScreenResources;
     CloseScreenProcPtr CloseScreen;
+    ConfigNotifyProcPtr ConfigNotify;
     CreateWindowProcPtr CreateWindow;
     RealizeWindowProcPtr RealizeWindow;
     UnrealizeWindowProcPtr UnrealizeWindow;
@@ -79,7 +80,6 @@ struct xwl_screen {
     SetWindowPixmapProcPtr SetWindowPixmap;
     ChangeWindowAttributesProcPtr ChangeWindowAttributes;
     ReparentWindowProcPtr ReparentWindow;
-    ResizeWindowProcPtr ResizeWindow;
     MoveWindowProcPtr MoveWindow;
 
     int (*GrabServer) (ClientPtr client);

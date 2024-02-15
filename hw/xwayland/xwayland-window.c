@@ -1649,25 +1649,29 @@ xwl_clip_notify(WindowPtr window, int dx, int dy)
         xwl_window_update_surface_window(xwl_window);
 }
 
-void
-xwl_resize_window(WindowPtr window,
+int
+xwl_config_notify(WindowPtr window,
                   int x, int y,
-                  unsigned int width, unsigned int height,
+                  int width, int height, int bw,
                   WindowPtr sib)
 {
     ScreenPtr screen = window->drawable.pScreen;
     struct xwl_screen *xwl_screen;
     struct xwl_window *xwl_window;
+    Bool size_changed;
+    int ret;
 
     xwl_screen = xwl_screen_get(screen);
     xwl_window = xwl_window_from_window(window);
 
-    screen->ResizeWindow = xwl_screen->ResizeWindow;
-    (*screen->ResizeWindow) (window, x, y, width, height, sib);
-    xwl_screen->ResizeWindow = screen->ResizeWindow;
-    screen->ResizeWindow = xwl_resize_window;
+    size_changed = width != window->drawable.width || height != window->drawable.height;
 
-    if (xwl_window) {
+    screen->ConfigNotify = xwl_screen->ConfigNotify;
+    ret = screen->ConfigNotify(window, x, y, width, height, bw, sib);
+    xwl_screen->ConfigNotify = screen->ConfigNotify;
+    screen->ConfigNotify = xwl_config_notify;
+
+    if (size_changed && xwl_window) {
         if (xwl_window_get(window) || xwl_window_is_toplevel(window))
             xwl_window_check_resolution_change_emulation(xwl_window);
         if (window == screen->root) {
@@ -1682,6 +1686,8 @@ xwl_resize_window(WindowPtr window,
             xwl_window_check_fractional_scale_viewport(xwl_window, width, height);
         }
     }
+
+    return ret;
 }
 
 void

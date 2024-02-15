@@ -129,10 +129,10 @@ Bool xwl_realize_window(WindowPtr window);
 Bool xwl_unrealize_window(WindowPtr window);
 Bool xwl_change_window_attributes(WindowPtr window, unsigned long mask);
 void xwl_clip_notify(WindowPtr window, int dx, int dy);
-void xwl_resize_window(WindowPtr window,
-                       int x, int y,
-                       unsigned int width, unsigned int height,
-                       WindowPtr sib);
+int xwl_config_notify(WindowPtr window,
+                      int x, int y,
+                      int width, int height, int bw,
+                      WindowPtr sib);
 void xwl_move_window(WindowPtr window,
                      int x, int y,
                      WindowPtr next_sib,
