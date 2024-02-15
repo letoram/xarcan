@@ -39,6 +39,7 @@
 #include "eventconvert.h"
 #include "windowstr.h"
 #include "mi.h"
+#include "bug.h"
 
 #define TOUCH_HISTORY_SIZE 100
 

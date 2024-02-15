@@ -38,6 +38,7 @@
 #include "eventconvert.h"
 #include "windowstr.h"
 #include "mi.h"
+#include "bug.h"
 
 #define GESTURE_HISTORY_SIZE 100
 

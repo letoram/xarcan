@@ -27,6 +27,7 @@
 #include "dix-config.h"
 #endif
 
+#include "bug.h"
 #include "exevents.h"
 #include "exglobals.h"
 #include "misc.h"

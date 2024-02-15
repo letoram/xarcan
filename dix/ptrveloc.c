@@ -31,6 +31,7 @@
 #include <exevents.h>
 #include <X11/Xatom.h>
 #include <os.h>
+#include "bug.h"
 
 #include <xserver-properties.h>
 

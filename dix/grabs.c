@@ -62,6 +62,7 @@ SOFTWARE.
 #include "exglobals.h"
 #include "inpututils.h"
 #include "client.h"
+#include "bug.h"
 
 #define BITMASK(i) (((Mask)1) << ((i) & 31))
 #define MASKIDX(i) ((i) >> 5)

@@ -29,6 +29,7 @@
 #include <linux/input.h>
 #include <sys/mman.h>
 
+#include "bug.h"
 #include <inputstr.h>
 #include <exevents.h>
 #include <xkbsrv.h>

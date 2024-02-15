@@ -82,6 +82,7 @@ __stdcall unsigned long GetTickCount(void);
 #include "dixfont.h"
 #include <X11/fonts/libxfont2.h>
 #include "osdep.h"
+#include "bug.h"
 #include "extension.h"
 #include <signal.h>
 #ifndef WIN32

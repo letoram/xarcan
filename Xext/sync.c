@@ -60,6 +60,7 @@ PERFORMANCE OF THIS SOFTWARE.
 #include <X11/Xmd.h>
 #include "scrnintstr.h"
 #include "os.h"
+#include "bug.h"
 #include "extnsionst.h"
 #include "dixstruct.h"
 #include "pixmapstr.h"

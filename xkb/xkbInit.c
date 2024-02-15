@@ -49,6 +49,7 @@ THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "xkbgeom.h"
 #include <X11/extensions/XKMformat.h>
 #include "xkbfile.h"
+#include "bug.h"
 
 #define	CREATE_ATOM(s)	MakeAtom(s,sizeof(s)-1,1)
 

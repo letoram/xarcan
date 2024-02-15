@@ -45,6 +45,7 @@
 #include <dix-config.h>
 #endif
 
+#include "bug.h"
 #include "xibarriers.h"
 #include "scrnintstr.h"
 #include "cursorstr.h"

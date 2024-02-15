@@ -32,6 +32,8 @@
 #include <X11/extensions/XI2.h>
 #include <X11/extensions/XIproto.h>
 #include <X11/extensions/XI2proto.h>
+
+#include "bug.h"
 #include "inputstr.h"
 #include "windowstr.h"
 #include "scrnintstr.h"

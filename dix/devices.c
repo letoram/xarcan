@@ -53,6 +53,7 @@ SOFTWARE.
 #include "resource.h"
 #include <X11/Xproto.h>
 #include <X11/Xatom.h>
+#include "bug.h"
 #include "windowstr.h"
 #include "inputstr.h"
 #include "scrnintstr.h"
