@@ -1221,7 +1221,7 @@ err_surf:
     return FALSE;
 }
 
-static void
+void
 xwl_window_update_surface_window(struct xwl_window *xwl_window)
 {
     WindowPtr surface_window = xwl_window->toplevel;
@@ -1512,14 +1512,15 @@ xwl_unrealize_window(WindowPtr window)
 
     xwl_screen = xwl_screen_get(screen);
 
-    compUnredirectWindow(serverClient, window, CompositeRedirectManual);
+    xwl_window = xwl_window_get(window);
+    if (xwl_window)
+        compUnredirectWindow(serverClient, window, CompositeRedirectManual);
 
     screen->UnrealizeWindow = xwl_screen->UnrealizeWindow;
     ret = (*screen->UnrealizeWindow) (window);
     xwl_screen->UnrealizeWindow = screen->UnrealizeWindow;
     screen->UnrealizeWindow = xwl_unrealize_window;
 
-    xwl_window = xwl_window_get(window);
     if (!xwl_window)
         return ret;
 

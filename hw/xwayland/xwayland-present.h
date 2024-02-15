@@ -54,6 +54,10 @@ struct xwl_present_window {
 
     present_vblank_ptr flip_active;
     uint64_t blocking_event;
+
+    OsTimerPtr unredirect_timer;
+    Bool redirected;
+    Bool redirect_failed;
 };
 
 struct xwl_present_event {
@@ -77,5 +81,7 @@ void xwl_present_frame_callback(struct xwl_present_window *xwl_present_window);
 Bool xwl_present_init(ScreenPtr screen);
 void xwl_present_cleanup(WindowPtr window);
 void xwl_present_unrealize_window(struct xwl_present_window *xwl_present_window);
+Bool xwl_present_maybe_redirect_window(WindowPtr window, PixmapPtr pixmap);
+Bool xwl_present_maybe_unredirect_window(WindowPtr window);
 
 #endif /* XWAYLAND_PRESENT_H */

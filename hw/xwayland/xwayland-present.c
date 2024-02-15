@@ -25,6 +25,7 @@
 
 #include <xwayland-config.h>
 
+#include <compint.h>
 #ifdef XWL_HAS_GLAMOR
 #include <glamor.h>
 #endif
@@ -484,6 +485,7 @@ xwl_present_cleanup(WindowPtr window)
 
     /* Clear timer */
     xwl_present_free_timer(xwl_present_window);
+    TimerFree(xwl_present_window->unredirect_timer);
 
     /* Remove from privates so we don't try to access it later */
     dixSetPrivate(&window->devPrivates,
@@ -1261,6 +1263,67 @@ xwl_present_unrealize_window(struct xwl_present_window *xwl_present_window)
     /* Make sure the timer callback doesn't get called */
     xwl_present_window->timer_armed = 0;
     xwl_present_reset_timer(xwl_present_window);
+}
+
+Bool
+xwl_present_maybe_redirect_window(WindowPtr window, PixmapPtr pixmap)
+{
+    struct xwl_present_window *xwl_present_window = xwl_present_window_get_priv(window);
+    struct xwl_window *xwl_window = xwl_window_from_window(window);
+
+    if (xwl_present_window->redirect_failed)
+        return FALSE;
+
+    if (compRedirectWindow(serverClient, window, CompositeRedirectManual) != Success) {
+        xwl_present_window->redirect_failed = TRUE;
+        return FALSE;
+    }
+
+    xwl_window_update_surface_window(xwl_window);
+    if (xwl_window->surface_window != window) {
+        compUnredirectWindow(serverClient, window, CompositeRedirectManual);
+        xwl_present_window->redirect_failed = TRUE;
+        return FALSE;
+    }
+
+    if (!xwl_window->surface_window_damage)
+        xwl_window->surface_window_damage = RegionCreate(NullBox, 1);
+
+    xwl_present_window->redirected = TRUE;
+    return TRUE;
+}
+
+static CARD32
+unredirect_window(OsTimerPtr timer, CARD32 time, void *arg)
+{
+    WindowPtr window = arg;
+    struct xwl_present_window *xwl_present_window = xwl_present_window_get_priv(window);
+
+    compUnredirectWindow(serverClient, window, CompositeRedirectManual);
+    xwl_present_window->redirected = FALSE;
+
+    xwl_present_window->unredirect_timer = NULL;
+    return 0;
+}
+
+Bool
+xwl_present_maybe_unredirect_window(WindowPtr window)
+{
+    struct xwl_present_window *xwl_present_window = xwl_present_window_get_priv(window);
+
+    if (!xwl_present_window || !xwl_present_window->redirected)
+        return FALSE;
+
+    /* This function may get called from composite layer code, in which case
+     * calling compUnredirectWindow would blow up. To avoid this, set up a timer
+     * which will call it "as soon as possible".
+     */
+    if (!xwl_present_window->unredirect_timer) {
+        xwl_present_window->unredirect_timer =
+            TimerSet(NULL, 0, 1, unredirect_window, window);
+    }
+
+    return TRUE;
 }
 
 Bool

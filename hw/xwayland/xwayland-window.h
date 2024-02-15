@@ -82,6 +82,7 @@ struct xwl_window {
      * can also be used for the X dimensions of the Wayland surface though.
      */
     WindowPtr surface_window;
+    RegionPtr surface_window_damage;
 
     struct xorg_list link_damage;
     struct xorg_list link_window;
@@ -121,6 +122,7 @@ void xwl_window_rootful_update_title(struct xwl_window *xwl_window);
 void xwl_window_rootful_update_fullscreen(struct xwl_window *xwl_window,
                                           struct xwl_output *xwl_output);
 void xwl_window_set_window_pixmap(WindowPtr window, PixmapPtr pixmap);
+void xwl_window_update_surface_window(struct xwl_window *xwl_window);
 
 void xwl_window_leave_output(struct xwl_window *xwl_window,
                              struct xwl_output *xwl_output);
