@@ -17,7 +17,9 @@ is" without express or implied warranty.
 #endif
 
 #include <X11/X.h>
+#include <X11/Xdefs.h>
 #include <X11/Xproto.h>
+#include <X11/fonts/fontstruct.h>
 
 #include "dix/screenint_priv.h"
 
@@ -28,7 +30,6 @@ is" without express or implied warranty.
 #include "windowstr.h"
 #include "servermd.h"
 #include "mi.h"
-#include <X11/fonts/fontstruct.h>
 #include "dixfontstr.h"
 
 #include "Xnest.h"
