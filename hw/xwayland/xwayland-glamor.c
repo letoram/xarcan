@@ -46,6 +46,7 @@
 #include "xwayland-dmabuf.h"
 #include "xwayland-glamor.h"
 #include "xwayland-glamor-gbm.h"
+#include "xwayland-present.h"
 #include "xwayland-screen.h"
 #include "xwayland-window.h"
 #include "xwayland-window-buffers.h"
@@ -96,8 +97,12 @@ xwl_glamor_check_flip(WindowPtr present_window, PixmapPtr pixmap)
     ScreenPtr screen = pixmap->drawable.pScreen;
     PixmapPtr backing_pixmap = screen->GetWindowPixmap(present_window);
 
-    if (pixmap->drawable.depth != backing_pixmap->drawable.depth)
-        return FALSE;
+    if (pixmap->drawable.depth != backing_pixmap->drawable.depth) {
+        if (pixmap->drawable.depth == 32)
+            return FALSE;
+
+        return xwl_present_maybe_redirect_window(present_window, pixmap);
+    }
 
     return TRUE;
 }
