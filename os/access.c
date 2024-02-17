@@ -1179,7 +1179,11 @@ GetLocalClientCreds(ClientPtr client, LocalClientCredRec ** lccp)
     ucred_t *peercred = NULL;
     const gid_t *gids;
 #elif defined(SO_PEERCRED)
+#ifndef __OpenBSD__
     struct ucred peercred;
+#else
+    struct sockpeercred peercred;
+#endif
     socklen_t so_len = sizeof(peercred);
 #elif defined(LOCAL_PEERCRED) && defined(HAVE_XUCRED_CR_PID)
     struct xucred peercred;
