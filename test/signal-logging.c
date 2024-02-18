@@ -30,6 +30,9 @@
 
 #include <stdint.h>
 #include <unistd.h>
+
+#include "os/fmt.h"
+
 #include "assert.h"
 #include "misc.h"
 

@@ -6,6 +6,7 @@ srcs_os = [
     'backtrace.c',
     'client.c',
     'connection.c',
+    'fmt.c',
     'inputthread.c',
     'io.c',
     'mitauth.c',

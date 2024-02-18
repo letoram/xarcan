@@ -87,6 +87,8 @@ OR PERFORMANCE OF THIS SOFTWARE.
 #include <stdlib.h>             /* for malloc() */
 #include <errno.h>
 
+#include "os/fmt.h"
+
 #include "input.h"
 #include "opaque.h"
 #include "osdep.h"
