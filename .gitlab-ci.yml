@@ -101,8 +101,9 @@ meson-nolibdecor:
 mingw-cross-build:
     extends: .common-build-and-test
     script:
-        - meson --cross-file=.gitlab-ci/cross-i686-w64-mingw32.txt -Dglx=false -Dsecure-rpc=false -Dlisten_tcp=true $MESON_BUILDDIR/
-        - ninja -j${FDO_CI_CONCURRENT:-4} -C $MESON_BUILDDIR/ install
+        - .gitlab-ci/meson-build.sh --run-install
+    variables:
+      MESON_ARGS: --cross-file=.gitlab-ci/cross-i686-w64-mingw32.txt -Dglx=false -Dsecure-rpc=false -Dlisten_tcp=true
 
 meson-dist:
     extends: .common-build-and-test
