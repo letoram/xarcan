@@ -77,6 +77,12 @@ window_get_damage(WindowPtr window)
     return dixLookupPrivate(&window->devPrivates, &xwl_damage_private_key);
 }
 
+RegionPtr
+xwl_window_get_damage_region(struct xwl_window *xwl_window)
+{
+    return DamageRegion(window_get_damage(xwl_window->window));
+}
+
 struct xwl_window *
 xwl_window_from_window(WindowPtr window)
 {
@@ -1380,8 +1386,7 @@ xwl_window_attach_buffer(struct xwl_window *xwl_window)
     PixmapPtr pixmap;
     int i;
 
-    region = DamageRegion(window_get_damage(xwl_window->window));
-    pixmap = xwl_window_buffers_get_pixmap(xwl_window, region);
+    pixmap = xwl_window_buffers_get_pixmap(xwl_window);
     buffer = xwl_pixmap_get_wl_buffer(pixmap);
 
     if (!buffer) {
@@ -1391,7 +1396,7 @@ xwl_window_attach_buffer(struct xwl_window *xwl_window)
 
 #ifdef XWL_HAS_GLAMOR
     if (xwl_screen->glamor) {
-        if (!xwl_glamor_post_damage(xwl_window, pixmap, region)) {
+        if (!xwl_glamor_post_damage(xwl_window, pixmap)) {
             ErrorF("glamor: Failed to post damage\n");
             return FALSE;
         }
@@ -1404,6 +1409,7 @@ xwl_window_attach_buffer(struct xwl_window *xwl_window)
      * connection. If we flood it too much anyway, this could
      * abort in libwayland-client.
      */
+    region = xwl_window_get_damage_region(xwl_window);
     if (RegionNumRects(region) > 256) {
         box = RegionExtents(region);
         xwl_surface_damage(xwl_screen, xwl_window->surface,

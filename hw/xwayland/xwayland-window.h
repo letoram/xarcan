@@ -123,6 +123,7 @@ struct xwl_window {
 };
 
 struct xwl_window *xwl_window_get(WindowPtr window);
+RegionPtr xwl_window_get_damage_region(struct xwl_window *xwl_window);
 struct xwl_window *xwl_window_from_window(WindowPtr window);
 
 Bool is_surface_from_xwl_window(struct wl_surface *surface);

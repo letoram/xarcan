@@ -114,9 +114,9 @@ xwl_window_buffer_maybe_dispose(struct xwl_window_buffer *xwl_window_buffer)
 }
 
 static void
-xwl_window_buffer_add_damage_region(struct xwl_window *xwl_window,
-                                    RegionPtr damage_region)
+xwl_window_buffer_add_damage_region(struct xwl_window *xwl_window)
 {
+    RegionPtr region = xwl_window_get_damage_region(xwl_window);
     struct xwl_window_buffer *xwl_window_buffer;
 
     /* Add damage region to all buffers */
@@ -125,14 +125,14 @@ xwl_window_buffer_add_damage_region(struct xwl_window *xwl_window,
                              link_buffer) {
         RegionUnion(xwl_window_buffer->damage_region,
                     xwl_window_buffer->damage_region,
-                    damage_region);
+                    region);
     }
     xorg_list_for_each_entry(xwl_window_buffer,
                              &xwl_window->window_buffers_unavailable,
                              link_buffer) {
         RegionUnion(xwl_window_buffer->damage_region,
                     xwl_window_buffer->damage_region,
-                    damage_region);
+                    region);
     }
 }
 
@@ -332,8 +332,7 @@ xwl_window_recycle_pixmap(struct xwl_window *xwl_window)
 }
 
 PixmapPtr
-xwl_window_buffers_get_pixmap(struct xwl_window *xwl_window,
-                              RegionPtr damage_region)
+xwl_window_buffers_get_pixmap(struct xwl_window *xwl_window)
 {
     struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
     struct xwl_window_buffer *xwl_window_buffer;
@@ -346,7 +345,7 @@ xwl_window_buffers_get_pixmap(struct xwl_window *xwl_window,
         return window_pixmap;
 #endif /* XWL_HAS_GLAMOR */
 
-    xwl_window_buffer_add_damage_region(xwl_window, damage_region);
+    xwl_window_buffer_add_damage_region(xwl_window);
 
     xwl_window_buffer = xwl_window_buffer_get_available(xwl_window);
     if (xwl_window_buffer) {

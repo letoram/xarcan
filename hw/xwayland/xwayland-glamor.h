@@ -137,7 +137,7 @@ void xwl_glamor_init_wl_registry(struct xwl_screen *xwl_screen,
 Bool xwl_glamor_has_wl_interfaces(struct xwl_screen *xwl_screen,
                                  struct xwl_egl_backend *xwl_egl_backend);
 Bool xwl_glamor_post_damage(struct xwl_window *xwl_window,
-                            PixmapPtr pixmap, RegionPtr region);
+                            PixmapPtr pixmap);
 Bool xwl_glamor_allow_commits(struct xwl_window *xwl_window);
 void xwl_glamor_egl_make_current(struct xwl_screen *xwl_screen);
 Bool xwl_glamor_needs_buffer_flush(struct xwl_screen *xwl_screen);
