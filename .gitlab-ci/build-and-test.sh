@@ -3,10 +3,14 @@
 set -e
 set -o xtrace
 
+if [[ -z "$MESON_BUILDDIR" ]]; then
+    MESON_BUILDDIR=build
+fi
+
 check_piglit_results ()
 {
-    local EXPECTED_RESULTS=build/test/piglit-results/$1
-    local DEPENDENCY=build/$2
+    local EXPECTED_RESULTS="$MESON_BUILDDIR"/test/piglit-results/$1
+    local DEPENDENCY="$MESON_BUILDDIR"/$2
 
     if ! test -e $DEPENDENCY; then
 	return
@@ -20,11 +24,11 @@ check_piglit_results ()
     exit 1
 }
 
-meson -Dc_args="-fno-common" -Dprefix=/usr -Dxephyr=true -Dwerror=true $MESON_EXTRA_OPTIONS build/
+meson -Dc_args="-fno-common" -Dprefix=/usr -Dxephyr=true -Dwerror=true $MESON_EXTRA_OPTIONS "$MESON_BUILDDIR/"
 
 export PIGLIT_DIR=/root/piglit XTEST_DIR=/root/xts LP_NUM_THREADS=0
-ninja -j${FDO_CI_CONCURRENT:-4} -C build/
-meson test --num-processes ${FDO_CI_CONCURRENT:-4} --print-errorlogs -C build/
+ninja -j${FDO_CI_CONCURRENT:-4} -C "$MESON_BUILDDIR/"
+meson test --num-processes ${FDO_CI_CONCURRENT:-4} --print-errorlogs -C "$MESON_BUILDDIR/"
 
 check_piglit_results xephyr-glamor hw/kdrive/ephyr/Xephyr.p/ephyr_glamor.c.o
 check_piglit_results xvfb hw/vfb/Xvfb
