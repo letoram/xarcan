@@ -336,7 +336,7 @@ xwl_window_swap_pixmap(struct xwl_window *xwl_window)
 {
     struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
     struct xwl_window_buffer *xwl_window_buffer;
-    PixmapPtr window_pixmap, new_window_pixmap;
+    PixmapPtr window_pixmap;
 
     window_pixmap = (*xwl_screen->screen->GetWindowPixmap) (xwl_window->window);
 
@@ -348,11 +348,9 @@ xwl_window_swap_pixmap(struct xwl_window *xwl_window)
         BoxPtr pBox = RegionRects(full_damage);
         int nBox = RegionNumRects(full_damage);
 
-        new_window_pixmap = xwl_window_buffer->pixmap;
-
         while (nBox--) {
             copy_pixmap_area(window_pixmap,
-                             new_window_pixmap,
+                             xwl_window_buffer->pixmap,
                              pBox->x1 + xwl_window->window->borderWidth,
                              pBox->y1 + xwl_window->window->borderWidth,
                              pBox->x2 - pBox->x1,
@@ -363,21 +361,16 @@ xwl_window_swap_pixmap(struct xwl_window *xwl_window)
 
         RegionEmpty(xwl_window_buffer->damage_region);
     } else {
+        window_pixmap->refcnt++;
+        xwl_window_realloc_pixmap(xwl_window);
+
         xwl_window_buffer = xwl_window_buffer_new(xwl_window);
-
-        new_window_pixmap = xwl_window_allocate_pixmap(xwl_window);
-        if (!new_window_pixmap) {
-            xwl_window_buffer_maybe_dispose(xwl_window_buffer);
+        if (!xwl_window_buffer)
             return window_pixmap;
-        }
-
-        copy_pixmap_area(window_pixmap,
-                         new_window_pixmap,
-                         0, 0,
-                         window_pixmap->drawable.width,
-                         window_pixmap->drawable.height);
     }
 
+    xorg_list_del(&xwl_window_buffer->link_buffer);
+    xwl_window_set_pixmap(xwl_window->window, xwl_window_buffer->pixmap);
     xwl_window_buffer->pixmap = window_pixmap;
 
     /* Hold a reference on the buffer until it's released by the compositor */
@@ -386,11 +379,8 @@ xwl_window_swap_pixmap(struct xwl_window *xwl_window)
                                      xwl_window_buffer_release_callback,
                                      xwl_window_buffer);
 
-    xorg_list_del(&xwl_window_buffer->link_buffer);
     xorg_list_append(&xwl_window_buffer->link_buffer,
                      &xwl_window->window_buffers_unavailable);
-
-    xwl_window_set_pixmap(xwl_window->window, new_window_pixmap);
 
     if (xorg_list_is_empty(&xwl_window->window_buffers_available))
         TimerCancel(xwl_window->window_buffers_timer);
