@@ -64,6 +64,7 @@ debian-bullseye:
             - $MESON_BUILDDIR/meson-logs/
             - $MESON_BUILDDIR/test/piglit-results/
     variables:
+        MESON_ARGS: -Dc_args="-fno-common" -Dprefix=/usr -Dxephyr=true -Dwerror=true
         CCACHE_COMPILERCHECK: content
         CCACHE_DIR: /cache/xserver/cache
         LC_ALL: C.UTF-8
@@ -77,19 +78,24 @@ debian-bullseye:
 meson:
     extends: .common-build-and-test
     script:
-        - .gitlab-ci/build-and-test.sh
+        - .gitlab-ci/meson-build.sh --run-test
+        - .gitlab-ci/check-piglit-results.sh
         - .gitlab-ci/manpages-check
+    variables:
+      XTEST_DIR: /root/xts
+      PIGLIT_DIR: /root/piglit
+      LP_NUM_THREADS: 0
 
 meson-noglamor:
     extends: meson
     variables:
-        MESON_EXTRA_OPTIONS: >
+        MESON_EXTRA_ARGS: >
           -Dglamor=false
 
 meson-nolibdecor:
     extends: meson
     variables:
-        MESON_EXTRA_OPTIONS: >
+        MESON_EXTRA_ARGS: >
           -Dlibdecor=false
 
 mingw-cross-build:
