@@ -454,7 +454,9 @@ xf86OpenPcvt()
     int fd = -1;
     vtmode_t vtmode;
     char vtname[12], *vtprefix;
+#ifdef __NetBSD__
     struct pcvtid pcvt_version;
+#endif
 
 #ifndef __OpenBSD__
     vtprefix = "/dev/ttyv";
@@ -470,7 +472,9 @@ xf86OpenPcvt()
     }
 #endif
     if (fd >= 0) {
+#ifdef __NetBSD__
         if (ioctl(fd, VGAPCVTID, &pcvt_version) >= 0) {
+#endif
             if (ioctl(fd, VT_GETMODE, &vtmode) < 0) {
                 FatalError("%s: VT_GETMODE failed\n%s%s\n%s",
                            "xf86OpenPcvt",
@@ -521,20 +525,28 @@ xf86OpenPcvt()
             }
             xf86Info.consType = PCVT;
 #ifdef WSCONS_SUPPORT
+#ifdef __NetBSD__
             xf86Msg(X_PROBED,
                     "Using wscons driver on %s in pcvt compatibility mode "
                     "(version %d.%d)\n", vtname,
                     pcvt_version.rmajor, pcvt_version.rminor);
 #else
+            xf86Msg(X_PROBED,
+                    "Using wscons driver on %s in pcvt compatibility mode ",
+                    vtname);
+#endif
+#else
             xf86Msg(X_PROBED, "Using pcvt driver (version %d.%d)\n",
                     pcvt_version.rmajor, pcvt_version.rminor);
 #endif
+#ifdef __NetBSD__
         }
         else {
             /* Not pcvt */
             close(fd);
             fd = -1;
         }
+#endif
     }
     return fd;
 }
