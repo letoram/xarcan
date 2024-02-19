@@ -56,7 +56,7 @@ typedef struct _builtinColor {
     unsigned char red;
     unsigned char green;
     unsigned char blue;
-    unsigned short name;
+    unsigned short name_offs;
 } BuiltinColor;
 
 static const char BuiltinColorNames[] = {
@@ -1645,8 +1645,8 @@ OsLookupColor(int screen,
     while (high >= low) {
         mid = (low + high) / 2;
         c = &BuiltinColors[mid];
-        r = strncasecmp(&BuiltinColorNames[c->name], name, len);
-        if (r == 0 && len == strlen(&BuiltinColorNames[c->name])) {
+        r = strncasecmp(&BuiltinColorNames[c->name_offs], name, len);
+        if (r == 0 && len == strlen(&BuiltinColorNames[c->name_offs])) {
             *pred = c->red * 0x101;
             *pgreen = c->green * 0x101;
             *pblue = c->blue * 0x101;
