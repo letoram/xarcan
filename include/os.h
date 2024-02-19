@@ -304,7 +304,7 @@ LockServer(void);
 extern _X_EXPORT void
 UnlockServer(void);
 
-extern _X_EXPORT int
+extern _X_EXPORT Bool
 OsLookupColor(int /*screen */ ,
               char * /*name */ ,
               unsigned /*len */ ,
