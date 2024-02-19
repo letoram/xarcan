@@ -113,7 +113,13 @@ meson-dist:
             - $MESON_BUILDDIR/meson-logs/
             - $MESON_BUILDDIR/xserver-*/$MESON_BUILDDIR/meson-logs/
     script:
-        - .gitlab-ci/dist.sh
+        - .gitlab-ci/meson-build.sh --run-dist
+        - mkdir xserver-tarball
+        - tar xf $MESON_BUILDDIR/meson-dist/xserver-*.tar.xz -C xserver-tarball --strip-components=1
+        - .gitlab-ci/meson-build.sh -C xserver-tarball --skip-test --skip-dist --run-install
+    variables:
+      MESON_DIST_ARGS: --no-tests
+      DESTDIR: xserver-tarball/install/
 
 #
 # Verify that commit messages are as expected
