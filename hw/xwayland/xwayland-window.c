@@ -198,6 +198,7 @@ damage_report(DamagePtr pDamage, RegionPtr pRegion, void *data)
         /* This damage is from a Present flip, which already committed a new
          * buffer for the surface, so we don't need to do anything in response
          */
+        xwl_window_buffer_add_damage_region(xwl_window);
         RegionEmpty(DamageRegion(pDamage));
         xorg_list_del(&xwl_window->link_damage);
         xwl_window->present_flipped = FALSE;
