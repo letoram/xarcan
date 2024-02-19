@@ -6,10 +6,8 @@ set -o xtrace
 # Packages which are needed by this script, but not for the xserver build
 EPHEMERAL="
 	libcairo2-dev
-	libevdev-dev
 	libexpat-dev
 	libgles2-mesa-dev
-	libinput-dev
 	libxkbcommon-dev
 	x11-utils
 	x11-xserver-utils
@@ -46,12 +44,14 @@ apt-get install -y \
 	libgles2 \
 	libglx-mesa0 \
 	libinput10 \
+	libinput-dev \
 	libnvidia-egl-wayland-dev \
 	libpango1.0-0 \
 	libpango1.0-dev \
 	libpciaccess-dev \
 	libpixman-1-dev \
 	libselinux1-dev \
+	libspice-protocol-dev \
 	libsystemd-dev \
 	libtool \
 	libudev-dev \
