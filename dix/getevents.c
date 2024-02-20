@@ -37,7 +37,6 @@
 #include <math.h>
 #include <limits.h>
 
-#include "bug.h"
 #include "misc.h"
 #include "resource.h"
 #include "inputstr.h"

@@ -32,8 +32,6 @@
      *  Basic transpose step
      */
 
-#include "bug.h"
-
 static inline void _transp(CARD32 d[], unsigned int i1, unsigned int i2,
                            unsigned int shift, CARD32 mask)
 {

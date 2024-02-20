@@ -72,8 +72,6 @@ SOFTWARE.
 #endif
 #include <X11/X.h>
 #include <X11/Xproto.h>
-
-#include "bug.h"
 #include "os.h"
 #include "osdep.h"
 #include "opaque.h"
