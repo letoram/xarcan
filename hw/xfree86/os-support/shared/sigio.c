@@ -59,6 +59,8 @@
 #include <errno.h>
 #include <X11/X.h>
 
+#include "os/osdep.h"
+
 #include <xserver_poll.h>
 #include "xf86.h"
 #include "xf86Priv.h"

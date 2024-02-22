@@ -166,4 +166,8 @@ void AutoResetServer(int sig);
 /* clone fd so it gets out of our select mask */
 int os_move_fd(int fd);
 
+/* set signal mask - either on current thread or whole process,
+   depending on whether multithreading is used */
+int xthread_sigmask(int how, const sigset_t *set, sigset_t *oldest);
+
 #endif                          /* _OSDEP_H_ */

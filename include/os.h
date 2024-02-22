@@ -510,7 +510,4 @@ xorg_backtrace(void);
 typedef _sigset_t sigset_t;
 #endif
 
-extern _X_EXPORT int
-xthread_sigmask(int how, const sigset_t *set, sigset_t *oldest);
-
 #endif                          /* OS_H */
