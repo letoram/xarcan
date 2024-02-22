@@ -78,8 +78,7 @@ xwl_window_buffer_new(struct xwl_window *xwl_window)
     xwl_window_buffer->pixmap = NullPixmap;
     xwl_window_buffer->refcnt = 1;
 
-    xorg_list_append(&xwl_window_buffer->link_buffer,
-                     &xwl_window->window_buffers_available);
+    xorg_list_init(&xwl_window_buffer->link_buffer);
 
     return xwl_window_buffer;
 }
@@ -331,7 +330,7 @@ xwl_window_realloc_pixmap(struct xwl_window *xwl_window)
     screen->DestroyPixmap(window_pixmap);
 }
 
-static PixmapPtr
+PixmapPtr
 xwl_window_swap_pixmap(struct xwl_window *xwl_window)
 {
     struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
@@ -360,17 +359,27 @@ xwl_window_swap_pixmap(struct xwl_window *xwl_window)
         }
 
         RegionEmpty(xwl_window_buffer->damage_region);
+        xorg_list_del(&xwl_window_buffer->link_buffer);
+        xwl_window_set_pixmap(xwl_window->window, xwl_window_buffer->pixmap);
+
+        /* Can't re-use client pixmap as a window buffer */
+        if (xwl_is_client_pixmap(window_pixmap)) {
+            xwl_window_buffer->pixmap = NULL;
+            xwl_window_buffer_maybe_dispose(xwl_window_buffer);
+            return window_pixmap;
+        }
     } else {
+        /* Can't re-use client pixmap as a window buffer */
+        if (!xwl_is_client_pixmap(window_pixmap))
+            xwl_window_buffer = xwl_window_buffer_new(xwl_window);
+
         window_pixmap->refcnt++;
         xwl_window_realloc_pixmap(xwl_window);
 
-        xwl_window_buffer = xwl_window_buffer_new(xwl_window);
         if (!xwl_window_buffer)
             return window_pixmap;
     }
 
-    xorg_list_del(&xwl_window_buffer->link_buffer);
-    xwl_window_set_pixmap(xwl_window->window, xwl_window_buffer->pixmap);
     xwl_window_buffer->pixmap = window_pixmap;
 
     /* Hold a reference on the buffer until it's released by the compositor */

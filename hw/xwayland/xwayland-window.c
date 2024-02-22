@@ -188,6 +188,7 @@ damage_report(DamagePtr pDamage, RegionPtr pRegion, void *data)
     WindowPtr window = data;
     struct xwl_window *xwl_window = xwl_window_get(window);
     struct xwl_screen *xwl_screen;
+    PixmapPtr window_pixmap;
 
     if (!xwl_window)
         return;
@@ -207,6 +208,10 @@ damage_report(DamagePtr pDamage, RegionPtr pRegion, void *data)
 
     if (xorg_list_is_empty(&xwl_window->link_damage))
         xorg_list_add(&xwl_window->link_damage, &xwl_screen->damage_window_list);
+
+    window_pixmap = xwl_screen->screen->GetWindowPixmap(xwl_window->window);
+    if (xwl_is_client_pixmap(window_pixmap))
+        xwl_screen->screen->DestroyPixmap(xwl_window_swap_pixmap(xwl_window));
 }
 
 static void
@@ -227,7 +232,6 @@ register_damage(WindowPtr window)
     }
 
     DamageRegister(&window->drawable, damage);
-    DamageSetReportAfterOp(damage, TRUE);
 
     dixSetPrivate(&window->devPrivates, &xwl_damage_private_key, damage);
 
