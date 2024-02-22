@@ -170,4 +170,8 @@ int os_move_fd(int fd);
    depending on whether multithreading is used */
 int xthread_sigmask(int how, const sigset_t *set, sigset_t *oldest);
 
+/* callback for DDX specific error printing, if any (may be NULL) */
+extern void (*OsVendorVErrorFProc) (const char *, va_list args)
+    _X_ATTRIBUTE_PRINTF(1, 0);
+
 #endif                          /* _OSDEP_H_ */

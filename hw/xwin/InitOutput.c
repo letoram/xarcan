@@ -31,6 +31,9 @@ from The Open Group.
 #ifdef HAVE_XWIN_CONFIG_H
 #include <xwin-config.h>
 #endif
+
+#include "os/osdep.h"
+
 #include "win.h"
 #include "winmsg.h"
 #include "winconfig.h"
