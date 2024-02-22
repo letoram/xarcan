@@ -36,6 +36,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "os/osdep.h"
+
 #include "fb.h"
 #include "pixmapstr.h"
 

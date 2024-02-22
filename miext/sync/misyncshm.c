@@ -24,16 +24,19 @@
 #include <dix-config.h>
 #endif
 
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <unistd.h>
+#include <X11/xshmfence.h>
+
+#include "os/osdep.h"
+
 #include "scrnintstr.h"
 #include "misync_priv.h"
 #include "misyncstr.h"
 #include "misyncshm.h"
 #include "misyncfd.h"
 #include "pixmapstr.h"
-#include <sys/mman.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <X11/xshmfence.h>
 
 static DevPrivateKeyRec syncShmFencePrivateKey;
 

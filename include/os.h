@@ -697,9 +697,6 @@ LogPrintMarkers(void);
 extern _X_EXPORT void
 xorg_backtrace(void);
 
-extern _X_EXPORT int
-os_move_fd(int fd);
-
 #include <signal.h>
 
 #if defined(WIN32) && !defined(__CYGWIN__)

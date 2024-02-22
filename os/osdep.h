@@ -148,4 +148,7 @@ static inline void uname(struct utsname *uts) {
 
 void AutoResetServer(int sig);
 
+/* clone fd so it gets out of our select mask */
+int os_move_fd(int fd);
+
 #endif                          /* _OSDEP_H_ */
