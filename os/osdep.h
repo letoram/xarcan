@@ -195,4 +195,7 @@ int OnlyListenToOneClient(ClientPtr client);
 
 void ListenToAllClients(void);
 
+/* allow DDX to force using another clock */
+void ForceClockId(clockid_t forced_clockid);
+
 #endif                          /* _OSDEP_H_ */
