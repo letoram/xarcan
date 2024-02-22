@@ -331,19 +331,14 @@ xwl_window_realloc_pixmap(struct xwl_window *xwl_window)
     screen->DestroyPixmap(window_pixmap);
 }
 
-PixmapPtr
-xwl_window_buffers_get_pixmap(struct xwl_window *xwl_window)
+static PixmapPtr
+xwl_window_swap_pixmap(struct xwl_window *xwl_window)
 {
     struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
     struct xwl_window_buffer *xwl_window_buffer;
     PixmapPtr window_pixmap, new_window_pixmap;
 
     window_pixmap = (*xwl_screen->screen->GetWindowPixmap) (xwl_window->window);
-
-#ifdef XWL_HAS_GLAMOR
-    if (!xwl_glamor_needs_n_buffering(xwl_screen))
-        return window_pixmap;
-#endif /* XWL_HAS_GLAMOR */
 
     xwl_window_buffer_add_damage_region(xwl_window);
 
@@ -401,4 +396,17 @@ xwl_window_buffers_get_pixmap(struct xwl_window *xwl_window)
         TimerCancel(xwl_window->window_buffers_timer);
 
     return xwl_window_buffer->pixmap;
+}
+
+PixmapPtr
+xwl_window_buffers_get_pixmap(struct xwl_window *xwl_window)
+{
+#ifdef XWL_HAS_GLAMOR
+    struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
+
+    if (!xwl_glamor_needs_n_buffering(xwl_screen))
+        return xwl_screen->screen->GetWindowPixmap(xwl_window->window);
+#endif /* XWL_HAS_GLAMOR */
+
+    return xwl_window_swap_pixmap(xwl_window);
 }
