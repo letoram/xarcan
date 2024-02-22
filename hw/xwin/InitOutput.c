@@ -623,10 +623,8 @@ OsVendorInit(void)
 
     winFixupPaths();
 
-#ifdef DDXOSVERRORF
     if (!OsVendorVErrorFProc)
         OsVendorVErrorFProc = OsVendorVErrorF;
-#endif
 
     if (!g_fLogInited) {
         /* keep this order. If LogInit fails it calls Abort which then calls

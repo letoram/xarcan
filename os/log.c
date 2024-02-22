@@ -104,9 +104,7 @@ OR PERFORMANCE OF THIS SOFTWARE.
 #pragma clang diagnostic ignored "-Wformat-nonliteral"
 #endif
 
-#ifdef DDXOSVERRORF
 void (*OsVendorVErrorFProc) (const char *, va_list args) = NULL;
-#endif
 
 /* Default logging parameters. */
 #ifndef DEFAULT_LOG_VERBOSITY
@@ -1036,14 +1034,10 @@ FatalError(const char *f, ...)
 void
 VErrorF(const char *f, va_list args)
 {
-#ifdef DDXOSVERRORF
     if (OsVendorVErrorFProc)
         OsVendorVErrorFProc(f, args);
     else
         LogVWrite(-1, f, args);
-#else
-    LogVWrite(-1, f, args);
-#endif
 }
 
 void
