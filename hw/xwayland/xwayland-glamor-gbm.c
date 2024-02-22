@@ -396,11 +396,14 @@ xwl_glamor_gbm_create_pixmap(ScreenPtr screen,
 static PixmapPtr
 xwl_glamor_gbm_create_pixmap_for_window(struct xwl_window *xwl_window)
 {
+    WindowPtr window = xwl_window->window;
+    unsigned border_width = 2 * window->borderWidth;
+
     return xwl_glamor_gbm_create_pixmap_internal(xwl_window->xwl_screen,
-                                                 &xwl_window->window->drawable,
-                                                 xwl_window->window->drawable.width,
-                                                 xwl_window->window->drawable.height,
-                                                 xwl_window->window->drawable.depth,
+                                                 &window->drawable,
+                                                 window->drawable.width + border_width,
+                                                 window->drawable.height + border_width,
+                                                 window->drawable.depth,
                                                  CREATE_PIXMAP_USAGE_BACKING_PIXMAP,
                                                  xwl_window->has_implicit_scanout_support);
 }
