@@ -790,7 +790,7 @@ xwl_window_dmabuf_feedback_done(void *data,
      * window buffers get re-created with appropriate parameters.
      */
     xwl_window_buffers_dispose(xwl_window);
-    xwl_window_recycle_pixmap(xwl_window);
+    xwl_window_realloc_pixmap(xwl_window);
 }
 
 static void

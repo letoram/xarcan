@@ -309,7 +309,7 @@ xwl_window_allocate_pixmap(struct xwl_window *xwl_window)
 }
 
 void
-xwl_window_recycle_pixmap(struct xwl_window *xwl_window)
+xwl_window_realloc_pixmap(struct xwl_window *xwl_window)
 {
     PixmapPtr window_pixmap, new_window_pixmap;
     WindowPtr window;
