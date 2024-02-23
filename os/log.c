@@ -79,20 +79,21 @@ OR PERFORMANCE OF THIS SOFTWARE.
 #include <dix-config.h>
 #endif
 
-#include <X11/Xos.h>
+#include <errno.h>
 #include <stdio.h>
-#include <time.h>
-#include <sys/stat.h>
 #include <stdarg.h>
 #include <stdlib.h>             /* for malloc() */
-#include <errno.h>
+#include <sys/stat.h>
+#include <time.h>
+#include <X11/Xos.h>
+
+#include "os/osdep.h"
 
 #include "os/audit.h"
 #include "os/fmt.h"
 
 #include "input.h"
 #include "opaque.h"
-#include "osdep.h"
 
 #ifdef WIN32
 #include <process.h>

@@ -48,14 +48,11 @@ SOFTWARE.
 #include <dix-config.h>
 #endif
 
-#include <stdio.h>
-#include <X11/X.h>
-#include "os.h"
-#include "osdep.h"
-#include "opaque.h"
-#include <X11/Xos.h>
-#include <signal.h>
 #include <errno.h>
+#include <stdio.h>
+#include <signal.h>
+#include <X11/X.h>
+#include <X11/Xos.h>
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>
 #endif
@@ -64,9 +61,13 @@ SOFTWARE.
 #endif
 
 #include "os/busfault.h"
+#include "os/osdep.h"
 
 #include "misc.h"
 
+#include "os.h"
+#include "opaque.h"
+#include "misc.h"
 #include "dixstruct.h"
 
 #if !defined(SYSV) && !defined(WIN32)

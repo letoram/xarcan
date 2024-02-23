@@ -60,6 +60,7 @@ typedef WINAPI HRESULT(*SHGETFOLDERPATHPROC) (HWND hwndOwner,
 #endif
 
 #include "dix/screenint_priv.h"
+#include "os/osdep.h"
 
 #include "winmonitors.h"
 #include "nonsdk_extinit.h"

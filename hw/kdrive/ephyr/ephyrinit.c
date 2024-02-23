@@ -28,6 +28,7 @@
 #endif
 
 #include "os/cmdline.h"
+#include "os/osdep.h"
 
 #include "ephyr.h"
 #include "ephyrlog.h"

@@ -93,17 +93,15 @@ SOFTWARE.
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 #endif
-
 #include <sys/uio.h>
-
 #endif                          /* WIN32 */
 
 #include "dix/dix_priv.h"
 #include "os/audit.h"
 #include "os/auth.h"
+#include "os/osdep.h"
 
 #include "misc.h"               /* for typedef of pointer */
-#include "osdep.h"
 #include "opaque.h"
 #include "dixstruct.h"
 #include "xace.h"

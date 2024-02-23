@@ -40,6 +40,7 @@ from The Open Group.
 
 #include "dix/screenint_priv.h"
 #include "os/cmdline.h"
+#include "os/osdep.h"
 
 #include "scrnintstr.h"
 #include "servermd.h"

@@ -35,6 +35,9 @@
 #endif
 
 #include <X11/Xatom.h>
+
+#include "os/osdep.h"
+
 #include <micmap.h>
 #include <misyncshm.h>
 #include <os.h>

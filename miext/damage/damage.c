@@ -26,6 +26,8 @@
 
 #include <stdlib.h>
 
+#include "os/osdep.h"
+
 #include    <X11/X.h>
 #include    "scrnintstr.h"
 #include    "windowstr.h"

@@ -50,6 +50,7 @@
 
 #include "dix/screenint_priv.h"
 #include "os/cmdline.h"
+#include "os/osdep.h"
 
 #include "input.h"
 #include "servermd.h"
@@ -58,7 +59,6 @@
 #include "mi.h"
 #include "dbus-core.h"
 #include "systemd-logind.h"
-
 #include "loaderProcs.h"
 
 #define XF86_OS_PRIVS

@@ -42,6 +42,8 @@
 #include <stdlib.h>
 #include <errno.h>
 
+#include "os/osdep.h"
+
 static Bool KeepTty = FALSE;
 
 #ifdef PCCONS_SUPPORT

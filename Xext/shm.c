@@ -46,6 +46,7 @@ in this Software without prior written authorization from The Open Group.
 
 #include "os/auth.h"
 #include "os/busfault.h"
+#include "os/osdep.h"
 
 #include "misc.h"
 #include "os.h"
