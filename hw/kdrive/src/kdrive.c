@@ -25,6 +25,7 @@
 #endif
 
 #include "dix/screenint_priv.h"
+#include "os/cmdline.h"
 
 #include "kdrive.h"
 #include <mivalidate.h>

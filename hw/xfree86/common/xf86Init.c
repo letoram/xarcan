@@ -49,6 +49,7 @@
 #include <X11/Xatom.h>
 
 #include "dix/screenint_priv.h"
+#include "os/cmdline.h"
 
 #include "input.h"
 #include "servermd.h"

@@ -31,9 +31,10 @@
 #include <X11/X.h>
 #include <X11/Xmd.h>
 
+#include "os/cmdline.h"
+
 #include "compiler.h"
 #include "linux.h"
-
 #include "xf86.h"
 #include "xf86Priv.h"
 #include "xf86_OSlib.h"

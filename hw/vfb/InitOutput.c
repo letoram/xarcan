@@ -39,6 +39,7 @@ from The Open Group.
 #include <X11/Xos.h>
 
 #include "dix/screenint_priv.h"
+#include "os/cmdline.h"
 
 #include "scrnintstr.h"
 #include "servermd.h"

@@ -200,10 +200,6 @@ extern _X_EXPORT void FreeScreenSaverTimer(void);
 
 extern _X_EXPORT void GiveUp(int /*sig */ );
 
-extern _X_EXPORT void UseMsg(void);
-
-extern _X_EXPORT void ProcessCommandLine(int /*argc */ , char * /*argv */ []);
-
 extern _X_EXPORT int set_font_authorizations(char **authorizations,
                                              int *authlen,
                                              void *client);
@@ -328,8 +324,6 @@ OsAbort(void)
 extern _X_EXPORT Bool
 PrivsElevated(void);
 
-extern _X_EXPORT void
-CheckUserParameters(int argc, char **argv, char **envp);
 extern _X_EXPORT void
 CheckUserAuthorization(void);
 
@@ -483,13 +477,6 @@ GenerateAuthorization(unsigned int /* name_length */ ,
 
 extern _X_EXPORT int
 ddxProcessArgument(int /*argc */ , char * /*argv */ [], int /*i */ );
-
-#define CHECK_FOR_REQUIRED_ARGUMENTS(num)  \
-    do if (((i + num) >= argc) || (!argv[i + num])) {                   \
-        UseMsg();                                                       \
-        FatalError("Required argument to %s not specified\n", argv[i]); \
-    } while (0)
-
 
 extern _X_EXPORT void
 ddxUseMsg(void);

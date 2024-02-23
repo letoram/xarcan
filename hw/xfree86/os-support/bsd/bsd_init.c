@@ -29,6 +29,8 @@
 
 #include <X11/X.h>
 
+#include "os/cmdline.h"
+
 #include "compiler.h"
 
 #include "xf86.h"

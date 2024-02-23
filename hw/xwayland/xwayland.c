@@ -36,6 +36,7 @@
 
 #include "dix/dix_priv.h"
 #include "dix/screenint_priv.h"
+#include "os/cmdline.h"
 
 #include <selection.h>
 #include <micmap.h>
