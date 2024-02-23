@@ -327,27 +327,6 @@ extern _X_EXPORT void
 OsAbort(void)
     _X_NORETURN;
 
-#if !defined(WIN32)
-extern _X_EXPORT void *
-Popen(const char *, const char *);
-extern _X_EXPORT int
-Pclose(void *);
-extern _X_EXPORT void *
-Fopen(const char *, const char *);
-extern _X_EXPORT int
-Fclose(void *);
-#else
-
-extern const char *
-Win32TempDir(void);
-
-extern int
-System(const char *cmdline);
-
-#define Fopen(a,b) fopen(a,b)
-#define Fclose(a) fclose(a)
-#endif
-
 extern _X_EXPORT Bool
 PrivsElevated(void);
 
