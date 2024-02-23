@@ -89,6 +89,7 @@ OR PERFORMANCE OF THIS SOFTWARE.
 
 #include "input.h"
 #include "opaque.h"
+#include "osdep.h"
 
 #ifdef WIN32
 #include <process.h>
