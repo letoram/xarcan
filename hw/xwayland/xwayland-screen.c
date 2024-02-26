@@ -35,6 +35,7 @@
 #endif
 
 #include <X11/Xatom.h>
+#include <X11/Xfuncproto.h>
 
 #include "os/osdep.h"
 #include "os/xserver_poll.h"

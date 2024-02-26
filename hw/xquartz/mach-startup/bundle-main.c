@@ -36,6 +36,8 @@
 
 #include <errno.h>
 #include <X11/Xlib.h>
+#include <X11/Xfuncproto.h>
+
 #include <assert.h>
 #include <unistd.h>
 #include <stdio.h>
