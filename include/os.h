@@ -286,8 +286,6 @@ OsSignal(int /* sig */ , OsSigHandlerPtr /* handler */ );
 extern _X_EXPORT OsSigWrapperPtr
 OsRegisterSigWrapper(OsSigWrapperPtr newWrap);
 
-extern _X_EXPORT int auditTrailLevel;
-
 extern _X_EXPORT void
 LockServer(void);
 extern _X_EXPORT void
@@ -639,14 +637,6 @@ LogHdrMessage(MessageType type, const char *msg_format,
 _X_ATTRIBUTE_PRINTF(2, 0)
 _X_ATTRIBUTE_PRINTF(4, 5);
 
-extern _X_EXPORT void
-FreeAuditTimer(void);
-extern _X_EXPORT void
-AuditF(const char *f, ...)
-_X_ATTRIBUTE_PRINTF(1, 2);
-extern _X_EXPORT void
-VAuditF(const char *f, va_list args)
-_X_ATTRIBUTE_PRINTF(1, 0);
 extern _X_EXPORT void
 FatalError(const char *f, ...)
 _X_ATTRIBUTE_PRINTF(1, 2)

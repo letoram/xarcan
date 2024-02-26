@@ -87,6 +87,7 @@ OR PERFORMANCE OF THIS SOFTWARE.
 #include <stdlib.h>             /* for malloc() */
 #include <errno.h>
 
+#include "os/audit.h"
 #include "os/fmt.h"
 
 #include "input.h"
@@ -901,6 +902,8 @@ AbortServer(void)
 static int nrepeat = 0;
 static int oldlen = -1;
 static OsTimerPtr auditTimer = NULL;
+
+int auditTrailLevel = 1;
 
 void
 FreeAuditTimer(void)

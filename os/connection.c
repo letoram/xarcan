@@ -99,6 +99,7 @@ SOFTWARE.
 #endif                          /* WIN32 */
 
 #include "dix/dix_priv.h"
+#include "os/audit.h"
 
 #include "misc.h"               /* for typedef of pointer */
 #include "osdep.h"

@@ -78,6 +78,9 @@ __stdcall unsigned long GetTickCount(void);
 #define TRANS_SERVER
 #define TRANS_REOPEN
 #include <X11/Xtrans/Xtrans.h>
+
+#include "os/audit.h"
+
 #include "input.h"
 #include "dixfont.h"
 #include <X11/fonts/libxfont2.h>
@@ -107,11 +110,8 @@ __stdcall unsigned long GetTickCount(void);
 
 #include "dixstruct.h"
 #include "xkbsrv.h"
-
 #include "picture.h"
-
 #include "miinitext.h"
-
 #include "present.h"
 
 Bool noTestExtensions;
@@ -191,8 +191,6 @@ Bool AllowByteSwappedClients = FALSE;
 #ifdef PANORAMIX
 Bool PanoramiXExtensionDisabledHack = FALSE;
 #endif
-
-int auditTrailLevel = 1;
 
 char *SeatId = NULL;
 
