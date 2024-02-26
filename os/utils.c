@@ -168,10 +168,6 @@ Bool noXFixesExtension = FALSE;
 /* Xinerama is disabled by default unless enabled via +xinerama */
 Bool noPanoramiXExtension = TRUE;
 #endif
-#ifdef XSELINUX
-Bool noSELinuxExtension = FALSE;
-int selinuxEnforcingState = SELINUX_MODE_DEFAULT;
-#endif
 #ifdef XV
 Bool noXvExtension = FALSE;
 #endif

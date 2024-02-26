@@ -44,6 +44,9 @@ typedef struct {
     CARD32 id;
 } SELinuxListItemRec;
 
+Bool noSELinuxExtension = FALSE;
+int selinuxEnforcingState = SELINUX_MODE_DEFAULT;
+
 /*
  * Extension Dispatch
  */
