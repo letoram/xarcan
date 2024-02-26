@@ -188,12 +188,6 @@ xf86PrintBanner(void)
 }
 
 Bool
-xf86PrivsElevated(void)
-{
-    return PrivsElevated();
-}
-
-Bool
 xf86HasTTYs(void)
 {
 #ifdef __linux__
@@ -926,7 +920,7 @@ ddxProcessArgument(int argc, char **argv, int i)
     /* First the options that are not allowed with elevated privileges */
     if (!strcmp(argv[i], "-modulepath")) {
         CHECK_FOR_REQUIRED_ARGUMENTS(1);
-        if (xf86PrivsElevated())
+        if (PrivsElevated())
               FatalError("\nInvalid argument -modulepath "
                 "with elevated privileges\n");
         xf86ModulePath = argv[i + 1];
@@ -935,7 +929,7 @@ ddxProcessArgument(int argc, char **argv, int i)
     }
     if (!strcmp(argv[i], "-logfile")) {
         CHECK_FOR_REQUIRED_ARGUMENTS(1);
-        if (xf86PrivsElevated())
+        if (PrivsElevated())
               FatalError("\nInvalid argument -logfile "
                 "with elevated privileges\n");
         xf86LogFile = argv[i + 1];
