@@ -65,6 +65,7 @@ SOFTWARE.
 #include <X11/X.h>
 
 #include "dix/dix_priv.h"
+#include "os/busfault.h"
 
 #include "misc.h"
 #include "osdep.h"
@@ -73,7 +74,6 @@ SOFTWARE.
 #ifdef DPMSExtension
 #include "dpmsproc.h"
 #endif
-#include "busfault.h"
 
 #ifdef WIN32
 /* Error codes from windows sockets differ from fileio error codes  */

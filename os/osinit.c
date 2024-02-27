@@ -63,6 +63,8 @@ SOFTWARE.
 #include <execinfo.h>
 #endif
 
+#include "os/busfault.h"
+
 #include "misc.h"
 
 #include "dixstruct.h"
@@ -157,8 +159,6 @@ OsSigHandler(int signo)
                signo, strsignal(signo));
 }
 #endif /* !WIN32 || __CYGWIN__ */
-
-#include "busfault.h"
 
 void
 OsInit(void)

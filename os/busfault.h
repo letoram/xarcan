@@ -25,6 +25,8 @@
 
 #include <dix-config.h>
 
+#include <X11/Xdefs.h>
+
 #ifdef HAVE_SIGACTION
 
 #include <sys/types.h>
