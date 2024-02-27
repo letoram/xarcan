@@ -1,6 +1,7 @@
 srcs_os = [
     'WaitFor.c',
     'access.c',
+    'alloc.c',
     'auth.c',
     'backtrace.c',
     'client.c',
