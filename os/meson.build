@@ -12,6 +12,7 @@ srcs_os = [
     'oscolor.c',
     'osinit.c',
     'ospoll.c',
+    'string.c',
     'utils.c',
     'xdmauth.c',
     'xsha1.c',
