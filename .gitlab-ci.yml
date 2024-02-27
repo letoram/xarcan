@@ -34,6 +34,7 @@ stages:
     - docker-image
     - build-and-test
     - test
+    - postcheck
 
 .ci-run-policy:
   # Retry jobs after runner system failures
@@ -131,7 +132,7 @@ check-commits:
 check-merge-request:
   extends:
     - .fdo.ci-fairy
-  stage: test
+  stage: postcheck
   script:
     - ci-fairy check-merge-request --require-allow-collaboration --junit-xml=results.xml
   artifacts:
