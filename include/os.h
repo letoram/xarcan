@@ -375,12 +375,6 @@ EnableLocalAccess(void);
 extern _X_EXPORT void
 DisableLocalAccess(void);
 
-extern _X_EXPORT void
-EnableLocalHost(void);
-
-extern _X_EXPORT void
-DisableLocalHost(void);
-
 #ifndef NO_LOCAL_CLIENT_CRED
 extern _X_EXPORT void
 EnableLocalUser(void);

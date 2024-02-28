@@ -257,6 +257,9 @@ static Bool siAddrMatch(int family, void *addr, int len, HOST * host,
 static int siCheckAddr(const char *addrString, int length);
 static void siTypesInitialize(void);
 
+static void EnableLocalHost(void);
+static void DisableLocalHost(void);
+
 /*
  * called when authorization is not enabled to add the
  * local host to the access list
@@ -277,8 +280,7 @@ EnableLocalAccess(void)
     }
 }
 
-void
-EnableLocalHost(void)
+static void EnableLocalHost(void)
 {
     if (!UsingXdmcp) {
         LocalHostEnabled = TRUE;
@@ -304,8 +306,7 @@ DisableLocalAccess(void)
     }
 }
 
-void
-DisableLocalHost(void)
+static void DisableLocalHost(void)
 {
     HOST *self;
 
