@@ -326,9 +326,6 @@ GetClientFd(ClientPtr);
 extern _X_EXPORT Bool
 ClientIsLocal(ClientPtr client);
 
-extern _X_EXPORT void
-AccessUsingXdmcp(void);
-
 extern _X_EXPORT int
 ddxProcessArgument(int /*argc */ , char * /*argv */ [], int /*i */ );
 

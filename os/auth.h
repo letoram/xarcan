@@ -109,4 +109,6 @@ void AugmentSelf(void *from, int len);
 
 int ChangeAccessControl(ClientPtr client, int fEnabled);
 
+void AccessUsingXdmcp(void);
+
 #endif /* _XSERVER_OS_AUTH_H */
