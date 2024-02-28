@@ -43,6 +43,9 @@ from The Open Group.
 #define TRANS_SERVER
 #define TRANS_REOPEN
 #include <X11/Xtrans/Xtrans.h>
+
+#include "os/auth.h"
+
 #include "os.h"
 #include "osdep.h"
 #include "xdmcp.h"

@@ -320,9 +320,6 @@ OsAbort(void)
 extern _X_EXPORT Bool
 PrivsElevated(void);
 
-extern _X_EXPORT void
-CheckUserAuthorization(void);
-
 extern _X_EXPORT int
 AddHost(ClientPtr /*client */ ,
         int /*family */ ,
@@ -378,53 +375,6 @@ DefineSelf(int /*fd */ );
 #ifdef XDMCP
 extern _X_EXPORT void
 AugmentSelf(void *from, int len);
-
-extern _X_EXPORT void
-RegisterAuthorizations(void);
-#endif
-
-extern _X_EXPORT void
-InitAuthorization(const char * /*filename */ );
-
-/* extern int LoadAuthorization(void); */
-
-extern _X_EXPORT int
-AuthorizationFromID(XID id,
-                    unsigned short *name_lenp,
-                    const char **namep,
-                    unsigned short *data_lenp, char **datap);
-
-extern _X_EXPORT XID
-CheckAuthorization(unsigned int /*namelength */ ,
-                   const char * /*name */ ,
-                   unsigned int /*datalength */ ,
-                   const char * /*data */ ,
-                   ClientPtr /*client */ ,
-                   const char **        /*reason */
-    );
-
-extern _X_EXPORT void
-ResetAuthorization(void);
-
-extern _X_EXPORT int
-RemoveAuthorization(unsigned short name_length,
-                    const char *name,
-                    unsigned short data_length, const char *data);
-
-extern _X_EXPORT int
-AddAuthorization(unsigned int /*name_length */ ,
-                 const char * /*name */ ,
-                 unsigned int /*data_length */ ,
-                 char * /*data */ );
-
-#ifdef XCSECURITY
-extern _X_EXPORT XID
-GenerateAuthorization(unsigned int /* name_length */ ,
-                      const char * /* name */ ,
-                      unsigned int /* data_length */ ,
-                      const char * /* data */ ,
-                      unsigned int * /* data_length_return */ ,
-                      char ** /* data_return */ );
 #endif
 
 extern _X_EXPORT int

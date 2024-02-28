@@ -87,6 +87,7 @@ Equipment Corporation.
 #include "dix/dix_priv.h"
 #include "dix/registry_priv.h"
 #include "os/audit.h"
+#include "os/auth.h"
 #include "os/cmdline.h"
 
 #include "scrnintstr.h"
