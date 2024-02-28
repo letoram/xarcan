@@ -34,7 +34,6 @@ stages:
     - docker-image
     - build-and-test
     - test
-    - postcheck
 
 .ci-run-policy:
   # Retry jobs after runner system failures
@@ -132,7 +131,7 @@ check-commits:
 check-merge-request:
   extends:
     - .fdo.ci-fairy
-  stage: postcheck
+  stage: test
   rules:
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
   script:
