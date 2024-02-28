@@ -301,7 +301,8 @@ xf86_set_cursor_colors(ScrnInfoPtr scrn, int bg, int fg)
     CursorPtr cursor = xf86CurrentCursor(screen);
     int c;
     CARD8 *bits = cursor ?
-        dixLookupScreenPrivate(&cursor->devPrivates, CursorScreenKey, screen)
+        dixLookupScreenPrivate(&cursor->devPrivates,
+                               &xf86ScreenCursorBitsKeyRec, screen)
         : NULL;
 
     /* Save ARGB versions of these colors */
