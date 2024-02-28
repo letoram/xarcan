@@ -1645,13 +1645,6 @@ ChangeAccessControl(ClientPtr client, int fEnabled)
     return Success;
 }
 
-/* returns FALSE if xhost + in effect, else TRUE */
-int
-GetAccessControl(void)
-{
-    return AccessEnabled;
-}
-
 int
 GetClientFd(ClientPtr client)
 {
