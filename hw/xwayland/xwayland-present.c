@@ -35,6 +35,7 @@
 #include "xwayland-screen.h"
 #include "xwayland-shm.h"
 #include "xwayland-window.h"
+#include "xwayland-window-buffers.h"
 #include "xwayland-pixmap.h"
 
 #include "tearing-control-v1-client-protocol.h"
@@ -833,7 +834,6 @@ xwl_present_flip(present_vblank_ptr vblank, RegionPtr damage)
     }
 
     wl_display_flush(xwl_window->xwl_screen->display);
-    xwl_window->present_flipped = TRUE;
     return TRUE;
 }
 
@@ -890,6 +890,8 @@ xwl_present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
 
             if (xwl_present_flip(vblank, damage)) {
                 WindowPtr toplvl_window = xwl_present_toplvl_pixmap_window(vblank->window);
+                struct xwl_window *xwl_window = xwl_window_from_window(window);
+                struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
                 PixmapPtr old_pixmap = screen->GetWindowPixmap(window);
 
                 /* Replace window pixmap with flip pixmap */
@@ -906,9 +908,18 @@ xwl_present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
                 vblank->pixmap->refcnt++;
                 dixDestroyPixmap(old_pixmap, old_pixmap->drawable.id);
 
-                /* Report damage */
+                /* Report damage, let damage_report ignore it though */
+                xwl_screen->ignore_damage = TRUE;
                 DamageDamageRegion(&vblank->window->drawable, damage);
+                xwl_screen->ignore_damage = FALSE;
                 RegionDestroy(damage);
+
+                /* Clear damage region, to ensure damage_report is called before
+                 * any drawing to the window
+                 */
+                xwl_window_buffer_add_damage_region(xwl_window);
+                RegionEmpty(xwl_window_get_damage_region(xwl_window));
+                xorg_list_del(&xwl_window->link_damage);
 
                 /* Put pending flip at the flip queue head */
                 xorg_list_add(&vblank->event_queue, &xwl_present_window->flip_queue);

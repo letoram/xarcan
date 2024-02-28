@@ -111,7 +111,6 @@ struct xwl_window {
     struct wl_output *wl_output;
     struct wl_output *wl_output_fullscreen;
     struct xorg_list frame_callback_list;
-    Bool present_flipped;
 #ifdef XWL_HAS_LIBDECOR
     struct libdecor_frame *libdecor_frame;
 #endif

@@ -90,6 +90,7 @@ struct xwl_screen {
     struct xorg_list seat_list;
     struct xorg_list damage_window_list;
     struct xorg_list window_list;
+    Bool ignore_damage;
 
     int wayland_fd;
     struct wl_display *display;
