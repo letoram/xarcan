@@ -369,12 +369,6 @@ AddLocalHosts(void);
 extern _X_EXPORT void
 ResetHosts(const char *display);
 
-extern _X_EXPORT void
-EnableLocalAccess(void);
-
-extern _X_EXPORT void
-DisableLocalAccess(void);
-
 #ifndef NO_LOCAL_CLIENT_CRED
 extern _X_EXPORT void
 EnableLocalUser(void);

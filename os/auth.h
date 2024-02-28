@@ -48,4 +48,7 @@ typedef struct {
 int GetLocalClientCreds(ClientPtr, LocalClientCredRec **);
 void FreeLocalClientCreds(LocalClientCredRec *);
 
+void EnableLocalAccess(void);
+void DisableLocalAccess(void);
+
 #endif /* _XSERVER_OS_AUTH_H */
