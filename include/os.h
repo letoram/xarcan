@@ -371,12 +371,6 @@ ResetHosts(const char *display);
 
 #ifndef NO_LOCAL_CLIENT_CRED
 extern _X_EXPORT void
-EnableLocalUser(void);
-
-extern _X_EXPORT void
-DisableLocalUser(void);
-
-extern _X_EXPORT void
 LocalAccessScopeUser(void);
 #endif
 

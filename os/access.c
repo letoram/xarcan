@@ -260,6 +260,11 @@ static void siTypesInitialize(void);
 static void EnableLocalHost(void);
 static void DisableLocalHost(void);
 
+#ifndef NO_LOCAL_CLIENT_CRED
+static void EnableLocalUser(void);
+static void DisableLocalUser(void);
+#endif
+
 /*
  * called when authorization is not enabled to add the
  * local host to the access list
@@ -348,8 +353,7 @@ out:
     return length;
 }
 
-void
-EnableLocalUser(void)
+static void EnableLocalUser(void)
 {
     char *addr = NULL;
     int length = -1;
@@ -364,8 +368,7 @@ EnableLocalUser(void)
     free(addr);
 }
 
-void
-DisableLocalUser(void)
+static void DisableLocalUser(void)
 {
     char *addr = NULL;
     int length = -1;
