@@ -26,4 +26,8 @@ typedef int (*AuthRemCFunc) (AuthRemCArgs);
 #define AuthRstCArgs void
 typedef int (*AuthRstCFunc) (AuthRstCArgs);
 
+int set_font_authorizations(char **authorizations,
+                            int *authlen,
+                            void *client);
+
 #endif /* _XSERVER_OS_AUTH_H */

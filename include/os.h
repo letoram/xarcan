@@ -200,10 +200,6 @@ extern _X_EXPORT void FreeScreenSaverTimer(void);
 
 extern _X_EXPORT void GiveUp(int /*sig */ );
 
-extern _X_EXPORT int set_font_authorizations(char **authorizations,
-                                             int *authlen,
-                                             void *client);
-
 /*
  * This function malloc(3)s buffer, terminating the server if there is not
  * enough memory.
