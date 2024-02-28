@@ -22,8 +22,6 @@ typedef struct {
 } xnestCursorFuncRec, *xnestCursorFuncPtr;
 
 extern DevPrivateKeyRec xnestCursorScreenKeyRec;
-
-#define xnestCursorScreenKey (&xnestCursorScreenKeyRec)
 extern xnestCursorFuncRec xnestCursorFuncs;
 
 typedef struct {

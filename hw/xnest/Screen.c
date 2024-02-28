@@ -312,7 +312,7 @@ xnestOpenScreen(ScreenPtr pScreen, int argc, char *argv[])
     miDCInitialize(pScreen, &xnestPointerCursorFuncs);  /* init SW rendering */
     PointPriv = dixLookupPrivate(&pScreen->devPrivates, miPointerScreenKey);
     xnestCursorFuncs.spriteFuncs = PointPriv->spriteFuncs;
-    dixSetPrivate(&pScreen->devPrivates, xnestCursorScreenKey,
+    dixSetPrivate(&pScreen->devPrivates, &xnestCursorScreenKeyRec,
                   &xnestCursorFuncs);
     PointPriv->spriteFuncs = &xnestPointerSpriteFuncs;
 
