@@ -45,6 +45,7 @@ is" without express or implied warranty.
 Window xnestDefaultWindows[MAXSCREENS];
 Window xnestScreenSaverWindows[MAXSCREENS];
 DevPrivateKeyRec xnestScreenCursorFuncKeyRec;
+DevScreenPrivateKeyRec xnestScreenCursorPrivKeyRec;
 
 ScreenPtr
 xnestScreen(Window window)
@@ -156,6 +157,10 @@ xnestOpenScreen(ScreenPtr pScreen, int argc, char *argv[])
          sizeof(xnestPrivColormap)))
         return FALSE;
     if (!dixRegisterPrivateKey(&xnestScreenCursorFuncKeyRec, PRIVATE_SCREEN, 0))
+        return FALSE;
+
+    if (!dixRegisterScreenPrivateKey(&xnestScreenCursorPrivKeyRec, pScreen,
+                                     PRIVATE_CURSOR, 0))
         return FALSE;
 
     visuals = xallocarray(xnestNumVisuals, sizeof(VisualRec));

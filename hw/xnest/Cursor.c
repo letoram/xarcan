@@ -21,7 +21,6 @@ is" without express or implied warranty.
 #include "screenint.h"
 #include "input.h"
 #include "misc.h"
-#include "cursor.h"
 #include "cursorstr.h"
 #include "scrnintstr.h"
 #include "servermd.h"

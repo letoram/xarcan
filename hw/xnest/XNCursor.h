@@ -30,11 +30,16 @@ typedef struct {
     Cursor cursor;
 } xnestPrivCursor;
 
+// stores xnestPrivCursor per screen's cursor
+extern DevScreenPrivateKeyRec xnestScreenCursorPrivKeyRec;
+
 #define xnestGetCursorPriv(pCursor, pScreen) ((xnestPrivCursor *) \
-    dixLookupScreenPrivate(&(pCursor)->devPrivates, CursorScreenKey, pScreen))
+    dixLookupScreenPrivate(&(pCursor)->devPrivates, \
+                           &xnestScreenCursorPrivKeyRec, pScreen))
 
 #define xnestSetCursorPriv(pCursor, pScreen, v) \
-    dixSetScreenPrivate(&(pCursor)->devPrivates, CursorScreenKey, pScreen, v)
+    dixSetScreenPrivate(&(pCursor)->devPrivates, \
+                        &xnestScreenCursorPrivKeyRec, pScreen, v)
 
 #define xnestCursor(pCursor, pScreen) \
   (xnestGetCursorPriv(pCursor, pScreen)->cursor)
