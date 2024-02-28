@@ -48,6 +48,8 @@ from The Open Group.
 #endif
 #include   <stdlib.h>       /* for arc4random_buf() */
 
+#include "os/auth.h"
+
 #include "rpcauth.h"
 #include "xdmcp.h"
 #include "xdmauth.h"

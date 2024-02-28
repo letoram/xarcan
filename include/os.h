@@ -354,27 +354,6 @@ typedef struct sockaddr *sockaddrPtr;
 extern _X_EXPORT int
 InvalidHost(sockaddrPtr /*saddr */ , int /*len */ , ClientPtr client);
 
-#define LCC_UID_SET	(1 << 0)
-#define LCC_GID_SET	(1 << 1)
-#define LCC_PID_SET	(1 << 2)
-#define LCC_ZID_SET	(1 << 3)
-
-typedef struct {
-    int fieldsSet;              /* Bit mask of fields set */
-    int euid;                   /* Effective uid */
-    int egid;                   /* Primary effective group id */
-    int nSuppGids;              /* Number of supplementary group ids */
-    int *pSuppGids;             /* Array of supplementary group ids */
-    int pid;                    /* Process id */
-    int zoneid;                 /* Only set on Solaris 10 & later */
-} LocalClientCredRec;
-
-extern _X_EXPORT int
-GetLocalClientCreds(ClientPtr, LocalClientCredRec **);
-
-extern _X_EXPORT void
-FreeLocalClientCreds(LocalClientCredRec *);
-
 extern _X_EXPORT int
 ChangeAccessControl(ClientPtr /*client */ , int /*fEnabled */ );
 

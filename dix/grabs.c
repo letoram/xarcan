@@ -55,6 +55,7 @@ SOFTWARE.
 #include <X11/extensions/XI2.h>
 
 #include "dix/dix_priv.h"
+#include "os/auth.h"
 
 #include "windowstr.h"
 #include "inputstr.h"

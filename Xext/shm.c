@@ -44,6 +44,7 @@ in this Software without prior written authorization from The Open Group.
 #include <X11/X.h>
 #include <X11/Xproto.h>
 
+#include "os/auth.h"
 #include "os/busfault.h"
 
 #include "misc.h"

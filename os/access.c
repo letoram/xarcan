@@ -187,6 +187,8 @@ SOFTWARE.
 #define X_INCLUDE_NETDB_H
 #include <X11/Xos_r.h>
 
+#include "os/auth.h"
+
 #include "dixstruct.h"
 #include "osdep.h"
 
