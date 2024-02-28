@@ -321,37 +321,6 @@ extern _X_EXPORT Bool
 PrivsElevated(void);
 
 extern _X_EXPORT int
-AddHost(ClientPtr /*client */ ,
-        int /*family */ ,
-        unsigned /*length */ ,
-        const void * /*pAddr */ );
-
-extern _X_EXPORT Bool
-ForEachHostInFamily(int family,
-                    Bool (*func)(
-                                           unsigned char *addr,
-                                           short len,
-                                           void *closure),
-                    void *closure);
-
-extern _X_EXPORT int
-RemoveHost(ClientPtr client,
-           int family,
-           unsigned length,
-           void *pAddr);
-
-extern _X_EXPORT int
-GetHosts(void ** /*data */ ,
-         int * /*pnHosts */ ,
-         int * /*pLen */ ,
-         BOOL * /*pEnabled */ );
-
-typedef struct sockaddr *sockaddrPtr;
-
-extern _X_EXPORT int
-InvalidHost(sockaddrPtr /*saddr */ , int /*len */ , ClientPtr client);
-
-extern _X_EXPORT int
 ChangeAccessControl(ClientPtr /*client */ , int /*fEnabled */ );
 
 extern _X_EXPORT int
@@ -361,21 +330,7 @@ extern _X_EXPORT Bool
 ClientIsLocal(ClientPtr client);
 
 extern _X_EXPORT void
-AddLocalHosts(void);
-
-extern _X_EXPORT void
-ResetHosts(const char *display);
-
-extern _X_EXPORT void
 AccessUsingXdmcp(void);
-
-extern _X_EXPORT void
-DefineSelf(int /*fd */ );
-
-#ifdef XDMCP
-extern _X_EXPORT void
-AugmentSelf(void *from, int len);
-#endif
 
 extern _X_EXPORT int
 ddxProcessArgument(int /*argc */ , char * /*argv */ [], int /*i */ );

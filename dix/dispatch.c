@@ -103,6 +103,7 @@ Equipment Corporation.
 
 #include "dix/dix_priv.h"
 #include "dix/registry_priv.h"
+#include "os/auth.h"
 
 #include "windowstr.h"
 #include <X11/fonts/fontstruct.h>
