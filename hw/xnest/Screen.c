@@ -44,7 +44,7 @@ is" without express or implied warranty.
 
 Window xnestDefaultWindows[MAXSCREENS];
 Window xnestScreenSaverWindows[MAXSCREENS];
-DevPrivateKeyRec xnestCursorScreenKeyRec;
+DevPrivateKeyRec xnestScreenCursorFuncKeyRec;
 
 ScreenPtr
 xnestScreen(Window window)
@@ -155,7 +155,7 @@ xnestOpenScreen(ScreenPtr pScreen, int argc, char *argv[])
         (&xnestColormapPrivateKeyRec, PRIVATE_COLORMAP,
          sizeof(xnestPrivColormap)))
         return FALSE;
-    if (!dixRegisterPrivateKey(&xnestCursorScreenKeyRec, PRIVATE_SCREEN, 0))
+    if (!dixRegisterPrivateKey(&xnestScreenCursorFuncKeyRec, PRIVATE_SCREEN, 0))
         return FALSE;
 
     visuals = xallocarray(xnestNumVisuals, sizeof(VisualRec));
@@ -312,7 +312,7 @@ xnestOpenScreen(ScreenPtr pScreen, int argc, char *argv[])
     miDCInitialize(pScreen, &xnestPointerCursorFuncs);  /* init SW rendering */
     PointPriv = dixLookupPrivate(&pScreen->devPrivates, miPointerScreenKey);
     xnestCursorFuncs.spriteFuncs = PointPriv->spriteFuncs;
-    dixSetPrivate(&pScreen->devPrivates, &xnestCursorScreenKeyRec,
+    dixSetPrivate(&pScreen->devPrivates, &xnestScreenCursorFuncKeyRec,
                   &xnestCursorFuncs);
     PointPriv->spriteFuncs = &xnestPointerSpriteFuncs;
 

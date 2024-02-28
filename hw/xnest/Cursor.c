@@ -156,7 +156,7 @@ xnestDeviceCursorInitialize(DeviceIntPtr pDev, ScreenPtr pScreen)
     xnestCursorFuncPtr pScreenPriv;
 
     pScreenPriv = (xnestCursorFuncPtr)
-        dixLookupPrivate(&pScreen->devPrivates, &xnestCursorScreenKeyRec);
+        dixLookupPrivate(&pScreen->devPrivates, &xnestScreenCursorFuncKeyRec);
 
     return pScreenPriv->spriteFuncs->DeviceCursorInitialize(pDev, pScreen);
 }
@@ -167,7 +167,7 @@ xnestDeviceCursorCleanup(DeviceIntPtr pDev, ScreenPtr pScreen)
     xnestCursorFuncPtr pScreenPriv;
 
     pScreenPriv = (xnestCursorFuncPtr)
-        dixLookupPrivate(&pScreen->devPrivates, &xnestCursorScreenKeyRec);
+        dixLookupPrivate(&pScreen->devPrivates, &xnestScreenCursorFuncKeyRec);
 
     pScreenPriv->spriteFuncs->DeviceCursorCleanup(pDev, pScreen);
 }
