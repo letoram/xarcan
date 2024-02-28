@@ -69,8 +69,6 @@ typedef struct _GlyphShare {
 
 static GlyphSharePtr sharedGlyphs = (GlyphSharePtr) NULL;
 
-DevScreenPrivateKeyRec cursorScreenDevPriv;
-
 static CARD32 cursorSerial;
 
 static void
