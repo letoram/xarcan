@@ -50,6 +50,8 @@
 #include <propertyst.h>
 #include <version-config.h>
 
+#include "os/auth.h"
+
 #include "xwayland-screen.h"
 #include "xwayland-vidmode.h"
 

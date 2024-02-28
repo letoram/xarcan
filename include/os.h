@@ -369,11 +369,6 @@ AddLocalHosts(void);
 extern _X_EXPORT void
 ResetHosts(const char *display);
 
-#ifndef NO_LOCAL_CLIENT_CRED
-extern _X_EXPORT void
-LocalAccessScopeUser(void);
-#endif
-
 extern _X_EXPORT void
 AccessUsingXdmcp(void);
 
