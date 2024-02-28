@@ -133,6 +133,8 @@ check-merge-request:
   extends:
     - .fdo.ci-fairy
   stage: postcheck
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
   script:
     - ci-fairy check-merge-request --require-allow-collaboration --junit-xml=results.xml
   artifacts:
