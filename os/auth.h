@@ -107,4 +107,6 @@ void DefineSelf(int fd);
 /* check whether given addr belongs to ourself */
 void AugmentSelf(void *from, int len);
 
+int ChangeAccessControl(ClientPtr client, int fEnabled);
+
 #endif /* _XSERVER_OS_AUTH_H */

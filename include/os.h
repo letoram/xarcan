@@ -321,9 +321,6 @@ extern _X_EXPORT Bool
 PrivsElevated(void);
 
 extern _X_EXPORT int
-ChangeAccessControl(ClientPtr /*client */ , int /*fEnabled */ );
-
-extern _X_EXPORT int
 GetClientFd(ClientPtr);
 
 extern _X_EXPORT Bool
