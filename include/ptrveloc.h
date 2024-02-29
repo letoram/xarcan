@@ -51,16 +51,7 @@ typedef double (*PointerAccelerationProfileFunc)
  (DeviceIntPtr dev, struct _DeviceVelocityRec * vel,
   double velocity, double threshold, double accelCoeff);
 
-/**
- * a motion history, with just enough information to
- * calc mean velocity and decide which motion was along
- * a more or less straight line
- */
-typedef struct _MotionTracker {
-    double dx, dy;              /* accumulated delta for each axis */
-    int time;                   /* time of creation */
-    int dir;                    /* initial direction bitfield */
-} MotionTracker, *MotionTrackerPtr;
+typedef struct _MotionTracker MotionTracker, *MotionTrackerPtr;
 
 /**
  * Contains all data needed to implement mouse ballistics
@@ -90,16 +81,6 @@ typedef struct _DeviceVelocityRec {
     } statistics;
 } DeviceVelocityRec, *DeviceVelocityPtr;
 
-/**
- * contains the run-time data for the predictable scheme, that is, a
- * DeviceVelocityPtr and the property handlers.
- */
-typedef struct _PredictableAccelSchemeRec {
-    DeviceVelocityPtr vel;
-    long *prop_handlers;
-    int num_prop_handlers;
-} PredictableAccelSchemeRec, *PredictableAccelSchemePtr;
-
 extern _X_EXPORT void
 InitVelocityData(DeviceVelocityPtr vel);
 
@@ -125,20 +106,5 @@ GetDevicePredictableAccelData(DeviceIntPtr dev);
 extern _X_EXPORT void
 SetDeviceSpecificAccelerationProfile(DeviceVelocityPtr vel,
                                      PointerAccelerationProfileFunc profile);
-
-extern _X_INTERNAL void
-AccelerationDefaultCleanup(DeviceIntPtr dev);
-
-extern _X_INTERNAL Bool
-InitPredictableAccelerationScheme(DeviceIntPtr dev,
-                                  struct _ValuatorAccelerationRec *protoScheme);
-
-extern _X_INTERNAL void
-acceleratePointerPredictable(DeviceIntPtr dev, ValuatorMask *val,
-                             CARD32 evtime);
-
-extern _X_INTERNAL void
-acceleratePointerLightweight(DeviceIntPtr dev, ValuatorMask *val,
-                             CARD32 evtime);
 
 #endif                          /* POINTERVELOCITY_H */

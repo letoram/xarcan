@@ -49,6 +49,9 @@ SOFTWARE.
 #endif
 
 #include <X11/X.h>
+
+#include "dix/ptrveloc_priv.h"
+
 #include "misc.h"
 #include "resource.h"
 #include <X11/Xproto.h>
