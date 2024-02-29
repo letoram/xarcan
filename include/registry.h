@@ -40,11 +40,4 @@ extern _X_EXPORT const char *LookupEventName(int event);
 extern _X_EXPORT const char *LookupErrorName(int error);
 #endif
 
-/*
- * Setup and teardown
- */
-extern _X_EXPORT void dixResetRegistry(void);
-extern _X_EXPORT void dixFreeRegistry(void);
-extern _X_EXPORT void dixCloseRegistry(void);
-
 #endif                          /* DIX_REGISTRY_H */

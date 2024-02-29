@@ -82,6 +82,9 @@ Equipment Corporation.
 #include <X11/Xos.h>            /* for unistd.h  */
 #include <X11/Xproto.h>
 #include <pixman.h>
+
+#include "dix/registry_priv.h"
+
 #include "scrnintstr.h"
 #include "misc.h"
 #include "os.h"
