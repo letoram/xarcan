@@ -115,8 +115,7 @@ static void InitVelocityData(DeviceVelocityPtr vel)
 /**
  * Clean up DeviceVelocityRec
  */
-void
-FreeVelocityData(DeviceVelocityPtr vel)
+static void FreeVelocityData(DeviceVelocityPtr vel)
 {
     free(vel->tracker);
     SetAccelerationProfile(vel, PROFILE_UNINITIALIZE);
