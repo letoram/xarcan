@@ -92,6 +92,8 @@ DeletePredictableAccelerationProperties(DeviceIntPtr,
 /* some int which is not a profile number */
 #define PROFILE_UNINITIALIZE (-100)
 
+static int SetAccelerationProfile(DeviceVelocityPtr vel, int profile_num);
+
 /**
  * Init DeviceVelocity struct so it should match the average case
  */
@@ -1012,8 +1014,7 @@ GetAccelerationProfile(DeviceVelocityPtr vel, int profile_num)
  *
  * returns FALSE if profile number is unavailable, TRUE otherwise.
  */
-int
-SetAccelerationProfile(DeviceVelocityPtr vel, int profile_num)
+static int SetAccelerationProfile(DeviceVelocityPtr vel, int profile_num)
 {
     PointerAccelerationProfileFunc profile;
 

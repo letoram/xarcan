@@ -81,9 +81,6 @@ typedef struct _DeviceVelocityRec {
     } statistics;
 } DeviceVelocityRec, *DeviceVelocityPtr;
 
-extern _X_EXPORT int
-SetAccelerationProfile(DeviceVelocityPtr vel, int profile_num);
-
 extern _X_EXPORT DeviceVelocityPtr
 GetDevicePredictableAccelData(DeviceIntPtr dev);
 
