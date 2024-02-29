@@ -81,10 +81,6 @@ typedef struct _DeviceVelocityRec {
     } statistics;
 } DeviceVelocityRec, *DeviceVelocityPtr;
 
-extern _X_EXPORT double
-BasicComputeAcceleration(DeviceIntPtr dev, DeviceVelocityPtr vel,
-                         double velocity, double threshold, double acc);
-
 extern _X_EXPORT void
 FreeVelocityData(DeviceVelocityPtr vel);
 

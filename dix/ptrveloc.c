@@ -749,10 +749,11 @@ ApplyConstantDeceleration(DeviceVelocityPtr vel, double *fdx, double *fdy)
 /*
  * compute the acceleration for given velocity and enforce min_acceleration
  */
-double
-BasicComputeAcceleration(DeviceIntPtr dev,
-                         DeviceVelocityPtr vel,
-                         double velocity, double threshold, double acc)
+static double BasicComputeAcceleration(DeviceIntPtr dev,
+                                       DeviceVelocityPtr vel,
+                                       double velocity,
+                                       double threshold,
+                                       double acc)
 {
 
     double result;
