@@ -95,8 +95,7 @@ DeletePredictableAccelerationProperties(DeviceIntPtr,
 /**
  * Init DeviceVelocity struct so it should match the average case
  */
-void
-InitVelocityData(DeviceVelocityPtr vel)
+static void InitVelocityData(DeviceVelocityPtr vel)
 {
     memset(vel, 0, sizeof(DeviceVelocityRec));
 

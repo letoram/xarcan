@@ -82,9 +82,6 @@ typedef struct _DeviceVelocityRec {
 } DeviceVelocityRec, *DeviceVelocityPtr;
 
 extern _X_EXPORT void
-InitVelocityData(DeviceVelocityPtr vel);
-
-extern _X_EXPORT void
 InitTrackers(DeviceVelocityPtr vel, int ntracker);
 
 extern _X_EXPORT BOOL
