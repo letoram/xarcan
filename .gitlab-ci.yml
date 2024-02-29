@@ -46,6 +46,54 @@ stages:
   # Cancel CI run if a newer commit is pushed to the same branch
   interruptible: true
 
+# This is everything but the DDXen
+.dix_paths: &dix_paths
+  # Directories
+  - .gitlab-ci/**/*
+  - composite/**/*
+  - config/**/*
+  - damageext/**/*
+  - dbe/**/*
+  - dix/**/*
+  - doc/**/*
+  - dri3/**/*
+  - exa/**/*
+  - fb/**/*
+  - glamor/**/*
+  - glx/**/*
+  - include/**/*
+  - m4/**/*
+  - man/**/*
+  - mi/**/*
+  - miext/**/*
+  - os/**/*
+  - present/**/*
+  - pseudoramiX/**/*
+  - randr/**/*
+  - record/**/*
+  - render/**/*
+  - test/**/*
+  - Xext/**/*
+  - xfixes/**/*
+  - Xi/**/*
+  - xkb/**/*
+  # Files
+  - hw/meson.build
+  - .gitlab-ci.yml
+  - meson*
+  - xorg-server.m4
+  - xorg-server.pc.in
+  - xserver.ent.in
+
+.xorg_paths: &xorg_paths
+  - hw/xfree86/**/*
+
+.xwayland_paths: &xwayland_paths
+  - hw/xwayland/**/*
+
+.all_ddx_paths:
+  - hw/**/*
+
 debian-bullseye:
   extends:
     - .fdo.container-build@debian
@@ -167,6 +215,13 @@ xf86-driver-build-test:
         GIT_DEPTH: 1
         MESON_ARGS: -Dprefix=/usr/
         MESON_EXTRA_ARGS: -Dxwayland=false -Dxnest=false -Dxvfb=false -Dxquartz=false -Ddocs=false
+    rules:
+      - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+        changes:
+          *dix_paths
+      - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+        changes:
+          *xorg_paths
 
 #
 # Verify that commit messages are as expected
