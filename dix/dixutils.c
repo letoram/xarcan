@@ -87,6 +87,7 @@ Author:  Adobe Systems Incorporated
 #include <X11/X.h>
 #include <X11/Xmd.h>
 
+#include "dix/callback_priv.h"
 #include "dix/dix_priv.h"
 
 #include "misc.h"
@@ -739,6 +740,8 @@ _DeleteCallback(CallbackListPtr *pcbl, CallbackProcPtr callback, void *data)
     return FALSE;
 }
 
+static void DeleteCallbackList(CallbackListPtr *pcbl);
+
 void
 _CallCallbacks(CallbackListPtr *pcbl, void *call_data)
 {
@@ -871,8 +874,7 @@ DeleteCallback(CallbackListPtr *pcbl, CallbackProcPtr callback, void *data)
     return _DeleteCallback(pcbl, callback, data);
 }
 
-void
-DeleteCallbackList(CallbackListPtr *pcbl)
+static void DeleteCallbackList(CallbackListPtr *pcbl)
 {
     if (!pcbl || !*pcbl)
         return;
