@@ -690,8 +690,7 @@ QueryTrackers(DeviceVelocityPtr vel, int cur_t)
  * Perform velocity approximation based on 2D 'mickeys' (mouse motion delta).
  * return true if non-visible state reset is suggested
  */
-BOOL
-ProcessVelocityData2D(DeviceVelocityPtr vel, double dx, double dy, int time)
+static BOOL ProcessVelocityData2D(DeviceVelocityPtr vel, double dx, double dy, int time)
 {
     double velocity;
 
