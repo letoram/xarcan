@@ -81,9 +81,6 @@ typedef struct _DeviceVelocityRec {
     } statistics;
 } DeviceVelocityRec, *DeviceVelocityPtr;
 
-extern _X_EXPORT void
-InitTrackers(DeviceVelocityPtr vel, int ntracker);
-
 extern _X_EXPORT BOOL
 ProcessVelocityData2D(DeviceVelocityPtr vel, double dx, double dy, int time);
 

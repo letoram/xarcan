@@ -53,4 +53,6 @@ void acceleratePointerPredictable(DeviceIntPtr dev, ValuatorMask *val,
 void acceleratePointerLightweight(DeviceIntPtr dev, ValuatorMask *val,
                                   CARD32 evtime);
 
+void InitTrackers(DeviceVelocityPtr vel, int ntracker);
+
 #endif /* _XSERVER_POINTERVELOCITY_PRIV_H */
