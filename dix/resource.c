@@ -143,7 +143,6 @@ Equipment Corporation.
 #endif
 #include "xace.h"
 #include <assert.h>
-#include "registry.h"
 #include "gcstruct.h"
 
 #ifdef XSERVER_DTRACE

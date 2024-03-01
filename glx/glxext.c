@@ -36,7 +36,6 @@
 #include "glxserver.h"
 #include <windowstr.h>
 #include <propertyst.h>
-#include <registry.h>
 #include "privates.h"
 #include <os.h>
 #include "extinit.h"

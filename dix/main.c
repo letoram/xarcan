@@ -106,7 +106,6 @@ Equipment Corporation.
 #include "dixfont.h"
 #include "extnsionst.h"
 #include "privates.h"
-#include "registry.h"
 #include "client.h"
 #include "exevents.h"
 #ifdef PANORAMIX

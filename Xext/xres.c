@@ -19,7 +19,6 @@
 #include "dixstruct.h"
 #include "extnsionst.h"
 #include "swaprep.h"
-#include "registry.h"
 #include <X11/extensions/XResproto.h>
 #include "pixmapstr.h"
 #include "windowstr.h"

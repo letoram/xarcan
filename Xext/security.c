@@ -36,7 +36,6 @@ in this Software without prior written authorization from The Open Group.
 #include "propertyst.h"
 #include "colormapst.h"
 #include "privates.h"
-#include "registry.h"
 #include "xacestr.h"
 #include "securitysrv.h"
 #include <X11/extensions/securproto.h>

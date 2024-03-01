@@ -29,7 +29,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "dix/registry_priv.h"
 
 #include "resource.h"
-#include "registry.h"
 
 #define BASE_SIZE 16
 

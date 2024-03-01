@@ -60,7 +60,6 @@ SOFTWARE.
 #include "scrnintstr.h"
 #include "dispatch.h"
 #include "privates.h"
-#include "registry.h"
 #include "xace.h"
 
 #define LAST_ERROR 255

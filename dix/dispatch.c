@@ -128,7 +128,6 @@ Equipment Corporation.
 #include "xfixesint.h"
 
 #ifdef XSERVER_DTRACE
-#include "registry.h"
 #include "probes.h"
 #endif
 
