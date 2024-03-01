@@ -270,7 +270,6 @@ cat > sdksyms.c << EOF
 #include "ptrveloc.h"
 #include "region.h"
 #include "regionstr.h"
-#include "registry.h"
 #include "resource.h"
 #include "rgb.h"
 #include "screenint.h"
