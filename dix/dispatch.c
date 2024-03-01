@@ -106,6 +106,9 @@ Equipment Corporation.
 #include "windowstr.h"
 #include <X11/fonts/fontstruct.h>
 #include <X11/fonts/libxfont2.h>
+
+#include "dix/screenint_priv.h"
+
 #include "dixfontstr.h"
 #include "dix_priv.h"
 #include "gcstruct.h"

@@ -33,6 +33,9 @@
 #include <errno.h>
 
 #include <X11/Xatom.h>
+
+#include "dix/screenint_priv.h"
+
 #include <selection.h>
 #include <micmap.h>
 #include <misyncshm.h>

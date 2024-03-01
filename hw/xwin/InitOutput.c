@@ -56,6 +56,8 @@ typedef WINAPI HRESULT(*SHGETFOLDERPATHPROC) (HWND hwndOwner,
                                               DWORD dwFlags, LPTSTR pszPath);
 #endif
 
+#include "dix/screenint_priv.h"
+
 #include "winmonitors.h"
 #include "nonsdk_extinit.h"
 #include "pseudoramiX/pseudoramiX.h"

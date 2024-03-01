@@ -36,6 +36,9 @@
 #include <pciaccess.h>
 #include <fcntl.h>
 #include <unistd.h>
+
+#include "dix/screenint_priv.h"
+
 #include "os.h"
 #include "hotplug.h"
 #include "systemd-logind.h"
