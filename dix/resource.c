@@ -122,6 +122,9 @@ Equipment Corporation.
 #endif
 
 #include <X11/X.h>
+
+#include "dix/registry_priv.h"
+
 #include "misc.h"
 #include "os.h"
 #include "resource.h"

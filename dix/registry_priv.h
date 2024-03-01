@@ -5,11 +5,17 @@
 #ifndef _XSERVER_DIX_REGISTRY_H
 #define _XSERVER_DIX_REGISTRY_H
 
+#include "include/resource.h"
+
 /*
  * Setup and teardown
  */
 void dixResetRegistry(void);
 void dixFreeRegistry(void);
 void dixCloseRegistry(void);
+
+/* Functions used by the X-Resource extension */
+void RegisterResourceName(RESTYPE type, const char *name);
+const char *LookupResourceName(RESTYPE rtype);
 
 #endif /* _XSERVER_DIX_REGISTRY_H */

@@ -11,6 +11,9 @@
 #include <X11/X.h>
 #include <X11/Xproto.h>
 #include <assert.h>
+
+#include "dix/registry_priv.h"
+
 #include "misc.h"
 #include "os.h"
 #include "dixstruct.h"

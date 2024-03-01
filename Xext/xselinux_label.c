@@ -23,6 +23,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <selinux/label.h>
 
+#include "dix/registry_priv.h"
+
 #include "registry.h"
 #include "xselinuxint.h"
 

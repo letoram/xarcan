@@ -29,10 +29,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sys/socket.h>
 #include <stdio.h>
 #include <stdarg.h>
-
 #include <libaudit.h>
-
 #include <X11/Xatom.h>
+
+#include "dix/registry_priv.h"
+
 #include "selection.h"
 #include "inputstr.h"
 #include "scrnintstr.h"

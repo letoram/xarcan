@@ -20,14 +20,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "resource.h"
 #include "extnsionst.h"
 
-/* Internal string registry - for auditing, debugging, security, etc. */
-
-#ifdef X_REGISTRY_RESOURCE
-/* Functions used by the X-Resource extension */
-extern _X_EXPORT void RegisterResourceName(RESTYPE type, const char *name);
-extern _X_EXPORT const char *LookupResourceName(RESTYPE rtype);
-#endif
-
 #ifdef X_REGISTRY_REQUEST
 extern _X_EXPORT void RegisterExtensionNames(ExtensionEntry * ext);
 
