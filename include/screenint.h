@@ -55,12 +55,6 @@ typedef struct _Depth *DepthPtr;
 typedef struct _Screen *ScreenPtr;
 
 extern _X_EXPORT void
-AttachOutputGPU(ScreenPtr pScreen, ScreenPtr newScreen);
-
-extern _X_EXPORT void
-DetachOutputGPU(ScreenPtr output);
-
-extern _X_EXPORT void
 AttachOffloadGPU(ScreenPtr pScreen, ScreenPtr newScreen);
 
 extern _X_EXPORT void

@@ -20,4 +20,7 @@ void RemoveGPUScreen(ScreenPtr pScreen);
 void AttachUnboundGPU(ScreenPtr pScreen, ScreenPtr newScreen);
 void DetachUnboundGPU(ScreenPtr unbound);
 
+void AttachOutputGPU(ScreenPtr pScreen, ScreenPtr newScreen);
+void DetachOutputGPU(ScreenPtr output);
+
 #endif /* _XSERVER_DIX_SCREENINT_PRIV_H */
