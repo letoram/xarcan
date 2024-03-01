@@ -9,6 +9,11 @@
 #include "include/resource.h"
 
 /*
+ * Result returned from any unsuccessful lookup
+ */
+#define XREGISTRY_UNKNOWN "<unknown>"
+
+/*
  * Setup and teardown
  */
 void dixResetRegistry(void);

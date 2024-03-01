@@ -12,11 +12,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef DIX_REGISTRY_H
 #define DIX_REGISTRY_H
 
-/*
- * Result returned from any unsuccessful lookup
- */
-#define XREGISTRY_UNKNOWN "<unknown>"
-
 #include "resource.h"
 #include "extnsionst.h"
 
