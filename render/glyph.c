@@ -26,7 +26,7 @@
 #include <dix-config.h>
 #endif
 
-#include "xsha1.h"
+#include "os/xsha1.h"
 
 #include "misc.h"
 #include "scrnintstr.h"

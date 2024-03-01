@@ -643,6 +643,7 @@ common_dep = [
 ]
 
 inc = include_directories(
+    '.',
     'Xext',
     'Xi',
     'composite',
