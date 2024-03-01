@@ -24,6 +24,8 @@
 #include <xorg-config.h>
 #endif
 
+#include "dix/screenint_priv.h"
+
 #include "xf86.h"
 #include "os.h"
 #include "globals.h"

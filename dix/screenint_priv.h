@@ -17,4 +17,7 @@ int AddGPUScreen(ScreenInitProcPtr pfnInit, int argc, char **argv);
 
 void RemoveGPUScreen(ScreenPtr pScreen);
 
+void AttachUnboundGPU(ScreenPtr pScreen, ScreenPtr newScreen);
+void DetachUnboundGPU(ScreenPtr unbound);
+
 #endif /* _XSERVER_DIX_SCREENINT_PRIV_H */
