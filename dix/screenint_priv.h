@@ -15,4 +15,6 @@ typedef Bool (*ScreenInitProcPtr)(ScreenPtr pScreen, int argc, char **argv);
 int AddScreen(ScreenInitProcPtr pfnInit, int argc, char **argv);
 int AddGPUScreen(ScreenInitProcPtr pfnInit, int argc, char **argv);
 
+void RemoveGPUScreen(ScreenPtr pScreen);
+
 #endif /* _XSERVER_DIX_SCREENINT_PRIV_H */

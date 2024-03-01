@@ -54,8 +54,6 @@ typedef struct _Visual *VisualPtr;
 typedef struct _Depth *DepthPtr;
 typedef struct _Screen *ScreenPtr;
 
-extern _X_EXPORT void RemoveGPUScreen(ScreenPtr pScreen);
-
 extern _X_EXPORT void
 AttachUnboundGPU(ScreenPtr pScreen, ScreenPtr newScreen);
 extern _X_EXPORT void
