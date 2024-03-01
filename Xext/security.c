@@ -28,6 +28,8 @@ in this Software without prior written authorization from The Open Group.
 #include <dix-config.h>
 #endif
 
+#include "dix/registry_priv.h"
+
 #include "scrnintstr.h"
 #include "inputstr.h"
 #include "windowstr.h"

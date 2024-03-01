@@ -5,6 +5,7 @@
 #ifndef _XSERVER_DIX_REGISTRY_H
 #define _XSERVER_DIX_REGISTRY_H
 
+#include "include/extnsionst.h"
 #include "include/resource.h"
 
 /*
@@ -17,5 +18,15 @@ void dixCloseRegistry(void);
 /* Functions used by the X-Resource extension */
 void RegisterResourceName(RESTYPE type, const char *name);
 const char *LookupResourceName(RESTYPE rtype);
+
+void RegisterExtensionNames(ExtensionEntry * ext);
+
+/*
+ * Lookup functions.  The returned string must not be modified or freed.
+ */
+const char *LookupMajorName(int major);
+const char *LookupRequestName(int major, int minor);
+const char *LookupEventName(int event);
+const char *LookupErrorName(int error);
 
 #endif /* _XSERVER_DIX_REGISTRY_H */

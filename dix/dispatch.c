@@ -101,6 +101,8 @@ Equipment Corporation.
 #include <version-config.h>
 #endif
 
+#include "dix/registry_priv.h"
+
 #include "windowstr.h"
 #include <X11/fonts/fontstruct.h>
 #include <X11/fonts/libxfont2.h>
