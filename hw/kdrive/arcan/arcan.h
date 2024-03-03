@@ -33,6 +33,7 @@ typedef struct _arcanPriv {
 
 typedef struct _arcanWindowPriv {
     arcan_event ev;
+    arcan_event ident;
     DamagePtr damage;
     uint8_t mstate[ASHMIF_MSTATE_SZ];
     struct arcan_shmif_cont *shmif;

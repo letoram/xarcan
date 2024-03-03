@@ -1,23 +1,17 @@
 /*
  * Rough notes on what it is missing:
  *
- *  - The kdrive bits have slowly been migrated away from, can almost
- *    stop using it entirely soon.
- *
  *  - to get better .utf8 handling for input, consider injecting
  *     an XIM and use that to provide the actual text. It can be just a
  *     placeholder / empty XIM and just set the last codepoint as the text.
  *
- *  - present clients only partially handled
- *    - when no present and redirect, try to DAG- flush based on no more data
- *    on the inbound client socket (assuming that draws typically come in
- *    bursts).
+ *  - present clients only partially handled.
  *
- *  - nuances: alpha mask / SHAPE extension .. (see rootless/safealpha)
- *             blackPixel / whitePixel not respecting alpha
- *             convert event timestamp to currentTime
+ *  - output segment to pixmap substitution incomplete,
  *
- *  - output segment to pixmap substitution incomplete
+ *           since it is mainly a compatibility thing with sharing / recording
+ *           tools, the main concern is probably things using the root window
+ *           to draw / compose into a surface the client can access.
  *
  */
 #ifdef HAVE_DIX_CONFIG_H
@@ -265,6 +259,8 @@ arcanWindowPriv *ensureArcanWndPrivate(WindowPtr wnd)
 
     res = malloc(sizeof(arcanWindowPriv));
     *res = (arcanWindowPriv){0};
+    res->ident.category = EVENT_EXTERNAL;
+    res->ident.ext.kind = ARCAN_EVENT(IDENT);
     dixSetPrivate(&wnd->devPrivates, &windowPriv, res);
     return res;
 }
@@ -420,6 +416,7 @@ static bool windowSupportsProtocol(WindowPtr wnd, Atom protocol)
 static void sendWndData(WindowPtr wnd, int depth, int max_depth, bool redir, void *tag)
 {
     struct arcan_shmif_cont *acon = tag;
+    arcanWindowPriv *awnd = dixLookupPrivate(&wnd->devPrivates, &windowPriv);
     int bw = wnd->borderWidth;
 
     struct arcan_event out = (struct arcan_event)
@@ -452,6 +449,21 @@ static void sendWndData(WindowPtr wnd, int depth, int max_depth, bool redir, voi
         }
     }
 
+    PropertyPtr name = getWindowProperty(wnd, wm_atoms._NET_WM_NAME);
+
+/* shmif defines IDENT as single-part so we are locked to a short title */
+    if (awnd && name && (name->type == XA_STRING || name->type == wm_atoms.UTF8_STRING)){
+        size_t cap = sizeof(awnd->ident.ext.message.data) - 1;
+        if (cap > name->size)
+            cap = name->size;
+
+        if (memcmp(awnd->ident.ext.message.data, name->data, cap) != 0){
+            memcpy(awnd->ident.ext.message.data, name->data, cap);
+            awnd->ident.ext.message.data[cap] = '\0';
+            ARCAN_ENQUEUE(acon, &awnd->ident);
+        }
+    }
+
 /* translate relative to anchor parent
  * this was removed as maintaining the stacking order didn't provide much utility
  * and can be reconstructed from stacking information anyhow
@@ -474,7 +486,6 @@ static void sendWndData(WindowPtr wnd, int depth, int max_depth, bool redir, voi
     }
 
 /* actually only send if the contents differ from what we sent last time */
-    arcanWindowPriv *awnd = dixLookupPrivate(&wnd->devPrivates, &windowPriv);
     if (awnd){
         if (memcmp(&out, &awnd->ev, sizeof(struct arcan_event)) != 0){
             memcpy(&awnd->ev, &out, sizeof(struct arcan_event));
@@ -1106,13 +1117,16 @@ arcanDisplayHint(struct arcan_shmif_cont* con,
 
 /* release on focus loss, open point, does this actually cover mods? */
     if (fl & 4){
+        size_t count = 0;
         for (size_t i = 0; i < sizeof(code_tbl) / sizeof(code_tbl[0]); i++){
             if (code_tbl[i]){
                 trace("force-release:%d", code_tbl[i]);
                 enqueueKeyboard(i, 0);
                 code_tbl[i] = 0;
+                count++;
             }
         }
+        trace("unfocus, release: %zu keys\n", count);
         KdEnqueuePointerEvent(arcanInputPriv.pi, KD_MOUSE_DELTA, 0, 0, 0);
     }
 
@@ -3444,7 +3458,7 @@ arcanFlushRedirectedEvents(int fd, int mask, void *tag)
         case TARGET_COMMAND_ANCHORHINT:
             cmdReconfigureWindow(ev.tgt.ioevs[0].iv,
                                  ev.tgt.ioevs[1].iv, 0, 0, true, P->window->drawable.id);
-            trace("configureRestack( %d, %d)", ev.tgt.ioevs[0].iv, ev.tgt.ioevs[1].iv);
+            trace("anchorHint(%d, %d)", ev.tgt.ioevs[0].iv, ev.tgt.ioevs[1].iv);
         break;
         default:
         break;
