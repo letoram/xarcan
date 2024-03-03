@@ -75,6 +75,8 @@ typedef struct _Cursor {
     unsigned short backRed, backGreen, backBlue;        /* device-independent color */
     int refcnt;
     PrivateRec *devPrivates;    /* set by pScr->RealizeCursor */
+    unsigned sourceChar, maskChar; /* For Glyph/FontCursors */
+    Bool fromChar;
     XID id;
     CARD32 serialNumber;
     Atom name;

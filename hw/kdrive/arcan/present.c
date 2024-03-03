@@ -590,7 +590,7 @@ xa_present_flip(present_vblank_ptr vblank, RegionPtr damage)
         return FALSE;
     }
 
-/* means we can skip the signalling from the other end */
+/* means we can skip the signalling from the other part of the chain */
     awnd->usePresent = true;
     if (apmap->texture){
         arcan_shmifext_setup(awnd->shmif,
@@ -599,12 +599,22 @@ xa_present_flip(present_vblank_ptr vblank, RegionPtr damage)
                                                            .shared_context = 0
                              });
 
-        uintptr_t adisp, actx;
-        awnd->shmif->dirty.x1 = 0;
-        awnd->shmif->dirty.y1 = 0;
-        awnd->shmif->dirty.x2 = awnd->shmif->w;
-        awnd->shmif->dirty.y2 = awnd->shmif->h;
+    awnd->shmif->dirty.x1 = 0;
+    awnd->shmif->dirty.y1 = 0;
+    awnd->shmif->dirty.x2 = awnd->shmif->w;
+    awnd->shmif->dirty.y2 = awnd->shmif->h;
 
+#if ASHMIF_VERSION_MINOR > 16
+        /* arcan_shmifext_export_image(
+				 *     con, display, apmap->texture, 4, &planes);
+				 *
+				 * set the vblank- identifier as part of the exported planeset
+				 * then TAG the signal with SHMIF_SIGVID_RELEASE_FEEDBACK
+				 *
+				 * and we can release-chain the buffer on that.
+				 */
+#endif
+        uintptr_t adisp, actx;
         arcan_shmifext_egl_meta(awnd->shmif, &adisp, NULL, &actx);
         arcan_shmifext_signal(awnd->shmif,
                               adisp,

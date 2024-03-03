@@ -4,6 +4,32 @@
 
 #include <cursorstr.h>
 
+/* cherry-picked and renamed from cursorfont.h */
+#define Xcursor 0
+#define Xleft_ptr 68
+#define Xleft_side 70
+#define Xwatch 150
+#define Xterm 152
+#define Xpirate 88
+#define Xplus 90
+#define Xtarget 128
+#define Xtcross 130
+#define Xquestion_arrow 92
+#define Xhand1 58
+#define Xhand2 60
+#define Xtop_left_corner 134
+#define Xtop_right_corner 136
+#define Xtop_side 138
+#define Xright_side 96
+#define Xbottom_side 16
+#define Xsb_h_double_arrow 108
+#define Xsb_v_double_arrow 116
+#define Xfleur 52
+#define Xbottom_right_corner 14
+#define Xbottom_left_corner 12
+#define Xdraped_box 48
+#define Xcircle 24
+
 #define WANT_ARCAN_SHMIF_HELPER
 #include "arcan.h"
 #include "arcan_cursor.h"
@@ -88,12 +114,106 @@ mouseSpriteSet(DeviceIntPtr dev, ScreenPtr scr, CursorPtr cursor, int cx, int cy
         return;
 
    if (!cursor){
-       scrpriv->cursorRealized = false;
-       for (size_t y = 0; y < ccon->h; y++){
-           memset(&ccon->vidp[y * ccon->pitch], '\0', ccon->stride);
-       }
-       arcan_shmif_signal(ccon, SHMIF_SIGVID | SHMIF_SIGBLK_NONE);
-       return;
+        scrpriv->cursorRealized = false;
+        arcan_shmif_enqueue(ccon, &(arcan_event){
+            .ext.kind = ARCAN_EVENT(CURSORHINT),
+            .ext.message.data = "hidden"
+        });
+
+        if (!scrpriv->cursor_event.ext.viewport.invisible){
+            scrpriv->cursor_event.ext.viewport.invisible = true;
+            arcan_shmif_enqueue(ccon, &scrpriv->cursor_event);
+        }
+        return;
+    }
+
+/* if there is a matching glyph, prefer sending that instead */
+    bool got_cursor = false;
+    if (cursor->fromChar){
+         got_cursor = true;
+
+         switch (cursor->sourceChar){
+         case Xcursor:
+         case Xleft_ptr:
+         arcan_shmif_enqueue(ccon, &(arcan_event){
+             .ext.kind = ARCAN_EVENT(CURSORHINT),
+             .ext.message.data = "default"
+         });
+         break;
+         case Xwatch:
+         arcan_shmif_enqueue(ccon, &(arcan_event){
+             .ext.kind = ARCAN_EVENT(CURSORHINT),
+             .ext.message.data = "wait"
+         });
+         break;
+         case Xpirate:
+         arcan_shmif_enqueue(ccon, &(arcan_event){
+             .ext.kind = ARCAN_EVENT(CURSORHINT),
+             .ext.message.data = "forbidden"
+         });
+         break;
+         case Xquestion_arrow:
+         arcan_shmif_enqueue(ccon, &(arcan_event){
+             .ext.kind = ARCAN_EVENT(CURSORHINT),
+             .ext.message.data = "help"
+         });
+         case Xhand1:
+         case Xhand2:
+         arcan_shmif_enqueue(ccon, &(arcan_event){
+            .ext.kind = ARCAN_EVENT(CURSORHINT),
+            .ext.message.data = "hand"
+        });
+        break;
+        case Xcircle:
+        arcan_shmif_enqueue(ccon, &(arcan_event){
+            .ext.kind = ARCAN_EVENT(CURSORHINT),
+            .ext.message.data = "forbidden"
+        });
+        break;
+        case Xplus:
+        arcan_shmif_enqueue(ccon, &(arcan_event){
+            .ext.kind = ARCAN_EVENT(CURSORHINT),
+            .ext.message.data = "cell"
+        });
+        break;
+        case Xtarget:
+        arcan_shmif_enqueue(ccon, &(arcan_event){
+            .ext.kind = ARCAN_EVENT(CURSORHINT),
+            .ext.message.data = "alias"
+        });
+        break;
+        case Xsb_h_double_arrow:
+        arcan_shmif_enqueue(ccon, &(arcan_event){
+            .ext.kind = ARCAN_EVENT(CURSORHINT),
+            .ext.message.data = "col-resize"
+        });
+        break;
+        case Xfleur:
+        arcan_shmif_enqueue(ccon, &(arcan_event){
+            .ext.kind = ARCAN_EVENT(CURSORHINT),
+            .ext.message.data = "sizeall"
+        });
+        break;
+        case Xterm:
+        arcan_shmif_enqueue(ccon, &(arcan_event){
+            .ext.kind = ARCAN_EVENT(CURSORHINT),
+            .ext.message.data = "typefield"
+        });
+        break;
+
+        default:
+        got_cursor = false;
+        break;
+        }
+    }
+
+/* we found a matching cursorfont entry, use that */
+    if (got_cursor){
+        if (!scrpriv->cursor_event.ext.viewport.invisible){
+            scrpriv->cursor_event.ext.viewport.invisible = true;
+            arcan_shmif_enqueue(ccon, &scrpriv->cursor_event);
+        }
+        return;
     }
 
 /* converge to the largest cursor size over time and just pad */
@@ -151,6 +271,12 @@ mouseSpriteSet(DeviceIntPtr dev, ScreenPtr scr, CursorPtr cursor, int cx, int cy
       }
     }
     arcan_shmif_signal(ccon, SHMIF_SIGVID | SHMIF_SIGBLK_NONE);
+
+/* mark as visible again so the hinted cursor won't be used */
+    if (scrpriv->cursor_event.ext.viewport.invisible){
+        scrpriv->cursor_event.ext.viewport.invisible = false;
+        arcan_shmif_enqueue(ccon, &scrpriv->cursor_event);
+    }
 }
 
 static void
@@ -214,14 +340,12 @@ void arcanSynchCursor(arcanScrPriv *scr, Bool softUpdate)
 
     miPointerGetPosition(arcanInputPriv.pi->dixdev, &x, &y);
     if (x == scr->cursor_event.ext.viewport.x &&
-        y == scr->cursor_event.ext.viewport.y &&
-        scr->cursorRealized != scr->cursor_event.ext.viewport.invisible)
+        y == scr->cursor_event.ext.viewport.y)
         return;
 
     scr->cursor_event.ext.kind = ARCAN_EVENT(VIEWPORT);
     scr->cursor_event.ext.viewport.x = x;
     scr->cursor_event.ext.viewport.y = y;
-    scr->cursor_event.ext.viewport.invisible = !scr->cursorRealized;
 
 /* the synch request comes from a context where it isn't determinable if there
  * are more in the queue to collate in order to reduce backpressure, mark the

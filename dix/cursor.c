@@ -455,6 +455,9 @@ AllocGlyphCursor(Font source, unsigned sourceChar, Font mask, unsigned maskChar,
     pCurs->backGreen = backGreen;
     pCurs->backBlue = backBlue;
 
+    pCurs->sourceChar = sourceChar;
+    pCurs->maskChar = maskChar;
+    pCurs->fromChar = TRUE;
     pCurs->id = cid;
 
     /* security creation/labeling check */
