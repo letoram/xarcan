@@ -194,6 +194,29 @@ static void setArcanMask(KdScreenInfo* screen)
             8, TrueColor, screen->fb.redMask, screen->fb.greenMask, screen->fb.blueMask);*/
  }
 
+/*
+ * This is overly aggressive as it will overwrite any other Xresource value,
+ * the 'proper' way to do it would be to parse and look for Xft.dpi
+ * specifically and just overwrite that entry.
+ */
+static void updateXftDpi(arcanScrPriv* ascr)
+{
+    char buf[64];
+	  snprintf(buf, 64, "Xft.dpi:\t%.0f\n", arcan_init->density * 2.54);
+
+    dixChangeWindowProperty(
+        serverClient,
+        ascr->screen->root,
+	      XA_RESOURCE_MANAGER,
+				XA_STRING,
+				8,
+				PropModeReplace,
+				strlen(buf) + 1,
+				(void*) buf,
+				false
+		);
+}
+
 static void setGlamorMask(KdScreenInfo* screen)
 {
     int bpc, green_bpc;
@@ -1138,6 +1161,11 @@ arcanDisplayHint(struct arcan_shmif_cont* con,
        if (ppcm == 0 && arcan_init)
            ppcm = arcan_init->density;
 
+       if (ppcm > 0.0 && arcan_init && arcan_init->density != ppcm){
+           arcan_init->density = ppcm;
+           updateXftDpi(apriv);
+       }
+
        RRScreenSetSizeRange(apriv->screen,
                             640, 480, PP_SHMPAGE_MAXW, PP_SHMPAGE_MAXH);
        arcanRandRScreenResize(apriv->screen,
@@ -1381,7 +1409,8 @@ void arcanForkExec(void)
 void
 arcanNotifyReady(void)
 {
-    arcanForkExec();
+   updateXftDpi(arcan_shmif_primary(SHMIF_INPUT)->user);
+   arcanForkExec();
 }
 
 static
