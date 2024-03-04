@@ -62,6 +62,7 @@ struct xwl_gbm_private {
     Bool drm_authenticated;
     Bool dmabuf_capable;
     Bool glamor_gles;
+    Bool implicit_sync;
 
     /* Set if wl_drm is available */
     struct wl_drm *drm;
@@ -1020,6 +1021,14 @@ xwl_glamor_gbm_has_egl_extension(void)
             epoxy_has_egl_extension(NULL, "EGL_KHR_platform_gbm"));
 }
 
+Bool
+xwl_glamor_supports_implicit_sync(struct xwl_screen *xwl_screen)
+{
+    /* absent glamor, implicit sync is irrelevant so just return TRUE */
+    return !xwl_screen->glamor ||
+        xwl_gbm_get(xwl_screen)->implicit_sync;
+}
+
 static Bool
 xwl_glamor_try_to_make_context_current(struct xwl_screen *xwl_screen)
 {
@@ -1164,7 +1173,7 @@ xwl_glamor_gbm_init_egl(struct xwl_screen *xwl_screen)
     struct xwl_gbm_private *xwl_gbm = xwl_gbm_get(xwl_screen);
     EGLint major, minor;
     const GLubyte *renderer;
-    const char *gbm_backend_name;
+    const char *gbm_backend_name, *egl_vendor;
 
     if (!xwl_gbm->drm && !xwl_glamor_gbm_init_main_dev(xwl_screen))
         return FALSE;
@@ -1228,6 +1237,14 @@ xwl_glamor_gbm_init_egl(struct xwl_screen *xwl_screen)
     if (gbm_backend_name && strcmp(gbm_backend_name, "drm") != 0)
         xwl_screen->glvnd_vendor = gbm_backend_name;
     xwl_gbm->glamor_gles = !epoxy_is_desktop_gl();
+
+    egl_vendor = eglQueryString(xwl_screen->egl_display, EGL_VENDOR);
+    if (!egl_vendor) {
+        ErrorF("Could not determine EGL vendor\n");
+        goto error;
+    }
+    /* NVIDIA driver does not support implicit sync */
+    xwl_gbm->implicit_sync = !strstr(egl_vendor, "NVIDIA");
 
     return TRUE;
 error:
