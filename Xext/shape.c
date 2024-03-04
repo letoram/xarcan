@@ -786,7 +786,7 @@ ProcShapeSelectInput(ClientPtr client)
             if (!pHead ||
                 !AddResource(pWin->drawable.id, ShapeEventType,
                              (void *) pHead)) {
-                FreeResource(clientResource, RT_NONE);
+                FreeResource(clientResource, X11_RESTYPE_NONE);
                 return BadAlloc;
             }
             *pHead = 0;

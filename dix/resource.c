@@ -432,7 +432,7 @@ FindGCSubRes(void *value, FindAllRes func, void *cdata)
 static struct ResourceType *resourceTypes;
 
 static const struct ResourceType predefTypes[] = {
-    [RT_NONE & (RC_LASTPREDEF - 1)] = {
+    [X11_RESTYPE_NONE & (RC_LASTPREDEF - 1)] = {
                                        .deleteFunc = (DeleteType) NoopDDA,
                                        .sizeFunc = GetDefaultBytes,
                                        .findSubResFunc = DefaultFindSubRes,
@@ -456,13 +456,13 @@ static const struct ResourceType predefTypes[] = {
                                      .findSubResFunc = FindGCSubRes,
                                      .errorValue = BadGC,
                                      },
-    [RT_FONT & (RC_LASTPREDEF - 1)] = {
+    [X11_RESTYPE_FONT & (RC_LASTPREDEF - 1)] = {
                                        .deleteFunc = CloseFont,
                                        .sizeFunc = GetDefaultBytes,
                                        .findSubResFunc = DefaultFindSubRes,
                                        .errorValue = BadFont,
                                        },
-    [RT_CURSOR & (RC_LASTPREDEF - 1)] = {
+    [X11_RESTYPE_CURSOR & (RC_LASTPREDEF - 1)] = {
                                          .deleteFunc = FreeCursor,
                                          .sizeFunc = GetDefaultBytes,
                                          .findSubResFunc = DefaultFindSubRes,
@@ -1224,7 +1224,7 @@ dixLookupResourceByType(void **result, XID id, RESTYPE rtype,
 
     if (client) {
         cid = XaceHook(XACE_RESOURCE_ACCESS, client, id, res->type,
-                       res->value, RT_NONE, NULL, mode);
+                       res->value, X11_RESTYPE_NONE, NULL, mode);
         if (cid == BadValue)
             return resourceTypes[rtype & TypeMask].errorValue;
         if (cid != Success)
@@ -1259,7 +1259,7 @@ dixLookupResourceByClass(void **result, XID id, RESTYPE rclass,
 
     if (client) {
         cid = XaceHook(XACE_RESOURCE_ACCESS, client, id, res->type,
-                       res->value, RT_NONE, NULL, mode);
+                       res->value, X11_RESTYPE_NONE, NULL, mode);
         if (cid != Success)
             return cid;
     }

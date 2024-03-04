@@ -4534,7 +4534,7 @@ EventSelectForWindow(WindowPtr pWin, ClientPtr client, Mask mask)
     check = (mask & ManagerMask);
     if (check) {
         rc = XaceHook(XACE_RESOURCE_ACCESS, client, pWin->drawable.id,
-                      RT_WINDOW, pWin, RT_NONE, NULL, DixManageAccess);
+                      RT_WINDOW, pWin, X11_RESTYPE_NONE, NULL, DixManageAccess);
         if (rc != Success)
             return rc;
     }
@@ -4559,7 +4559,7 @@ EventSelectForWindow(WindowPtr pWin, ClientPtr client, Mask mask)
             if (SameClient(others, client)) {
                 check = others->mask;
                 if (mask == 0) {
-                    FreeResource(others->resource, RT_NONE);
+                    FreeResource(others->resource, X11_RESTYPE_NONE);
                     return Success;
                 }
                 else
@@ -5065,7 +5065,7 @@ ProcChangeActivePointerGrab(ClientPtr client)
         newCursor = NullCursor;
     else {
         int rc = dixLookupResourceByType((void **) &newCursor, stuff->cursor,
-                                         RT_CURSOR, client, DixUseAccess);
+                                         X11_RESTYPE_CURSOR, client, DixUseAccess);
 
         if (rc != Success) {
             client->errorValue = stuff->cursor;
@@ -5182,7 +5182,7 @@ GrabDevice(ClientPtr client, DeviceIntPtr dev,
     if (curs == None)
         cursor = NullCursor;
     else {
-        rc = dixLookupResourceByType((void **) &cursor, curs, RT_CURSOR,
+        rc = dixLookupResourceByType((void **) &cursor, curs, X11_RESTYPE_CURSOR,
                                      client, DixUseAccess);
         if (rc != Success) {
             client->errorValue = curs;
@@ -5719,7 +5719,7 @@ ProcGrabButton(ClientPtr client)
         cursor = NullCursor;
     else {
         rc = dixLookupResourceByType((void **) &cursor, stuff->cursor,
-                                     RT_CURSOR, client, DixUseAccess);
+                                     X11_RESTYPE_CURSOR, client, DixUseAccess);
         if (rc != Success) {
             client->errorValue = stuff->cursor;
             return rc;
@@ -5906,9 +5906,9 @@ DeleteWindowFromAnyEvents(WindowPtr pWin, Bool freeResources)
         if (pWin->dontPropagate)
             DontPropagateRefCnts[pWin->dontPropagate]--;
         while ((oc = wOtherClients(pWin)))
-            FreeResource(oc->resource, RT_NONE);
+            FreeResource(oc->resource, X11_RESTYPE_NONE);
         while ((passive = wPassiveGrabs(pWin)))
-            FreeResource(passive->resource, RT_NONE);
+            FreeResource(passive->resource, X11_RESTYPE_NONE);
     }
 
     DeleteWindowFromAnyExtEvents(pWin, freeResources);
@@ -5973,7 +5973,7 @@ ProcRecolorCursor(ClientPtr client)
     REQUEST(xRecolorCursorReq);
 
     REQUEST_SIZE_MATCH(xRecolorCursorReq);
-    rc = dixLookupResourceByType((void **) &pCursor, stuff->cursor, RT_CURSOR,
+    rc = dixLookupResourceByType((void **) &pCursor, stuff->cursor, X11_RESTYPE_CURSOR,
                                  client, DixWriteAccess);
     if (rc != Success) {
         client->errorValue = stuff->cursor;

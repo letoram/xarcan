@@ -175,7 +175,7 @@ ProcXIPassiveGrabDevice(ClientPtr client)
 
     if (stuff->cursor != None) {
         ret = dixLookupResourceByType(&tmp, stuff->cursor,
-                                      RT_CURSOR, client, DixUseAccess);
+                                      X11_RESTYPE_CURSOR, client, DixUseAccess);
         if (ret != Success) {
             client->errorValue = stuff->cursor;
             goto out;

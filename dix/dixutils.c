@@ -207,7 +207,7 @@ dixLookupFontable(FontPtr *pFont, XID id, ClientPtr client, Mask access)
     GC *pGC;
 
     client->errorValue = id;    /* EITHER font or gc */
-    rc = dixLookupResourceByType((void **) pFont, id, RT_FONT, client,
+    rc = dixLookupResourceByType((void **) pFont, id, X11_RESTYPE_FONT, client,
                                  access);
     if (rc != BadFont)
         return rc;

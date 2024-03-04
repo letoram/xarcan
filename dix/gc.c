@@ -425,7 +425,7 @@ static const struct {
 } xidfields[] = {
     {GCTile, RT_PIXMAP, DixReadAccess},
     {GCStipple, RT_PIXMAP, DixReadAccess},
-    {GCFont, RT_FONT, DixUseAccess},
+    {GCFont, X11_RESTYPE_FONT, DixUseAccess},
     {GCClipMask, RT_PIXMAP, DixReadAccess},
 };
 
@@ -550,7 +550,7 @@ CreateGC(DrawablePtr pDrawable, BITS32 mask, XID *pval, int *pStatus,
 
     /* security creation/labeling check */
     *pStatus = XaceHook(XACE_RESOURCE_ACCESS, client, gcid, RT_GC, pGC,
-                        RT_NONE, NULL, DixCreateAccess | DixSetAttrAccess);
+                        X11_RESTYPE_NONE, NULL, DixCreateAccess | DixSetAttrAccess);
     if (*pStatus != Success)
         goto out;
 

@@ -640,7 +640,7 @@ CreateRootWindow(ScreenPtr pScreen)
     /*  security creation/labeling check
      */
     if (XaceHook(XACE_RESOURCE_ACCESS, serverClient, pWin->drawable.id,
-                 RT_WINDOW, pWin, RT_NONE, NULL, DixCreateAccess))
+                 RT_WINDOW, pWin, X11_RESTYPE_NONE, NULL, DixCreateAccess))
         return FALSE;
 
     if (!AddResource(pWin->drawable.id, RT_WINDOW, (void *) pWin))
@@ -1118,11 +1118,11 @@ DestroySubwindows(WindowPtr pWin, ClientPtr client)
     while (pWin->lastChild) {
         int rc = XaceHook(XACE_RESOURCE_ACCESS, client,
                           pWin->lastChild->drawable.id, RT_WINDOW,
-                          pWin->lastChild, RT_NONE, NULL, DixDestroyAccess);
+                          pWin->lastChild, X11_RESTYPE_NONE, NULL, DixDestroyAccess);
 
         if (rc != Success)
             return rc;
-        FreeResource(pWin->lastChild->drawable.id, RT_NONE);
+        FreeResource(pWin->lastChild->drawable.id, X11_RESTYPE_NONE);
     }
     return Success;
 }
@@ -1399,7 +1399,7 @@ ChangeWindowAttributes(WindowPtr pWin, Mask vmask, XID *vlist, ClientPtr client)
             }
             if (val == xTrue) {
                 rc = XaceHook(XACE_RESOURCE_ACCESS, client, pWin->drawable.id,
-                              RT_WINDOW, pWin, RT_NONE, NULL, DixGrabAccess);
+                              RT_WINDOW, pWin, X11_RESTYPE_NONE, NULL, DixGrabAccess);
                 if (rc != Success) {
                     error = rc;
                     client->errorValue = pWin->drawable.id;
@@ -1495,7 +1495,7 @@ ChangeWindowAttributes(WindowPtr pWin, Mask vmask, XID *vlist, ClientPtr client)
             }
             else {
                 rc = dixLookupResourceByType((void **) &pCursor, cursorID,
-                                             RT_CURSOR, client, DixUseAccess);
+                                             X11_RESTYPE_CURSOR, client, DixUseAccess);
                 if (rc != Success) {
                     error = rc;
                     client->errorValue = cursorID;
@@ -2666,7 +2666,7 @@ MapWindow(WindowPtr pWin, ClientPtr client)
 
     /* general check for permission to map window */
     if (XaceHook(XACE_RESOURCE_ACCESS, client, pWin->drawable.id, RT_WINDOW,
-                 pWin, RT_NONE, NULL, DixShowAccess) != Success)
+                 pWin, X11_RESTYPE_NONE, NULL, DixShowAccess) != Success)
         return Success;
 
     pScreen = pWin->drawable.pScreen;
@@ -3138,7 +3138,7 @@ dixSaveScreens(ClientPtr client, int on, int mode)
             }
             else if (HasSaverWindow(pScreen)) {
                 pScreen->screensaver.pWindow = NullWindow;
-                FreeResource(pScreen->screensaver.wid, RT_NONE);
+                FreeResource(pScreen->screensaver.wid, X11_RESTYPE_NONE);
             }
             break;
         case SCREEN_SAVER_CYCLE:
@@ -3266,7 +3266,7 @@ TileScreenSaver(ScreenPtr pScreen, int kind)
                                  &cursor, serverClient, (XID) 0);
         if (cursor) {
             cursorID = FakeClientID(0);
-            if (AddResource(cursorID, RT_CURSOR, (void *) cursor)) {
+            if (AddResource(cursorID, X11_RESTYPE_CURSOR, (void *) cursor)) {
                 attributes[attri] = cursorID;
                 mask |= CWCursor;
             }
@@ -3289,7 +3289,7 @@ TileScreenSaver(ScreenPtr pScreen, int kind)
                      wVisual(pScreen->root), &result);
 
     if (cursor)
-        FreeResource(cursorID, RT_NONE);
+        FreeResource(cursorID, X11_RESTYPE_NONE);
 
     if (!pWin)
         return FALSE;

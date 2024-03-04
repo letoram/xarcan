@@ -131,7 +131,7 @@ ProcXTestCompareCursor(ClientPtr client)
         pCursor = GetSpriteCursor(ptr);
     else {
         rc = dixLookupResourceByType((void **) &pCursor, stuff->cursor,
-                                     RT_CURSOR, client, DixReadAccess);
+                                     X11_RESTYPE_CURSOR, client, DixReadAccess);
         if (rc != Success) {
             client->errorValue = stuff->cursor;
             return rc;

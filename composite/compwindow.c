@@ -610,9 +610,9 @@ compDestroyWindow(WindowPtr pWin)
 
     pScreen->DestroyWindow = cs->DestroyWindow;
     while ((cw = GetCompWindow(pWin)))
-        FreeResource(cw->clients->id, RT_NONE);
+        FreeResource(cw->clients->id, X11_RESTYPE_NONE);
     while ((csw = GetCompSubwindows(pWin)))
-        FreeResource(csw->clients->id, RT_NONE);
+        FreeResource(csw->clients->id, X11_RESTYPE_NONE);
 
     if (pWin->redirectDraw != RedirectDrawNone) {
         PixmapPtr pPixmap = (*pScreen->GetWindowPixmap) (pWin);

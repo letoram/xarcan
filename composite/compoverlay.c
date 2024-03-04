@@ -169,5 +169,5 @@ compDestroyOverlayWindow(ScreenPtr pScreen)
     CompScreenPtr cs = GetCompScreen(pScreen);
 
     cs->pOverlayWin = NullWindow;
-    FreeResource(cs->overlayWid, RT_NONE);
+    FreeResource(cs->overlayWid, X11_RESTYPE_NONE);
 }

@@ -239,7 +239,7 @@ proc_dri3_pixmap_from_buffer(ClientPtr client)
 
     /* security creation/labeling check */
     rc = XaceHook(XACE_RESOURCE_ACCESS, client, stuff->pixmap, RT_PIXMAP,
-                  pixmap, RT_NONE, NULL, DixCreateAccess);
+                  pixmap, X11_RESTYPE_NONE, NULL, DixCreateAccess);
 
     if (rc != Success) {
         (*drawable->pScreen->DestroyPixmap) (pixmap);
@@ -503,7 +503,7 @@ proc_dri3_pixmap_from_buffers(ClientPtr client)
 
     /* security creation/labeling check */
     rc = XaceHook(XACE_RESOURCE_ACCESS, client, stuff->pixmap, RT_PIXMAP,
-                  pixmap, RT_NONE, NULL, DixCreateAccess);
+                  pixmap, X11_RESTYPE_NONE, NULL, DixCreateAccess);
 
     if (rc != Success) {
         (*screen->DestroyPixmap) (pixmap);

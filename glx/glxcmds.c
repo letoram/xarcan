@@ -1396,7 +1396,7 @@ DoCreatePbuffer(ClientPtr client, int screenNum, XID fbconfigId,
         return BadAlloc;
 
     err = XaceHook(XACE_RESOURCE_ACCESS, client, glxDrawableId, RT_PIXMAP,
-                   pPixmap, RT_NONE, NULL, DixCreateAccess);
+                   pPixmap, X11_RESTYPE_NONE, NULL, DixCreateAccess);
     if (err != Success) {
         (*pGlxScreen->pScreen->DestroyPixmap) (pPixmap);
         return err;

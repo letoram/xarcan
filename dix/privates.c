@@ -564,12 +564,12 @@ dixPrivatesSize(DevPrivateType type)
 
 /* Table of devPrivates offsets */
 static const int offsets[] = {
-    -1,                         /* RT_NONE */
+    -1,                         /* RT_NONE / X11_RESTYPE_NONE */
     offsetof(WindowRec, devPrivates),   /* RT_WINDOW */
     offsetof(PixmapRec, devPrivates),   /* RT_PIXMAP */
     offsetof(GC, devPrivates),  /* RT_GC */
-    -1,                         /* RT_FONT */
-    offsetof(CursorRec, devPrivates),   /* RT_CURSOR */
+    -1,                         /* RT_FONT / X11_RESTYPE_FONT */
+    offsetof(CursorRec, devPrivates),   /* RT_CURSOR / X11_RESTYPE_CURSOR */
     offsetof(ColormapRec, devPrivates), /* RT_COLORMAP */
 };
 

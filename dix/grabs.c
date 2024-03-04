@@ -681,13 +681,13 @@ DeletePassiveGrabFromList(GrabPtr pMinuendGrab)
 
     if (!ok) {
         for (i = 0; i < nadds; i++)
-            FreeResource(adds[i]->resource, RT_NONE);
+            FreeResource(adds[i]->resource, X11_RESTYPE_NONE);
         for (i = 0; i < nups; i++)
             free(details[i]);
     }
     else {
         for (i = 0; i < ndels; i++)
-            FreeResource(deletes[i]->resource, RT_NONE);
+            FreeResource(deletes[i]->resource, X11_RESTYPE_NONE);
         for (i = 0; i < nadds; i++) {
             grab = adds[i];
             grab->next = grab->window->optional->passiveGrabs;

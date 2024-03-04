@@ -831,7 +831,7 @@ ProcDestroyWindow(ClientPtr client)
                              DixRemoveAccess);
         if (rc != Success)
             return rc;
-        FreeResource(stuff->id, RT_NONE);
+        FreeResource(stuff->id, X11_RESTYPE_NONE);
     }
     return Success;
 }
@@ -1324,10 +1324,10 @@ ProcCloseFont(ClientPtr client)
     REQUEST(xResourceReq);
 
     REQUEST_SIZE_MATCH(xResourceReq);
-    rc = dixLookupResourceByType((void **) &pFont, stuff->id, RT_FONT,
+    rc = dixLookupResourceByType((void **) &pFont, stuff->id, X11_RESTYPE_FONT,
                                  client, DixDestroyAccess);
     if (rc == Success) {
-        FreeResource(stuff->id, RT_NONE);
+        FreeResource(stuff->id, X11_RESTYPE_NONE);
         return Success;
     }
     else {
@@ -1513,7 +1513,7 @@ ProcCreatePixmap(ClientPtr client)
         pMap->drawable.id = stuff->pid;
         /* security creation/labeling check */
         rc = XaceHook(XACE_RESOURCE_ACCESS, client, stuff->pid, RT_PIXMAP,
-                      pMap, RT_NONE, NULL, DixCreateAccess);
+                      pMap, X11_RESTYPE_NONE, NULL, DixCreateAccess);
         if (rc != Success) {
             (*pDraw->pScreen->DestroyPixmap) (pMap);
             return rc;
@@ -1536,7 +1536,7 @@ ProcFreePixmap(ClientPtr client)
     rc = dixLookupResourceByType((void **) &pMap, stuff->id, RT_PIXMAP,
                                  client, DixDestroyAccess);
     if (rc == Success) {
-        FreeResource(stuff->id, RT_NONE);
+        FreeResource(stuff->id, X11_RESTYPE_NONE);
         return Success;
     }
     else {
@@ -1685,7 +1685,7 @@ ProcFreeGC(ClientPtr client)
     if (rc != Success)
         return rc;
 
-    FreeResource(stuff->id, RT_NONE);
+    FreeResource(stuff->id, X11_RESTYPE_NONE);
     return Success;
 }
 
@@ -2473,7 +2473,7 @@ ProcFreeColormap(ClientPtr client)
     if (rc == Success) {
         /* Freeing a default colormap is a no-op */
         if (!(pmap->flags & IsDefault))
-            FreeResource(stuff->id, RT_NONE);
+            FreeResource(stuff->id, X11_RESTYPE_NONE);
         return Success;
     }
     else {
@@ -3068,7 +3068,7 @@ ProcCreateCursor(ClientPtr client)
 
     if (rc != Success)
         goto bail;
-    if (!AddResource(stuff->cid, RT_CURSOR, (void *) pCursor)) {
+    if (!AddResource(stuff->cid, X11_RESTYPE_CURSOR, (void *) pCursor)) {
         rc = BadAlloc;
         goto bail;
     }
@@ -3098,7 +3098,7 @@ ProcCreateGlyphCursor(ClientPtr client)
                            &pCursor, client, stuff->cid);
     if (res != Success)
         return res;
-    if (AddResource(stuff->cid, RT_CURSOR, (void *) pCursor))
+    if (AddResource(stuff->cid, X11_RESTYPE_CURSOR, (void *) pCursor))
         return Success;
     return BadAlloc;
 }
@@ -3112,10 +3112,10 @@ ProcFreeCursor(ClientPtr client)
     REQUEST(xResourceReq);
 
     REQUEST_SIZE_MATCH(xResourceReq);
-    rc = dixLookupResourceByType((void **) &pCursor, stuff->id, RT_CURSOR,
+    rc = dixLookupResourceByType((void **) &pCursor, stuff->id, X11_RESTYPE_CURSOR,
                                  client, DixDestroyAccess);
     if (rc == Success) {
-        FreeResource(stuff->id, RT_NONE);
+        FreeResource(stuff->id, X11_RESTYPE_NONE);
         return Success;
     }
     else {

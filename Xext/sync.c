@@ -696,7 +696,7 @@ SyncAwaitTriggerFired(SyncTrigger * pTrigger)
     /* unblock the client */
     AttendClient(pAwaitUnion->header.client);
     /* delete the await */
-    FreeResource(pAwaitUnion->header.delete_id, RT_NONE);
+    FreeResource(pAwaitUnion->header.delete_id, X11_RESTYPE_NONE);
 }
 
 static int64_t
@@ -751,7 +751,7 @@ SyncEventSelectForAlarm(SyncAlarm * pAlarm, ClientPtr client, Bool wantevents)
              * nothing, since it's already got them.
              */
             if (!wantevents) {
-                FreeResource(pClients->delete_id, RT_NONE);
+                FreeResource(pClients->delete_id, X11_RESTYPE_NONE);
             }
             return Success;
         }
@@ -934,7 +934,7 @@ SyncCreateFenceFromFD(ClientPtr client, DrawablePtr pDraw, XID id, int fd, BOOL 
 
     status = miSyncInitFenceFromFD(pDraw, pFence, fd, initially_triggered);
     if (status != Success) {
-        FreeResource(pFence->sync.id, RT_NONE);
+        FreeResource(pFence->sync.id, X11_RESTYPE_NONE);
         return status;
     }
 
@@ -992,7 +992,7 @@ SyncCreateSystemCounter(const char *name,
 
         psci = malloc(sizeof(SysCounterInfo));
         if (!psci) {
-            FreeResource(pCounter->sync.id, RT_NONE);
+            FreeResource(pCounter->sync.id, X11_RESTYPE_NONE);
             return pCounter;
         }
         pCounter->pSysCounterInfo = psci;
@@ -1015,7 +1015,7 @@ SyncDestroySystemCounter(void *pSysCounter)
 {
     SyncCounter *pCounter = (SyncCounter *) pSysCounter;
 
-    FreeResource(pCounter->sync.id, RT_NONE);
+    FreeResource(pCounter->sync.id, X11_RESTYPE_NONE);
 }
 
 static void
@@ -1128,7 +1128,7 @@ FreeAlarm(void *addr, XID id)
     /* delete event selections */
 
     while (pAlarm->pEventClients)
-        FreeResource(pAlarm->pEventClients->delete_id, RT_NONE);
+        FreeResource(pAlarm->pEventClients->delete_id, X11_RESTYPE_NONE);
 
     SyncDeleteTriggerFromSyncObject(&pAlarm->trigger);
 
@@ -1493,7 +1493,7 @@ ProcSyncDestroyCounter(ClientPtr client)
         client->errorValue = stuff->counter;
         return BadAccess;
     }
-    FreeResource(pCounter->sync.id, RT_NONE);
+    FreeResource(pCounter->sync.id, X11_RESTYPE_NONE);
     return Success;
 }
 
@@ -1594,7 +1594,7 @@ ProcSyncAwait(ClientPtr client)
             /*  this should take care of removing any triggers created by
              *  this request that have already been registered on sync objects
              */
-            FreeResource(pAwaitUnion->header.delete_id, RT_NONE);
+            FreeResource(pAwaitUnion->header.delete_id, X11_RESTYPE_NONE);
             client->errorValue = pProtocolWaitConds->counter;
             return SyncErrorBase + XSyncBadCounter;
         }
@@ -1614,7 +1614,7 @@ ProcSyncAwait(ClientPtr client)
             /*  this should take care of removing any triggers created by
              *  this request that have already been registered on sync objects
              */
-            FreeResource(pAwaitUnion->header.delete_id, RT_NONE);
+            FreeResource(pAwaitUnion->header.delete_id, X11_RESTYPE_NONE);
             return status;
         }
         /* this is not a mistake -- same function works for both cases */
@@ -1745,7 +1745,7 @@ ProcSyncCreateAlarm(ClientPtr client)
 
         if (!SyncCheckWarnIsCounter(pTrigger->pSync,
                                     WARN_INVALID_COUNTER_ALARM)) {
-            FreeResource(stuff->id, RT_NONE);
+            FreeResource(stuff->id, X11_RESTYPE_NONE);
             return BadAlloc;
         }
 
@@ -1876,7 +1876,7 @@ ProcSyncDestroyAlarm(ClientPtr client)
     if (rc != Success)
         return rc;
 
-    FreeResource(stuff->alarm, RT_NONE);
+    FreeResource(stuff->alarm, X11_RESTYPE_NONE);
     return Success;
 }
 
@@ -1981,7 +1981,7 @@ ProcSyncDestroyFence(ClientPtr client)
     if (rc != Success)
         return rc;
 
-    FreeResource(stuff->fid, RT_NONE);
+    FreeResource(stuff->fid, X11_RESTYPE_NONE);
     return Success;
 }
 
@@ -2059,7 +2059,7 @@ ProcSyncAwaitFence(ClientPtr client)
             /*  this should take care of removing any triggers created by
              *  this request that have already been registered on sync objects
              */
-            FreeResource(pAwaitUnion->header.delete_id, RT_NONE);
+            FreeResource(pAwaitUnion->header.delete_id, X11_RESTYPE_NONE);
             client->errorValue = *pProtocolFences;
             return SyncErrorBase + XSyncBadFence;
         }
@@ -2078,7 +2078,7 @@ ProcSyncAwaitFence(ClientPtr client)
             /*  this should take care of removing any triggers created by
              *  this request that have already been registered on sync objects
              */
-            FreeResource(pAwaitUnion->header.delete_id, RT_NONE);
+            FreeResource(pAwaitUnion->header.delete_id, X11_RESTYPE_NONE);
             return status;
         }
         /* this is not a mistake -- same function works for both cases */

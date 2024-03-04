@@ -377,9 +377,9 @@ CreateColormap(Colormap mid, ScreenPtr pScreen, VisualPtr pVisual,
      * Security creation/labeling check
      */
     i = XaceHook(XACE_RESOURCE_ACCESS, clients[client], mid, RT_COLORMAP,
-                 pmap, RT_NONE, NULL, DixCreateAccess);
+                 pmap, X11_RESTYPE_NONE, NULL, DixCreateAccess);
     if (i != Success) {
-        FreeResource(mid, RT_NONE);
+        FreeResource(mid, X11_RESTYPE_NONE);
         return i;
     }
 
@@ -387,7 +387,7 @@ CreateColormap(Colormap mid, ScreenPtr pScreen, VisualPtr pVisual,
      * this is it.  In specific, if this is a Static colormap, this is the
      * time to fill in the colormap's values */
     if (!(*pScreen->CreateColormap) (pmap)) {
-        FreeResource(mid, RT_NONE);
+        FreeResource(mid, X11_RESTYPE_NONE);
         return BadAlloc;
     }
     pmap->flags &= ~BeingCreated;

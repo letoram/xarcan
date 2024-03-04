@@ -464,7 +464,7 @@ ProcShmDetach(ClientPtr client)
 
     REQUEST_SIZE_MATCH(xShmDetachReq);
     VERIFY_SHMSEG(stuff->shmseg, shmdesc, client);
-    FreeResource(stuff->shmseg, RT_NONE);
+    FreeResource(stuff->shmseg, X11_RESTYPE_NONE);
     return Success;
 }
 
@@ -1002,7 +1002,7 @@ ProcPanoramiXShmCreatePixmap(ClientPtr client)
 
         if (pMap) {
             result = XaceHook(XACE_RESOURCE_ACCESS, client, stuff->pid,
-                              RT_PIXMAP, pMap, RT_NONE, NULL, DixCreateAccess);
+                              RT_PIXMAP, pMap, X11_RESTYPE_NONE, NULL, DixCreateAccess);
             if (result != Success) {
                 pDraw->pScreen->DestroyPixmap(pMap);
                 break;
@@ -1024,7 +1024,7 @@ ProcPanoramiXShmCreatePixmap(ClientPtr client)
 
     if (result != Success) {
         while (j--)
-            FreeResource(newPix->info[j].id, RT_NONE);
+            FreeResource(newPix->info[j].id, X11_RESTYPE_NONE);
         free(newPix);
     }
     else
@@ -1117,7 +1117,7 @@ ProcShmCreatePixmap(ClientPtr client)
                                                    stuff->offset);
     if (pMap) {
         rc = XaceHook(XACE_RESOURCE_ACCESS, client, stuff->pid, RT_PIXMAP,
-                      pMap, RT_NONE, NULL, DixCreateAccess);
+                      pMap, X11_RESTYPE_NONE, NULL, DixCreateAccess);
         if (rc != Success) {
             pDraw->pScreen->DestroyPixmap(pMap);
             return rc;
@@ -1144,7 +1144,7 @@ ShmBusfaultNotify(void *context)
            (unsigned int) shmdesc->resource);
     busfault_unregister(shmdesc->busfault);
     shmdesc->busfault = NULL;
-    FreeResource (shmdesc->resource, RT_NONE);
+    FreeResource (shmdesc->resource, X11_RESTYPE_NONE);
 }
 
 static int
@@ -1326,7 +1326,7 @@ ProcShmCreateSegment(ClientPtr client)
     }
 
     if (WriteFdToClient(client, fd, TRUE) < 0) {
-        FreeResource(stuff->shmseg, RT_NONE);
+        FreeResource(stuff->shmseg, X11_RESTYPE_NONE);
         close(fd);
         return BadAlloc;
     }

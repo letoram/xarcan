@@ -99,7 +99,7 @@ ProcXIChangeCursor(ClientPtr client)
     }
     else {
         rc = dixLookupResourceByType((void **) &pCursor, stuff->cursor,
-                                     RT_CURSOR, client, DixUseAccess);
+                                     X11_RESTYPE_CURSOR, client, DixUseAccess);
         if (rc != Success)
             return rc;
     }

@@ -369,7 +369,7 @@ xf86SetDGAMode(ScrnInfoPtr pScrn, int num, DGADevicePtr devRet)
 
             if (oldPix) {
                 if (oldPix->drawable.id)
-                    FreeResource(oldPix->drawable.id, RT_NONE);
+                    FreeResource(oldPix->drawable.id, X11_RESTYPE_NONE);
                 else
                     (*pScreen->DestroyPixmap) (oldPix);
             }
@@ -431,7 +431,7 @@ xf86SetDGAMode(ScrnInfoPtr pScrn, int num, DGADevicePtr devRet)
 
         if (oldPix) {
             if (oldPix->drawable.id)
-                FreeResource(oldPix->drawable.id, RT_NONE);
+                FreeResource(oldPix->drawable.id, X11_RESTYPE_NONE);
             else
                 (*pScreen->DestroyPixmap) (oldPix);
         }

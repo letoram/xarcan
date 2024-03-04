@@ -265,7 +265,7 @@ ProcCompositeNameWindowPixmap(ClientPtr client)
     if (pScreen->NameWindowPixmap) {
         rc = pScreen->NameWindowPixmap(pWin, pPixmap, stuff->pixmap);
         if (rc != Success) {
-            FreeResource(stuff->pixmap, RT_NONE);
+            FreeResource(stuff->pixmap, X11_RESTYPE_NONE);
             return rc;
         }
     }
@@ -302,14 +302,14 @@ ProcCompositeGetOverlayWindow(ClientPtr client)
     cs = GetCompScreen(pScreen);
     if (cs->pOverlayWin == NULL)
         if (!compCreateOverlayWindow(pScreen)) {
-            FreeResource(pOc->resource, RT_NONE);
+            FreeResource(pOc->resource, X11_RESTYPE_NONE);
             return BadAlloc;
         }
 
     rc = XaceHook(XACE_RESOURCE_ACCESS, client, cs->pOverlayWin->drawable.id,
-                  RT_WINDOW, cs->pOverlayWin, RT_NONE, NULL, DixGetAttrAccess);
+                  RT_WINDOW, cs->pOverlayWin, X11_RESTYPE_NONE, NULL, DixGetAttrAccess);
     if (rc != Success) {
-        FreeResource(pOc->resource, RT_NONE);
+        FreeResource(pOc->resource, X11_RESTYPE_NONE);
         return rc;
     }
 
@@ -349,7 +349,7 @@ ProcCompositeReleaseOverlayWindow(ClientPtr client)
         return BadMatch;
 
     /* The delete function will free the client structure */
-    FreeResource(pOc->resource, RT_NONE);
+    FreeResource(pOc->resource, X11_RESTYPE_NONE);
 
     return Success;
 }
@@ -820,17 +820,17 @@ PanoramiXCompositeGetOverlayWindow(ClientPtr client)
         cs = GetCompScreen(pScreen);
         if (cs->pOverlayWin == NULL)
             if (!compCreateOverlayWindow(pScreen)) {
-                FreeResource(pOc->resource, RT_NONE);
+                FreeResource(pOc->resource, X11_RESTYPE_NONE);
                 free(overlayWin);
                 return BadAlloc;
             }
 
         rc = XaceHook(XACE_RESOURCE_ACCESS, client,
                       cs->pOverlayWin->drawable.id,
-                      RT_WINDOW, cs->pOverlayWin, RT_NONE, NULL,
+                      RT_WINDOW, cs->pOverlayWin, X11_RESTYPE_NONE, NULL,
                       DixGetAttrAccess);
         if (rc != Success) {
-            FreeResource(pOc->resource, RT_NONE);
+            FreeResource(pOc->resource, X11_RESTYPE_NONE);
             free(overlayWin);
             return rc;
         }
@@ -898,7 +898,7 @@ PanoramiXCompositeReleaseOverlayWindow(ClientPtr client)
             return BadMatch;
 
         /* The delete function will free the client structure */
-        FreeResource(pOc->resource, RT_NONE);
+        FreeResource(pOc->resource, X11_RESTYPE_NONE);
     }
 
     return Success;

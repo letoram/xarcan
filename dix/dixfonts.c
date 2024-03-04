@@ -133,7 +133,7 @@ GetGlyphs(FontPtr font, unsigned long count, unsigned char *chars,
 }
 
 /*
- * adding RT_FONT prevents conflict with default cursor font
+ * adding RT_FONT / X11_RESTYPE_FONT prevents conflict with default cursor font
  */
 Bool
 SetDefaultFont(const char *defaultfontname)
@@ -147,7 +147,7 @@ SetDefaultFont(const char *defaultfontname)
                    (unsigned) strlen(defaultfontname), defaultfontname);
     if (err != Success)
         return FALSE;
-    err = dixLookupResourceByType((void **) &pf, fid, RT_FONT, serverClient,
+    err = dixLookupResourceByType((void **) &pf, fid, X11_RESTYPE_FONT, serverClient,
                                   DixReadAccess);
     if (err != Success)
         return FALSE;
@@ -355,7 +355,7 @@ doOpenFont(ClientPtr client, OFclosurePtr c)
             }
         }
     }
-    if (!AddResource(c->fontid, RT_FONT, (void *) pfont)) {
+    if (!AddResource(c->fontid, X11_RESTYPE_FONT, (void *) pfont)) {
         err = AllocError;
         goto bail;
     }
@@ -408,7 +408,7 @@ OpenFont(ClientPtr client, XID fid, Mask flags, unsigned lenfname,
 
         cached = xfont2_find_cached_font_pattern(patternCache, pfontname, lenfname);
         if (cached && cached->info.cachable) {
-            if (!AddResource(fid, RT_FONT, (void *) cached))
+            if (!AddResource(fid, X11_RESTYPE_FONT, (void *) cached))
                 return BadAlloc;
             cached->refcnt++;
             return Success;
@@ -1157,7 +1157,7 @@ doPolyText(ClientPtr client, PTclosurePtr c)
             fid = ((Font) *(c->pElt + 4))       /* big-endian */
                 |((Font) *(c->pElt + 3)) << 8
                 | ((Font) *(c->pElt + 2)) << 16 | ((Font) *(c->pElt + 1)) << 24;
-            err = dixLookupResourceByType((void **) &pFont, fid, RT_FONT,
+            err = dixLookupResourceByType((void **) &pFont, fid, X11_RESTYPE_FONT,
                                           client, DixUseAccess);
             if (err != Success) {
                 /* restore pFont for step 4 (described below) */
@@ -1894,7 +1894,7 @@ find_old_font(XID id)
 {
     void *pFont;
 
-    dixLookupResourceByType(&pFont, id, RT_NONE, serverClient, DixReadAccess);
+    dixLookupResourceByType(&pFont, id, X11_RESTYPE_NONE, serverClient, DixReadAccess);
     return (FontPtr) pFont;
 }
 
@@ -1907,13 +1907,13 @@ get_new_font_client_id(void)
 static int
 store_font_Client_font(FontPtr pfont, Font id)
 {
-    return AddResource(id, RT_NONE, (void *) pfont);
+    return AddResource(id, X11_RESTYPE_NONE, (void *) pfont);
 }
 
 static void
 delete_font_client_id(Font id)
 {
-    FreeResource(id, RT_NONE);
+    FreeResource(id, X11_RESTYPE_NONE);
 }
 
 static int

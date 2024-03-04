@@ -712,8 +712,8 @@ TouchAddGrabListener(DeviceIntPtr dev, TouchPointInfoPtr ti,
         type = TOUCH_LISTENER_POINTER_GRAB;
     }
 
-    /* grab listeners are always RT_NONE since we keep the grab pointer */
-    TouchAddListener(ti, grab->resource, RT_NONE, grab->grabtype,
+    /* grab listeners are always X11_RESTYPE_NONE since we keep the grab pointer */
+    TouchAddListener(ti, grab->resource, X11_RESTYPE_NONE, grab->grabtype,
                      type, TOUCH_LISTENER_AWAITING_BEGIN, grab->window, grab);
 }
 

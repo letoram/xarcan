@@ -413,7 +413,7 @@ ProcDbeDeallocateBackBufferName(ClientPtr client)
         return dbeErrorBase + DbeBadBuffer;
     }
 
-    FreeResource(stuff->buffer, RT_NONE);
+    FreeResource(stuff->buffer, X11_RESTYPE_NONE);
 
     return Success;
 
@@ -1314,7 +1314,7 @@ DbeDestroyWindow(WindowPtr pWin)
              * NULL if there are no more buffer IDs associated with this
              * window.
              */
-            FreeResource(pDbeWindowPriv->IDs[0], RT_NONE);
+            FreeResource(pDbeWindowPriv->IDs[0], X11_RESTYPE_NONE);
             pDbeWindowPriv = DBE_WINDOW_PRIV(pWin);
         }
     }

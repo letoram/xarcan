@@ -831,7 +831,7 @@ XIDestroyPointerBarrier(ClientPtr client,
     if (CLIENT_ID(stuff->barrier) != client->index)
         return BadAccess;
 
-    FreeResource(stuff->barrier, RT_NONE);
+    FreeResource(stuff->barrier, X11_RESTYPE_NONE);
     return Success;
 }
 
