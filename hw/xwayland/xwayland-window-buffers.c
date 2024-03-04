@@ -32,6 +32,9 @@
 #include "xwayland-pixmap.h"
 #include "xwayland-screen.h"
 #include "xwayland-window-buffers.h"
+#ifdef XWL_HAS_GLAMOR
+#include "glamor.h"
+#endif
 
 #define BUFFER_TIMEOUT 1 * 1000 /* ms */
 
@@ -384,6 +387,12 @@ xwl_window_swap_pixmap(struct xwl_window *xwl_window)
 
     /* Hold a reference on the buffer until it's released by the compositor */
     xwl_window_buffer->refcnt++;
+
+#ifdef XWL_HAS_GLAMOR
+    if (!xwl_glamor_supports_implicit_sync(xwl_screen)) {
+        glamor_finish(xwl_screen->screen);
+    }
+#endif /* XWL_HAS_GLAMOR */
     xwl_pixmap_set_buffer_release_cb(xwl_window_buffer->pixmap,
                                      xwl_window_buffer_release_callback,
                                      xwl_window_buffer);

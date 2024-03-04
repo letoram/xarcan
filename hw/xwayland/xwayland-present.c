@@ -695,7 +695,10 @@ xwl_present_check_flip(RRCrtcPtr crtc,
     if (xwl_window->xwl_screen->glamor &&
         !xwl_glamor_check_flip(present_window, pixmap))
         return FALSE;
-#endif
+
+    if (!xwl_glamor_supports_implicit_sync(xwl_window->xwl_screen))
+        return FALSE;
+#endif /* XWL_HAS_GLAMOR */
 
     /* Can't flip if the window pixmap doesn't match the xwl_window parent
      * window's, e.g. because a client redirected this window or one of its
