@@ -43,6 +43,9 @@
 
 #include <X11/X.h>
 #include <X11/Xproto.h>
+
+#include "dix/eventconvert.h"
+
 #include "xf86.h"
 #include "xf86str.h"
 #include "xf86Priv.h"
@@ -60,7 +63,6 @@
 #include "exglobals.h"
 #include "exevents.h"
 #include "eventstr.h"
-#include "eventconvert.h"
 #include "xf86Extensions.h"
 
 #include "mi.h"

@@ -106,6 +106,9 @@ Equipment Corporation.
 #endif
 
 #include <X11/X.h>
+
+#include "dix/eventconvert.h"
+
 #include "misc.h"
 #include "resource.h"
 #include <X11/Xproto.h>
@@ -145,7 +148,6 @@ Equipment Corporation.
 
 #include "eventstr.h"
 #include "enterleave.h"
-#include "eventconvert.h"
 #include "mi.h"
 
 /* Extension events type numbering starts at EXTENSION_EVENT_BASE.  */

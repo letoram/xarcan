@@ -29,6 +29,7 @@
 #endif
 
 #include "dix/dix_priv.h"
+#include "dix/eventconvert.h"
 
 #include "inputstr.h"
 #include "scrnintstr.h"
@@ -38,7 +39,6 @@
 #include "exevents.h"
 #include "exglobals.h"
 #include "inpututils.h"
-#include "eventconvert.h"
 #include "windowstr.h"
 #include "mi.h"
 

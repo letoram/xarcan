@@ -36,6 +36,8 @@ and Jim Haggerty of Metheus.
 #include <dix-config.h>
 #endif
 
+#include "dix/eventconvert.h"
+
 #include "dixstruct.h"
 #include "extnsionst.h"
 #include "extinit.h"
@@ -43,7 +45,6 @@ and Jim Haggerty of Metheus.
 #include "set.h"
 #include "swaprep.h"
 #include "inputstr.h"
-#include "eventconvert.h"
 #include "scrnintstr.h"
 
 #include <stdio.h>

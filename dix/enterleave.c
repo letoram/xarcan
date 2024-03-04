@@ -32,12 +32,14 @@
 #include <X11/extensions/XI2.h>
 #include <X11/extensions/XIproto.h>
 #include <X11/extensions/XI2proto.h>
+
+#include "dix/eventconvert.h"
+
 #include "inputstr.h"
 #include "windowstr.h"
 #include "scrnintstr.h"
 #include "exglobals.h"
 #include "enterleave.h"
-#include "eventconvert.h"
 #include "xkbsrv.h"
 #include "inpututils.h"
 

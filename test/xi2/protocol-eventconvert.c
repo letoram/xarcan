@@ -29,9 +29,10 @@
 
 #include <stdint.h>
 
+#include "dix/eventconvert.h"
+
 #include "inputstr.h"
 #include "eventstr.h"
-#include "eventconvert.h"
 #include "exevents.h"
 #include "inpututils.h"
 #include <X11/extensions/XI2proto.h>

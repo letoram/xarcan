@@ -37,8 +37,10 @@
 #include <X11/Xatom.h>
 #include "windowstr.h"
 #include "inputstr.h"
-#include "eventconvert.h"
 #include "exevents.h"
+
+#include "dix/eventconvert.h"
+
 #include "exglobals.h"
 #include "dixgrabs.h"
 #include "eventstr.h"

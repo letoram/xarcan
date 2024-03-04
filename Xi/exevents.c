@@ -89,6 +89,9 @@ SOFTWARE.
 #include <X11/extensions/XIproto.h>
 #include <X11/extensions/XI2proto.h>
 #include <X11/extensions/geproto.h>
+
+#include "dix/eventconvert.h"
+
 #include "windowstr.h"
 #include "miscstruct.h"
 #include "region.h"
@@ -102,7 +105,6 @@ SOFTWARE.
 #include "listdev.h"            /* for CopySwapXXXClass */
 #include "xace.h"
 #include "xiquerydevice.h"      /* For List*Info */
-#include "eventconvert.h"
 #include "eventstr.h"
 #include "inpututils.h"
 #include "mi.h"
