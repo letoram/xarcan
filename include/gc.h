@@ -88,8 +88,6 @@ extern _X_EXPORT int ChangeGC(ClientPtr /*client */ ,
                               BITS32 /*mask */ ,
                               ChangeGCValPtr /*pCGCV */ );
 
-extern _X_EXPORT void FreeDefaultStipple(int /*screenNum */ );
-
 extern _X_EXPORT int SetDashes(GCPtr /*pGC */ ,
                                unsigned /*offset */ ,
                                unsigned /*ndash */ ,
