@@ -22,4 +22,6 @@ int CopyGC(GCPtr pgcSrc, GCPtr pgcDst, BITS32 mask);
 
 int FreeGC(void *pGC, XID gid);
 
+void FreeGCperDepth(int screenNum);
+
 #endif /* _XSERVER_DIX_GC_PRIV_H */

@@ -85,6 +85,7 @@ Equipment Corporation.
 
 #include "dix/callback_priv.h"
 #include "dix/dix_priv.h"
+#include "dix/gc_priv.h"
 #include "dix/registry_priv.h"
 #include "os/audit.h"
 #include "os/auth.h"
