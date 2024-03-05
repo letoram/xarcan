@@ -123,6 +123,7 @@ Equipment Corporation.
 
 #include <X11/X.h>
 
+#include "dix/gc_priv.h"
 #include "dix/registry_priv.h"
 
 #include "misc.h"

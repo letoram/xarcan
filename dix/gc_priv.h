@@ -20,4 +20,6 @@ GCPtr CreateGC(DrawablePtr pDrawable,
 
 int CopyGC(GCPtr pgcSrc, GCPtr pgcDst, BITS32 mask);
 
+int FreeGC(void *pGC, XID gid);
+
 #endif /* _XSERVER_DIX_GC_PRIV_H */
