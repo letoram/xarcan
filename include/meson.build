@@ -470,7 +470,6 @@ if build_xorg
             'gc.h',
             'gcstruct.h',
             'globals.h',
-            'glx_extinit.h',
             'glxvndabi.h',
             'input.h',
             'inputstr.h',
