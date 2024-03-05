@@ -83,11 +83,6 @@ typedef union {
     void *ptr;
 } ChangeGCVal, *ChangeGCValPtr;
 
-extern int ChangeGCXIDs(ClientPtr /*client */ ,
-                        GCPtr /*pGC */ ,
-                        BITS32 /*mask */ ,
-                        CARD32 * /*pval */ );
-
 extern _X_EXPORT int ChangeGC(ClientPtr /*client */ ,
                               GCPtr /*pGC */ ,
                               BITS32 /*mask */ ,

@@ -48,9 +48,13 @@ SOFTWARE.
 #include <dix-config.h>
 #endif
 
+#include <assert.h>
 #include <X11/X.h>
 #include <X11/Xmd.h>
 #include <X11/Xproto.h>
+
+#include "dix/gc_priv.h"
+
 #include "misc.h"
 #include "resource.h"
 #include "gcstruct.h"
@@ -59,11 +63,9 @@ SOFTWARE.
 #include "scrnintstr.h"
 #include "region.h"
 #include "dixstruct.h"
-
 #include "privates.h"
 #include "dix.h"
 #include "xace.h"
-#include <assert.h>
 
 extern FontPtr defaultFont;
 

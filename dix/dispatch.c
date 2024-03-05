@@ -101,16 +101,17 @@ Equipment Corporation.
 #include <version-config.h>
 #endif
 
-#include "dix/dix_priv.h"
-#include "dix/registry_priv.h"
-#include "os/auth.h"
-
-#include "windowstr.h"
+#include <stddef.h>
 #include <X11/fonts/fontstruct.h>
 #include <X11/fonts/libxfont2.h>
 
+#include "dix/dix_priv.h"
+#include "dix/gc_priv.h"
+#include "dix/registry_priv.h"
 #include "dix/screenint_priv.h"
+#include "os/auth.h"
 
+#include "windowstr.h"
 #include "dixfontstr.h"
 #include "gcstruct.h"
 #include "selection.h"
