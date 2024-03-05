@@ -34,7 +34,6 @@ apt-get install -y \
 	libcairo2 \
 	libcairo2-dev \
 	libdbus-1-dev \
-	libdmx-dev \
 	libdrm-dev \
 	libegl1-mesa-dev \
 	libepoxy-dev \

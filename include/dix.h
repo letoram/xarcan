@@ -570,11 +570,6 @@ IsInterferingGrab(ClientPtr /* client */ ,
                   DeviceIntPtr /* dev */ ,
                   xEvent * /* events */ );
 
-#ifdef PANORAMIX
-extern _X_EXPORT void
-ReinitializeRootWindow(WindowPtr win, int xoff, int yoff);
-#endif
-
 #ifdef RANDR
 extern _X_EXPORT void
 ScreenRestructured(ScreenPtr pScreen);
