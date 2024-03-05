@@ -11,4 +11,11 @@
 
 int ChangeGCXIDs(ClientPtr client, GCPtr pGC, BITS32 mask, CARD32 * pval);
 
+GCPtr CreateGC(DrawablePtr pDrawable,
+               BITS32 mask,
+               XID *pval,
+               int *pStatus,
+               XID gcid,
+               ClientPtr client);
+
 #endif /* _XSERVER_DIX_GC_PRIV_H */

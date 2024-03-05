@@ -88,13 +88,6 @@ extern _X_EXPORT int ChangeGC(ClientPtr /*client */ ,
                               BITS32 /*mask */ ,
                               ChangeGCValPtr /*pCGCV */ );
 
-extern _X_EXPORT GCPtr CreateGC(DrawablePtr /*pDrawable */ ,
-                                BITS32 /*mask */ ,
-                                XID * /*pval */ ,
-                                int * /*pStatus */ ,
-                                XID /*gcid */ ,
-                                ClientPtr /*client */ );
-
 extern _X_EXPORT int CopyGC(GCPtr /*pgcSrc */ ,
                             GCPtr /*pgcDst */ ,
                             BITS32 /*mask */ );
