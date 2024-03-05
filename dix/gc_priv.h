@@ -26,4 +26,6 @@ void FreeGCperDepth(int screenNum);
 
 Bool CreateGCperDepth(int screenNum);
 
+Bool CreateDefaultStipple(int screenNum);
+
 #endif /* _XSERVER_DIX_GC_PRIV_H */
