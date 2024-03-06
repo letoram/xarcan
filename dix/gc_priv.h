@@ -32,4 +32,6 @@ void FreeDefaultStipple(int screenNum);
 
 int SetDashes(GCPtr pGC, unsigned offset, unsigned ndash, unsigned char *pdash);
 
+int VerifyRectOrder(int nrects, xRectangle *prects, int ordering);
+
 #endif /* _XSERVER_DIX_GC_PRIV_H */

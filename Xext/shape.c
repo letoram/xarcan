@@ -32,6 +32,10 @@ in this Software without prior written authorization from The Open Group.
 
 #include <X11/X.h>
 #include <X11/Xproto.h>
+#include <X11/extensions/shapeproto.h>
+
+#include "dix/gc_priv.h"
+
 #include "misc.h"
 #include "os.h"
 #include "windowstr.h"
@@ -41,7 +45,6 @@ in this Software without prior written authorization from The Open Group.
 #include "dixstruct.h"
 #include "resource.h"
 #include "opaque.h"
-#include <X11/extensions/shapeproto.h>
 #include "regionstr.h"
 #include "gcstruct.h"
 #include "extinit.h"
