@@ -51,6 +51,8 @@ SOFTWARE.
 #ifndef _OSDEP_H_
 #define _OSDEP_H_ 1
 
+#include <X11/Xdefs.h>
+
 #if defined(XDMCP) || defined(HASXDMAUTH)
 #include <X11/Xdmcp.h>
 #endif
