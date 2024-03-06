@@ -88,13 +88,6 @@ extern _X_EXPORT int ChangeGC(ClientPtr /*client */ ,
                               BITS32 /*mask */ ,
                               ChangeGCValPtr /*pCGCV */ );
 
-extern _X_EXPORT int SetClipRects(GCPtr /*pGC */ ,
-                                  int /*xOrigin */ ,
-                                  int /*yOrigin */ ,
-                                  int /*nrects */ ,
-                                  xRectangle * /*prects */ ,
-                                  int /*ordering */ );
-
 extern _X_EXPORT GCPtr GetScratchGC(unsigned /*depth */ ,
                                     ScreenPtr /*pScreen */ );
 
