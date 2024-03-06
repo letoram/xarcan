@@ -30,4 +30,6 @@ Bool CreateDefaultStipple(int screenNum);
 
 void FreeDefaultStipple(int screenNum);
 
+int SetDashes(GCPtr pGC, unsigned offset, unsigned ndash, unsigned char *pdash);
+
 #endif /* _XSERVER_DIX_GC_PRIV_H */

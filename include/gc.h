@@ -88,11 +88,6 @@ extern _X_EXPORT int ChangeGC(ClientPtr /*client */ ,
                               BITS32 /*mask */ ,
                               ChangeGCValPtr /*pCGCV */ );
 
-extern _X_EXPORT int SetDashes(GCPtr /*pGC */ ,
-                               unsigned /*offset */ ,
-                               unsigned /*ndash */ ,
-                               unsigned char * /*pdash */ );
-
 extern _X_EXPORT int VerifyRectOrder(int /*nrects */ ,
                                      xRectangle * /*prects */ ,
                                      int /*ordering */ );
