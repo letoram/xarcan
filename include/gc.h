@@ -62,15 +62,7 @@ SOFTWARE.
 #define CT_YXSORTED		14
 #define CT_YXBANDED		18
 
-#define GCQREASON_VALIDATE	1
-#define GCQREASON_CHANGE	2
-#define GCQREASON_COPY_SRC	3
-#define GCQREASON_COPY_DST	4
-#define GCQREASON_DESTROY	5
-
 #define GC_CHANGE_SERIAL_BIT        (((unsigned long)1)<<31)
-#define GC_CALL_VALIDATE_BIT        (1L<<30)
-#define GCExtensionInterest   (1L<<29)
 
 #define DRAWABLE_SERIAL_BITS        (~(GC_CHANGE_SERIAL_BIT))
 
