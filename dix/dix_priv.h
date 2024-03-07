@@ -15,4 +15,8 @@
 #define MAX_BIG_REQUEST_SIZE 4194303
 extern long maxBigRequestSize;
 
+void ClearWorkQueue(void);
+void ProcessWorkQueue(void);
+void ProcessWorkQueueZombies(void);
+
 #endif /* _XSERVER_DIX_PRIV_H */

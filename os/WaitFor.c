@@ -63,8 +63,10 @@ SOFTWARE.
 #include <errno.h>
 #include <stdio.h>
 #include <X11/X.h>
-#include "misc.h"
 
+#include "dix/dix_priv.h"
+
+#include "misc.h"
 #include "osdep.h"
 #include "dixstruct.h"
 #include "opaque.h"

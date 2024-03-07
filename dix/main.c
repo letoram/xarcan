@@ -83,6 +83,7 @@ Equipment Corporation.
 #include <X11/Xproto.h>
 #include <pixman.h>
 
+#include "dix/dix_priv.h"
 #include "dix/registry_priv.h"
 
 #include "scrnintstr.h"

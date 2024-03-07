@@ -86,6 +86,9 @@ Author:  Adobe Systems Incorporated
 
 #include <X11/X.h>
 #include <X11/Xmd.h>
+
+#include "dix/dix_priv.h"
+
 #include "misc.h"
 #include "windowstr.h"
 #include "dixstruct.h"
