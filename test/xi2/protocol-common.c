@@ -30,6 +30,9 @@
 
 #include <errno.h>
 #include <stdint.h>
+
+#include "dix/dix_priv.h"
+
 #include "extinit.h"            /* for XInputExtensionInit */
 #include "exglobals.h"
 #include "xkbsrv.h"             /* for XkbInitPrivates */

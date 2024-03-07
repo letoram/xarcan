@@ -41,6 +41,7 @@ void ProcessWorkQueueZombies(void);
 
 void CloseDownClient(ClientPtr client);
 ClientPtr GetCurrentClient(void);
+void InitClient(ClientPtr client, int i, void *ospriv);
 
 /* lookup builtin color by name */
 Bool dixLookupBuiltinColor(int screen,

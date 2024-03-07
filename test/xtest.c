@@ -29,6 +29,9 @@
 #endif
 #include <stdint.h>
 #include <X11/Xatom.h>
+
+#include "dix/dix_priv.h"
+
 #include "input.h"
 #include "inputstr.h"
 #include "scrnintstr.h"

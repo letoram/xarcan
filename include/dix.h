@@ -165,10 +165,6 @@ extern _X_EXPORT void UpdateCurrentTimeIf(void);
 extern _X_EXPORT int dixDestroyPixmap(void *value,
                                       XID pid);
 
-extern _X_EXPORT void InitClient(ClientPtr client,
-                                 int i,
-                                 void *ospriv);
-
 extern _X_EXPORT ClientPtr NextAvailableClient(void *ospriv);
 
 extern _X_EXPORT void SendErrorToClient(ClientPtr /*client */ ,
