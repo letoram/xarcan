@@ -28,7 +28,9 @@
 #include <math.h>
 
 #include <X11/Xatom.h>
-#include "randrstr_priv.h"
+
+#include "dix/dix_priv.h"
+#include "randr/randrstr_priv.h"
 
 #include "xwayland-cvt.h"
 #include "xwayland-output.h"

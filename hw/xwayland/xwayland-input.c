@@ -29,6 +29,8 @@
 #include <linux/input.h>
 #include <sys/mman.h>
 
+#include "dix/dix_priv.h"
+
 #include <inputstr.h>
 #include <exevents.h>
 #include <xkbsrv.h>

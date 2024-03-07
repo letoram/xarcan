@@ -155,8 +155,6 @@ typedef int HWEventQueueType;
 typedef HWEventQueueType *HWEventQueuePtr;
 
 /* dispatch.c */
-extern _X_EXPORT ClientPtr GetCurrentClient(void);
-
 extern _X_EXPORT void SetInputCheck(HWEventQueuePtr /*c0 */ ,
                                     HWEventQueuePtr /*c1 */ );
 

@@ -39,6 +39,7 @@ void ProcessWorkQueue(void);
 void ProcessWorkQueueZombies(void);
 
 void CloseDownClient(ClientPtr client);
+ClientPtr GetCurrentClient(void);
 
 /* lookup builtin color by name */
 Bool dixLookupBuiltinColor(int screen,
