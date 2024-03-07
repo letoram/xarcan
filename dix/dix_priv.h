@@ -11,9 +11,26 @@
  *  Xserver's module API/ABI.
  */
 
+#include <X11/Xdefs.h>
+#include <X11/Xfuncproto.h>
+
+#include "include/dix.h"
+
 /* server setting: maximum size for big requests */
 #define MAX_BIG_REQUEST_SIZE 4194303
 extern long maxBigRequestSize;
+
+extern char dispatchExceptionAtReset;
+extern int terminateDelay;
+extern Bool touchEmulatePointer;
+
+extern HWEventQueuePtr checkForInput[2];
+
+static inline _X_NOTSAN Bool
+InputCheckPending(void)
+{
+    return (*checkForInput[0] != *checkForInput[1]);
+}
 
 void ClearWorkQueue(void);
 void ProcessWorkQueue(void);

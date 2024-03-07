@@ -103,8 +103,9 @@ __stdcall unsigned long GetTickCount(void);
 #endif
 #endif
 
+#include "dix/dix_priv.h"
+
 #include "dixstruct.h"
-#include "dix_priv.h"
 #include "xkbsrv.h"
 
 #include "picture.h"

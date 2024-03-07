@@ -72,11 +72,13 @@ SOFTWARE.
 #endif
 #include <X11/X.h>
 #include <X11/Xproto.h>
+
+#include "dix/dix_priv.h"
+
 #include "os.h"
 #include "osdep.h"
 #include "opaque.h"
 #include "dixstruct.h"
-#include "dix_priv.h"
 #include "misc.h"
 
 CallbackListPtr ReplyCallback;

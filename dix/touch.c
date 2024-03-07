@@ -28,6 +28,8 @@
 #include <dix-config.h>
 #endif
 
+#include "dix/dix_priv.h"
+
 #include "inputstr.h"
 #include "scrnintstr.h"
 #include "dixgrabs.h"

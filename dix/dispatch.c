@@ -101,6 +101,7 @@ Equipment Corporation.
 #include <version-config.h>
 #endif
 
+#include "dix/dix_priv.h"
 #include "dix/registry_priv.h"
 
 #include "windowstr.h"
@@ -110,7 +111,6 @@ Equipment Corporation.
 #include "dix/screenint_priv.h"
 
 #include "dixfontstr.h"
-#include "dix_priv.h"
 #include "gcstruct.h"
 #include "selection.h"
 #include "colormapst.h"

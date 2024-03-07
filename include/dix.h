@@ -145,25 +145,14 @@ typedef struct _WorkQueue *WorkQueuePtr;
 extern _X_EXPORT ClientPtr clients[MAXCLIENTS];
 extern _X_EXPORT ClientPtr serverClient;
 extern _X_EXPORT int currentMaxClients;
-extern _X_EXPORT char dispatchExceptionAtReset;
-extern _X_EXPORT int terminateDelay;
-extern _X_EXPORT Bool touchEmulatePointer;
-
-typedef int HWEventQueueType;
-typedef HWEventQueueType *HWEventQueuePtr;
-
-extern _X_EXPORT HWEventQueuePtr checkForInput[2];
-
-static inline _X_NOTSAN Bool
-InputCheckPending(void)
-{
-    return (*checkForInput[0] != *checkForInput[1]);
-}
 
 typedef struct _TimeStamp {
     CARD32 months;              /* really ~49.7 days */
     CARD32 milliseconds;
 } TimeStamp;
+
+typedef int HWEventQueueType;
+typedef HWEventQueueType *HWEventQueuePtr;
 
 /* dispatch.c */
 extern _X_EXPORT ClientPtr GetCurrentClient(void);
