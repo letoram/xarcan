@@ -24,9 +24,11 @@
 #include <dix-config.h>
 #endif
 
+#include "dix/dix_priv.h"
+#include "render/picturestr_priv.h"
+
 #include "xfixesint.h"
 #include "scrnintstr.h"
-#include "picturestr_priv.h"
 
 #include <regionstr.h>
 #include <gcstruct.h>

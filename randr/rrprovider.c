@@ -22,11 +22,14 @@
  *
  * Authors: Dave Airlie
  */
-
-#include "randrstr_priv.h"
-#include "swaprep.h"
+#include <dix-config.h>
 
 #include <X11/Xatom.h>
+
+#include "dix/dix_priv.h"
+#include "randr/randrstr_priv.h"
+
+#include "swaprep.h"
 
 RESTYPE RRProviderType = 0;
 

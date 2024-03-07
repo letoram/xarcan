@@ -52,10 +52,14 @@ Equipment Corporation.
 #include <dix-config.h>
 #endif
 
+#include <stddef.h>
 #include <X11/X.h>
 #include <X11/Xmd.h>
 #include <X11/Xproto.h>
+#include <X11/fonts/fontstruct.h>
+#include <X11/fonts/libxfont2.h>
 
+#include "dix/dix_priv.h"
 #include "dix/gc_priv.h"
 #include "os/auth.h"
 
@@ -69,7 +73,6 @@ Equipment Corporation.
 #include "closestr.h"
 #include "dixfont.h"
 #include "xace.h"
-#include <X11/fonts/libxfont2.h>
 
 #ifdef XF86BIGFONT
 #include "xf86bigfontsrv.h"

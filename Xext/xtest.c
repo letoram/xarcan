@@ -33,6 +33,12 @@
 #include <X11/X.h>
 #include <X11/Xproto.h>
 #include <X11/Xatom.h>
+#include <X11/extensions/xtestproto.h>
+#include <X11/extensions/XI.h>
+#include <X11/extensions/XIproto.h>
+
+#include "dix/dix_priv.h"
+
 #include "misc.h"
 #include "os.h"
 #include "dixstruct.h"
@@ -45,16 +51,12 @@
 #include "mi.h"
 #include "xkbsrv.h"
 #include "xkbstr.h"
-#include <X11/extensions/xtestproto.h>
-#include <X11/extensions/XI.h>
-#include <X11/extensions/XIproto.h>
 #include "exglobals.h"
 #include "mipointer.h"
 #include "xserver-properties.h"
 #include "exevents.h"
 #include "eventstr.h"
 #include "inpututils.h"
-
 #include "extinit.h"
 
 /* XTest events are sent during request processing and may be interrupted by

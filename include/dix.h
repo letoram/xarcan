@@ -101,20 +101,6 @@ SOFTWARE.
         }                                       \
     } while (0)
 
-#define VALIDATE_DRAWABLE_AND_GC(drawID, pDraw, mode)                   \
-    do {                                                                \
-        int tmprc = dixLookupDrawable(&(pDraw), drawID, client, M_ANY, mode); \
-        if (tmprc != Success)                                           \
-            return tmprc;                                               \
-        tmprc = dixLookupGC(&(pGC), stuff->gc, client, DixUseAccess);   \
-        if (tmprc != Success)                                           \
-            return tmprc;                                               \
-        if ((pGC->depth != pDraw->depth) || (pGC->pScreen != pDraw->pScreen)) \
-            return BadMatch;                                            \
-        if (pGC->serialNumber != pDraw->serialNumber)                   \
-            ValidateGC(pDraw, pGC);                                     \
-    } while (0)
-
 #define WriteReplyToClient(pClient, size, pReply)                       \
     do {                                                                \
         if ((pClient)->swapped)                                         \
@@ -188,16 +174,9 @@ extern _X_EXPORT int dixLookupDrawable(DrawablePtr *result,
                                        ClientPtr client,
                                        Mask type_mask, Mask access_mode);
 
-extern _X_EXPORT int dixLookupGC(GCPtr *result,
-                                 XID id, ClientPtr client, Mask access_mode);
-
 extern _X_EXPORT int dixLookupFontable(FontPtr *result,
                                        XID id,
                                        ClientPtr client, Mask access_mode);
-
-extern _X_EXPORT int dixLookupClient(ClientPtr *result,
-                                     XID id,
-                                     ClientPtr client, Mask access_mode);
 
 extern _X_EXPORT void NoopDDA(void);
 

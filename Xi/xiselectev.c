@@ -27,13 +27,15 @@
 #include <dix-config.h>
 #endif
 
+#include <X11/extensions/XI2proto.h>
+
+#include "dix/dix_priv.h"
+
 #include "dixstruct.h"
 #include "windowstr.h"
 #include "exglobals.h"
 #include "exevents.h"
-#include <X11/extensions/XI2proto.h>
 #include "inpututils.h"
-
 #include "xiselectev.h"
 
 /**

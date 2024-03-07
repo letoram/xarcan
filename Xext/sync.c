@@ -54,10 +54,14 @@ PERFORMANCE OF THIS SOFTWARE.
 #endif
 
 #include <string.h>
-
+#include <stdio.h>
 #include <X11/X.h>
 #include <X11/Xproto.h>
 #include <X11/Xmd.h>
+#include <X11/extensions/syncproto.h>
+
+#include "dix/dix_priv.h"
+
 #include "scrnintstr.h"
 #include "os.h"
 #include "extnsionst.h"
@@ -65,14 +69,12 @@ PERFORMANCE OF THIS SOFTWARE.
 #include "pixmapstr.h"
 #include "resource.h"
 #include "opaque.h"
-#include <X11/extensions/syncproto.h>
 #include "syncsrv.h"
 #include "syncsdk.h"
 #include "protocol-versions.h"
 #include "inputstr.h"
 #include "misync_priv.h"
 
-#include <stdio.h>
 #if !defined(WIN32)
 #include <sys/time.h>
 #endif

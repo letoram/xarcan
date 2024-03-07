@@ -39,6 +39,10 @@
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <X11/extensions/randr.h>
+#include <X11/extensions/Xv.h>
+
+#include "dix/dix_priv.h"
 
 #include "xf86.h"
 #include "xf86Priv.h"
@@ -48,7 +52,6 @@
 #include "mipointer.h"
 #include "mipointrst.h"
 #include "micmap.h"
-#include <X11/extensions/randr.h>
 #include "fb.h"
 #include "edid.h"
 #include "xf86i2c.h"
@@ -56,7 +59,6 @@
 #include "miscstruct.h"
 #include "dixstruct.h"
 #include "xf86xv.h"
-#include <X11/extensions/Xv.h>
 #include <xorg-config.h>
 #ifdef XSERVER_PLATFORM_BUS
 #include "xf86platformBus.h"

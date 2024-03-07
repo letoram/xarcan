@@ -17,6 +17,7 @@
 #include <X11/Xfuncproto.h>
 
 #include "include/dix.h"
+#include "include/gc.h"
 #include "include/window.h"
 
 /* server setting: maximum size for big requests */
@@ -52,5 +53,29 @@ Bool dixLookupBuiltinColor(int screen,
                            unsigned short *pblue);
 
 void DeleteWindowFromAnySaveSet(WindowPtr pWin);
+
+#define VALIDATE_DRAWABLE_AND_GC(drawID, pDraw, mode)                   \
+    do {                                                                \
+        int tmprc = dixLookupDrawable(&(pDraw), drawID, client, M_ANY, mode); \
+        if (tmprc != Success)                                           \
+            return tmprc;                                               \
+        tmprc = dixLookupGC(&(pGC), stuff->gc, client, DixUseAccess);   \
+        if (tmprc != Success)                                           \
+            return tmprc;                                               \
+        if ((pGC->depth != pDraw->depth) || (pGC->pScreen != pDraw->pScreen)) \
+            return BadMatch;                                            \
+        if (pGC->serialNumber != pDraw->serialNumber)                   \
+            ValidateGC(pDraw, pGC);                                     \
+    } while (0)
+
+int dixLookupGC(GCPtr *result,
+                XID id,
+                ClientPtr client,
+                Mask access_mode);
+
+int dixLookupClient(ClientPtr *result,
+                    XID id,
+                    ClientPtr client,
+                    Mask access_mode);
 
 #endif /* _XSERVER_DIX_PRIV_H */

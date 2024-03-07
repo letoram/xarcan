@@ -31,6 +31,11 @@ THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <stdio.h>
 #include <X11/X.h>
 #include <X11/Xproto.h>
+#include <X11/extensions/XI.h>
+#include <X11/extensions/XKMformat.h>
+
+#include "dix/dix_priv.h"
+
 #include "misc.h"
 #include "inputstr.h"
 #include <xkbsrv.h>
@@ -40,8 +45,6 @@ THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "xkb-procs.h"
 #include "protocol-versions.h"
 
-#include <X11/extensions/XI.h>
-#include <X11/extensions/XKMformat.h>
 
 int XkbEventBase;
 static int XkbErrorBase;

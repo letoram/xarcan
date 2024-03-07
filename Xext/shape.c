@@ -29,11 +29,11 @@ in this Software without prior written authorization from The Open Group.
 #endif
 
 #include <stdlib.h>
-
 #include <X11/X.h>
 #include <X11/Xproto.h>
 #include <X11/extensions/shapeproto.h>
 
+#include "dix/dix_priv.h"
 #include "dix/gc_priv.h"
 
 #include "misc.h"

@@ -25,6 +25,8 @@
 #include <dix-config.h>
 #endif
 
+#include "dix/dix_priv.h"
+
 #include "damageextint.h"
 #include "damagestr.h"
 #include "protocol-versions.h"

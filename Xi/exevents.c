@@ -82,16 +82,18 @@ SOFTWARE.
 #include <dix-config.h>
 #endif
 
-#include "inputstr.h"
 #include <X11/X.h>
 #include <X11/Xproto.h>
 #include <X11/extensions/XI.h>
 #include <X11/extensions/XIproto.h>
 #include <X11/extensions/XI2proto.h>
 #include <X11/extensions/geproto.h>
+#include <X11/extensions/XKBproto.h>
 
+#include "dix/dix_priv.h"
 #include "dix/eventconvert.h"
 
+#include "inputstr.h"
 #include "windowstr.h"
 #include "miscstruct.h"
 #include "region.h"
@@ -108,8 +110,6 @@ SOFTWARE.
 #include "eventstr.h"
 #include "inpututils.h"
 #include "mi.h"
-
-#include <X11/extensions/XKBproto.h>
 #include "xkbsrv.h"
 
 #define WID(w) ((w) ? ((w)->drawable.id) : 0)

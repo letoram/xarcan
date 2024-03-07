@@ -96,6 +96,8 @@ in this Software without prior written authorization from The Open Group.
 #include "panoramiXsrv.h"
 #endif
 
+#include "dix/dix_priv.h"
+
 #include "extinit.h"
 
 typedef struct _ShmScrPrivateRec {

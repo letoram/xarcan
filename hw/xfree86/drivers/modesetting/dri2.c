@@ -39,6 +39,8 @@
 #include <errno.h>
 #include <time.h>
 
+#include "dix/dix_priv.h"
+
 #include "list.h"
 #include "xf86.h"
 #include "driver.h"

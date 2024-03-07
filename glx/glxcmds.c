@@ -34,10 +34,12 @@
 
 #include <string.h>
 #include <assert.h>
-
-#include "glxserver.h"
 #include <GL/glxtokens.h>
 #include <X11/extensions/presenttokens.h>
+
+#include "dix/dix_priv.h"
+
+#include "glxserver.h"
 #include <unpack.h>
 #include <pixmapstr.h>
 #include <windowstr.h>

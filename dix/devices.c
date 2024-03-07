@@ -49,13 +49,14 @@ SOFTWARE.
 #endif
 
 #include <X11/X.h>
+#include <X11/Xproto.h>
+#include <X11/Xatom.h>
 
+#include "dix/dix_priv.h"
 #include "dix/ptrveloc_priv.h"
 
 #include "misc.h"
 #include "resource.h"
-#include <X11/Xproto.h>
-#include <X11/Xatom.h>
 #include "windowstr.h"
 #include "inputstr.h"
 #include "scrnintstr.h"
