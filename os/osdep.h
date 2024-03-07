@@ -144,4 +144,6 @@ static inline void uname(struct utsname *uts) {
 }
 #endif /* WIN32 */
 
+void AutoResetServer(int sig);
+
 #endif                          /* _OSDEP_H_ */

@@ -198,8 +198,6 @@ extern _X_EXPORT void TimerFree(OsTimerPtr /* pTimer */ );
 extern _X_EXPORT void SetScreenSaverTimer(void);
 extern _X_EXPORT void FreeScreenSaverTimer(void);
 
-extern _X_EXPORT void AutoResetServer(int /*sig */ );
-
 extern _X_EXPORT void GiveUp(int /*sig */ );
 
 extern _X_EXPORT void UseMsg(void);
