@@ -211,8 +211,6 @@ extern _X_EXPORT int AlterSaveSetForClient(ClientPtr /*client */ ,
                                            Bool /*toRoot */ ,
                                            Bool /*map */ );
 
-extern _X_EXPORT void DeleteWindowFromAnySaveSet(WindowPtr /*pWin */ );
-
 extern _X_EXPORT void BlockHandler(void *timeout);
 
 extern _X_EXPORT void WakeupHandler(int result);

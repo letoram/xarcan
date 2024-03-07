@@ -100,6 +100,7 @@ Equipment Corporation.
 #include <dix-config.h>
 #endif
 
+#include "dix/dix_priv.h"
 #include "os/auth.h"
 
 #include "misc.h"

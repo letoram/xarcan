@@ -17,6 +17,7 @@
 #include <X11/Xfuncproto.h>
 
 #include "include/dix.h"
+#include "include/window.h"
 
 /* server setting: maximum size for big requests */
 #define MAX_BIG_REQUEST_SIZE 4194303
@@ -48,5 +49,7 @@ Bool dixLookupBuiltinColor(int screen,
                            unsigned short *pred,
                            unsigned short *pgreen,
                            unsigned short *pblue);
+
+void DeleteWindowFromAnySaveSet(WindowPtr pWin);
 
 #endif /* _XSERVER_DIX_PRIV_H */
