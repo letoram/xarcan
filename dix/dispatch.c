@@ -110,7 +110,6 @@ Equipment Corporation.
 #include "dix/registry_priv.h"
 #include "dix/screenint_priv.h"
 #include "os/auth.h"
-#include "os/osdep.h"
 
 #include "windowstr.h"
 #include "dixfontstr.h"
@@ -2655,7 +2654,7 @@ ProcAllocNamedColor(ClientPtr client)
             .sequenceNumber = client->sequence,
             .length = 0
         };
-        if (OsLookupColor
+        if (dixLookupBuiltinColor
             (pcmp->pScreen->myNum, (char *) &stuff[1], stuff->nbytes,
              &ancr.exactRed, &ancr.exactGreen, &ancr.exactBlue)) {
             ancr.screenRed = ancr.exactRed;
@@ -2872,8 +2871,12 @@ ProcStoreNamedColor(ClientPtr client)
     if (rc == Success) {
         xColorItem def;
 
-        if (OsLookupColor(pcmp->pScreen->myNum, (char *) &stuff[1],
-                          stuff->nbytes, &def.red, &def.green, &def.blue)) {
+        if (dixLookupBuiltinColor(pcmp->pScreen->myNum,
+                                  (char *) &stuff[1],
+                                  stuff->nbytes,
+                                  &def.red,
+                                  &def.green,
+                                  &def.blue)) {
             def.flags = stuff->flags;
             def.pixel = stuff->pixel;
             return StoreColors(pcmp, 1, &def, client);
@@ -2947,9 +2950,12 @@ ProcLookupColor(ClientPtr client)
     if (rc == Success) {
         CARD16 exactRed, exactGreen, exactBlue;
 
-        if (OsLookupColor
-            (pcmp->pScreen->myNum, (char *) &stuff[1], stuff->nbytes,
-             &exactRed, &exactGreen, &exactBlue)) {
+        if (dixLookupBuiltinColor(pcmp->pScreen->myNum,
+                                  (char *) &stuff[1],
+                                  stuff->nbytes,
+                                  &exactRed,
+                                  &exactGreen,
+                                  &exactBlue)) {
             xLookupColorReply lcr = {
                 .type = X_Reply,
                 .sequenceNumber = client->sequence,

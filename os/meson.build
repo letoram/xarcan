@@ -10,7 +10,6 @@ srcs_os = [
     'inputthread.c',
     'io.c',
     'mitauth.c',
-    'oscolor.c',
     'osinit.c',
     'ospoll.c',
     'string.c',

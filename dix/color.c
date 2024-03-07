@@ -50,10 +50,8 @@ SOFTWARE.
 
 #include <X11/keysym.h>
 
-#include "os/osdep.h"
-
-#include "dix.h"
-#include "os.h"
+#include "dix/dix_priv.h"
+#include "include/dix.h"
 
 typedef struct _builtinColor {
     unsigned char red;
@@ -849,11 +847,12 @@ static const BuiltinColor BuiltinColors[] = {
 };
 
 Bool
-OsLookupColor(int screen,
-              char *name,
-              unsigned int len,
-              unsigned short *pred,
-              unsigned short *pgreen, unsigned short *pblue)
+dixLookupBuiltinColor(int screen,
+                      char *name,
+                      unsigned int len,
+                      unsigned short *pred,
+                      unsigned short *pgreen,
+                      unsigned short *pblue)
 {
     int low = 0;
     int high = ARRAY_SIZE(BuiltinColors) - 1;

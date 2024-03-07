@@ -166,14 +166,6 @@ void AutoResetServer(int sig);
 /* clone fd so it gets out of our select mask */
 int os_move_fd(int fd);
 
-/* lookup builtin color by name */
-Bool OsLookupColor(int screen,
-                   char *name,
-                   unsigned len,
-                   unsigned short *pred,
-                   unsigned short *pgreen,
-                   unsigned short *pblue);
-
 /* set signal mask - either on current thread or whole process,
    depending on whether multithreading is used */
 int xthread_sigmask(int how, const sigset_t *set, sigset_t *oldest);
