@@ -49,6 +49,9 @@ SOFTWARE.
 #endif
 
 #include <X11/keysym.h>
+
+#include "os/osdep.h"
+
 #include "dix.h"
 #include "os.h"
 

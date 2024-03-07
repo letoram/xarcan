@@ -283,14 +283,6 @@ LockServer(void);
 extern _X_EXPORT void
 UnlockServer(void);
 
-extern _X_EXPORT Bool
-OsLookupColor(int /*screen */ ,
-              char * /*name */ ,
-              unsigned /*len */ ,
-              unsigned short * /*pred */ ,
-              unsigned short * /*pgreen */ ,
-              unsigned short * /*pblue */ );
-
 extern _X_EXPORT void
 OsInit(void);
 
