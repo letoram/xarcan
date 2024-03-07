@@ -185,11 +185,6 @@ extern _X_HIDDEN Bool CreateConnectionBlock(void);
 
 /* dixutils.c */
 
-extern _X_EXPORT int CompareISOLatin1Lowered(const unsigned char * /*a */ ,
-                                             int alen,
-                                             const unsigned char * /*b */ ,
-                                             int blen);
-
 extern _X_EXPORT int dixLookupWindow(WindowPtr *result,
                                      XID id,
                                      ClientPtr client, Mask access_mode);
