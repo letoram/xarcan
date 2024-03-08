@@ -202,19 +202,19 @@ static void setArcanMask(KdScreenInfo* screen)
 static void updateXftDpi(arcanScrPriv* ascr)
 {
     char buf[64];
-	  snprintf(buf, 64, "Xft.dpi:\t%.0f\n", arcan_init->density * 2.54);
+    snprintf(buf, 64, "Xft.dpi:\t%.0f\n", arcan_init->density * 2.54);
 
     dixChangeWindowProperty(
         serverClient,
         ascr->screen->root,
-	      XA_RESOURCE_MANAGER,
-				XA_STRING,
-				8,
-				PropModeReplace,
-				strlen(buf) + 1,
-				(void*) buf,
-				false
-		);
+        XA_RESOURCE_MANAGER,
+        XA_STRING,
+        8,
+        PropModeReplace,
+        strlen(buf) + 1,
+        (void*) buf,
+        false
+    );
 }
 
 static void setGlamorMask(KdScreenInfo* screen)
@@ -312,7 +312,19 @@ static DrawablePtr arcanDrawableInterposeSrcDst(ClientPtr cl, DrawablePtr src, D
 /* blocking this entirely will break clients that have other scratch surfaces,
  * the only real interpositioning we can do is when src comes from a protected
  * surface and maybe when dst is in an XSHM pixmap, but it doesn't have a
- * distinguishing type (just shmdesc->addr + offset) */
+ * distinguishing type (just shmdesc->addr + offset) -
+ *
+ * For 'working' interpose then we would need to:
+ *
+ *   a. have a proxy drawable (that we get from PixmapFromSHMIF)
+ *      that should be fairly easy, extract the windowpriv even if that is root.
+ *
+ *   b. Implement damage tracking for the interposition surface.
+ *      It seems like XFixes ties a Region to the Client as a RegionResType.
+ *      If so, we can then use the STEPFRAME event for them output segment
+ *      and map its dirty region into that.
+ *
+ */
     return src;
 }
 
@@ -1766,6 +1778,9 @@ handleNewSegment(struct arcan_shmif_cont *C, arcanScrPriv *S, int kind, bool out
         *clip = arcan_shmif_acquire(C, NULL, kind, SHMIF_DISABLE_GUARD);
         cmdClipboardWindow(clip, kind == SEGID_CLIPBOARD_PASTE);
     }
+
+/* allocate the cursor and set its initial state to still use the system default with the
+ * custom drawn cursor disabled until we get a setcursor call that would toggle it. */
     else if (kind == SEGID_CURSOR){
         if (S->cursor){
             arcan_shmif_drop(S->cursor);
@@ -1774,7 +1789,16 @@ handleNewSegment(struct arcan_shmif_cont *C, arcanScrPriv *S, int kind, bool out
         S->cursor = malloc(sizeof(struct arcan_shmif_cont));
         if (S->cursor){
             *(S->cursor) = arcan_shmif_acquire(C, NULL, SEGID_CURSOR, SHMIF_DISABLE_GUARD);
-        }
+
+            arcan_shmif_enqueue(S->cursor, &(arcan_event){
+                 .ext.kind = ARCAN_EVENT(CURSORHINT),
+                 .ext.message.data = "default"
+            });
+
+            S->cursor_event.ext.kind = ARCAN_EVENT(VIEWPORT);
+            S->cursor_event.ext.viewport.invisible = true;
+            arcan_shmif_enqueue(S->cursor, &S->cursor_event);
+         }
     }
 
 /* Someone has explicitly told us to redirect a single window tree. This is
@@ -1882,6 +1906,7 @@ static Bool arcanDestroyPixmap(PixmapPtr pixmap)
             trace("destroyPixmap:backing=shmif:window=%"PRIxPTR, (uintptr_t) contpriv->window);
             contpriv->pixmap = NULL;
             contpriv->bound = false;
+            contpriv->dying = 0;
         }
         else
             ErrorF("destroyPixmap:backing=no");
@@ -2111,6 +2136,7 @@ arcanEventDispatch(struct arcan_shmif_cont* con, arcanScrPriv* ascr, arcan_event
         break;
 /* swap-out monitored FD */
         case 3:
+            trace("parent_crash_recover");
             input_unlock();
                InputThreadUnregisterDev(con->epipe);
                InputThreadRegisterDev(con->epipe, arcanFlushEvents, con);
@@ -3454,7 +3480,7 @@ arcanFlushRedirectedEvents(int fd, int mask, void *tag)
         case TARGET_COMMAND_EXIT:
             trace("segmentDropped");
         case TARGET_COMMAND_RESET:{
-            trace("segmentReset");
+            trace("segmentReset:level=%d", ev.tgt.ioevs[0].iv);
 
             if (windowSupportsProtocol(P->window, wm_atoms.WM_DELETE_WINDOW)){
 #ifdef DEBUG
@@ -3527,7 +3553,11 @@ arcanScreenBlockHandler(ScreenPtr pScreen, void* timeout)
 
 /* dying yet the client hasn't acknowledged it? */
           if (P->dying){
-              trace("signal on dying");
+              if (arcan_timemillis() - P->dying > 5000){
+                  trace("force-kill:%d", P->window->drawable.id);
+                  CloseDownClient(wClient(P->window));
+                  P->dying = 0;
+              }
               continue;
           }
 
