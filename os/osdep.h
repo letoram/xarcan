@@ -191,4 +191,6 @@ void OsAbort(void) _X_NORETURN;
 void MakeClientGrabPervious(ClientPtr client);
 void MakeClientGrabImpervious(ClientPtr client);
 
+int OnlyListenToOneClient(ClientPtr client);
+
 #endif                          /* _OSDEP_H_ */

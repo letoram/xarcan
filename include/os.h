@@ -147,8 +147,6 @@ static inline void RemoveNotifyFd(int fd)
     (void) SetNotifyFd(fd, NULL, X_NOTIFY_NONE, NULL);
 }
 
-extern _X_EXPORT int OnlyListenToOneClient(ClientPtr /*client */ );
-
 extern _X_EXPORT void ListenToAllClients(void);
 
 extern _X_EXPORT void IgnoreClient(ClientPtr /*client */ );
