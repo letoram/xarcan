@@ -160,8 +160,6 @@ extern _X_EXPORT ClientPtr GetCurrentClient(void);
 extern _X_EXPORT void SetInputCheck(HWEventQueuePtr /*c0 */ ,
                                     HWEventQueuePtr /*c1 */ );
 
-extern _X_EXPORT void CloseDownClient(ClientPtr /*client */ );
-
 extern _X_EXPORT void UpdateCurrentTime(void);
 
 extern _X_EXPORT void UpdateCurrentTimeIf(void);

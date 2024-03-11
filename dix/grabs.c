@@ -53,6 +53,9 @@ SOFTWARE.
 #include "misc.h"
 #include <X11/Xproto.h>
 #include <X11/extensions/XI2.h>
+
+#include "dix/dix_priv.h"
+
 #include "windowstr.h"
 #include "inputstr.h"
 #include "cursorstr.h"

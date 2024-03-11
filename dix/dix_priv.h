@@ -36,4 +36,6 @@ void ClearWorkQueue(void);
 void ProcessWorkQueue(void);
 void ProcessWorkQueueZombies(void);
 
+void CloseDownClient(ClientPtr client);
+
 #endif /* _XSERVER_DIX_PRIV_H */

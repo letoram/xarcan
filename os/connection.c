@@ -97,6 +97,9 @@ SOFTWARE.
 #include <sys/uio.h>
 
 #endif                          /* WIN32 */
+
+#include "dix/dix_priv.h"
+
 #include "misc.h"               /* for typedef of pointer */
 #include "osdep.h"
 #include "opaque.h"
