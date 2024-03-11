@@ -38,6 +38,7 @@
 #include <X11/extensions/XIproto.h>
 
 #include "dix/dix_priv.h"
+#include "os/osdep.h"
 
 #include "misc.h"
 #include "os.h"

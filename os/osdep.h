@@ -188,4 +188,7 @@ void OsReleaseSignals(void);
 void OsResetSignals(void);
 void OsAbort(void) _X_NORETURN;
 
+void MakeClientGrabPervious(ClientPtr client);
+void MakeClientGrabImpervious(ClientPtr client);
+
 #endif                          /* _OSDEP_H_ */

@@ -155,10 +155,6 @@ extern _X_EXPORT void IgnoreClient(ClientPtr /*client */ );
 
 extern _X_EXPORT void AttendClient(ClientPtr /*client */ );
 
-extern _X_EXPORT void MakeClientGrabImpervious(ClientPtr /*client */ );
-
-extern _X_EXPORT void MakeClientGrabPervious(ClientPtr /*client */ );
-
 extern _X_EXPORT void ListenOnOpenFD(int /* fd */ , int /* noxauth */ );
 
 extern _X_EXPORT Bool AddClientOnOpenFD(int /* fd */ );
