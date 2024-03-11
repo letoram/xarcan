@@ -299,7 +299,7 @@ GetPixmapBytes(void *value, XID id, ResourceSizePtr size)
 static void
 GetWindowBytes(void *value, XID id, ResourceSizePtr size)
 {
-    SizeType pixmapSizeFunc = GetResourceTypeSizeFunc(RT_PIXMAP);
+    SizeType pixmapSizeFunc = GetResourceTypeSizeFunc(X11_RESTYPE_PIXMAP);
     ResourceSizeRec pixmapSize = { 0, 0, 0 };
     WindowPtr window = value;
 
@@ -348,12 +348,12 @@ FindWindowSubRes(void *value, FindAllRes func, void *cdata)
     if (window->backgroundState == BackgroundPixmap)
     {
         PixmapPtr pixmap = window->background.pixmap;
-        func(window->background.pixmap, pixmap->drawable.id, RT_PIXMAP, cdata);
+        func(window->background.pixmap, pixmap->drawable.id, X11_RESTYPE_PIXMAP, cdata);
     }
     if (window->border.pixmap && !window->borderIsPixel)
     {
         PixmapPtr pixmap = window->border.pixmap;
-        func(window->background.pixmap, pixmap->drawable.id, RT_PIXMAP, cdata);
+        func(window->background.pixmap, pixmap->drawable.id, X11_RESTYPE_PIXMAP, cdata);
     }
 }
 
@@ -372,7 +372,7 @@ FindWindowSubRes(void *value, FindAllRes func, void *cdata)
 static void
 GetGcBytes(void *value, XID id, ResourceSizePtr size)
 {
-    SizeType pixmapSizeFunc = GetResourceTypeSizeFunc(RT_PIXMAP);
+    SizeType pixmapSizeFunc = GetResourceTypeSizeFunc(X11_RESTYPE_PIXMAP);
     ResourceSizeRec pixmapSize = { 0, 0, 0 };
     GCPtr gc = value;
 
@@ -420,12 +420,12 @@ FindGCSubRes(void *value, FindAllRes func, void *cdata)
     if (gc->stipple)
     {
         PixmapPtr pixmap = gc->stipple;
-        func(pixmap, pixmap->drawable.id, RT_PIXMAP, cdata);
+        func(pixmap, pixmap->drawable.id, X11_RESTYPE_PIXMAP, cdata);
     }
     if (gc->tile.pixmap && !gc->tileIsPixel)
     {
         PixmapPtr pixmap = gc->tile.pixmap;
-        func(pixmap, pixmap->drawable.id, RT_PIXMAP, cdata);
+        func(pixmap, pixmap->drawable.id, X11_RESTYPE_PIXMAP, cdata);
     }
 }
 
@@ -438,19 +438,19 @@ static const struct ResourceType predefTypes[] = {
                                        .findSubResFunc = DefaultFindSubRes,
                                        .errorValue = BadValue,
                                        },
-    [RT_WINDOW & (RC_LASTPREDEF - 1)] = {
+    [X11_RESTYPE_WINDOW & (RC_LASTPREDEF - 1)] = {
                                          .deleteFunc = DeleteWindow,
                                          .sizeFunc = GetWindowBytes,
                                          .findSubResFunc = FindWindowSubRes,
                                          .errorValue = BadWindow,
                                          },
-    [RT_PIXMAP & (RC_LASTPREDEF - 1)] = {
+    [X11_RESTYPE_PIXMAP & (RC_LASTPREDEF - 1)] = {
                                          .deleteFunc = dixDestroyPixmap,
                                          .sizeFunc = GetPixmapBytes,
                                          .findSubResFunc = DefaultFindSubRes,
                                          .errorValue = BadPixmap,
                                          },
-    [RT_GC & (RC_LASTPREDEF - 1)] = {
+    [X11_RESTYPE_GC & (RC_LASTPREDEF - 1)] = {
                                      .deleteFunc = FreeGC,
                                      .sizeFunc = GetGcBytes,
                                      .findSubResFunc = FindGCSubRes,
@@ -468,25 +468,25 @@ static const struct ResourceType predefTypes[] = {
                                          .findSubResFunc = DefaultFindSubRes,
                                          .errorValue = BadCursor,
                                          },
-    [RT_COLORMAP & (RC_LASTPREDEF - 1)] = {
+    [X11_RESTYPE_COLORMAP & (RC_LASTPREDEF - 1)] = {
                                            .deleteFunc = FreeColormap,
                                            .sizeFunc = GetDefaultBytes,
                                            .findSubResFunc = DefaultFindSubRes,
                                            .errorValue = BadColor,
                                            },
-    [RT_CMAPENTRY & (RC_LASTPREDEF - 1)] = {
+    [X11_RESTYPE_CMAPENTRY & (RC_LASTPREDEF - 1)] = {
                                             .deleteFunc = FreeClientPixels,
                                             .sizeFunc = GetDefaultBytes,
                                             .findSubResFunc = DefaultFindSubRes,
                                             .errorValue = BadColor,
                                             },
-    [RT_OTHERCLIENT & (RC_LASTPREDEF - 1)] = {
+    [X11_RESTYPE_OTHERCLIENT & (RC_LASTPREDEF - 1)] = {
                                               .deleteFunc = OtherClientGone,
                                               .sizeFunc = GetDefaultBytes,
                                               .findSubResFunc = DefaultFindSubRes,
                                               .errorValue = BadValue,
                                               },
-    [RT_PASSIVEGRAB & (RC_LASTPREDEF - 1)] = {
+    [X11_RESTYPE_PASSIVEGRAB & (RC_LASTPREDEF - 1)] = {
                                               .deleteFunc = DeletePassiveGrab,
                                               .sizeFunc = GetDefaultBytes,
                                               .findSubResFunc = DefaultFindSubRes,
@@ -552,7 +552,7 @@ GetResourceTypeSizeFunc(RESTYPE type)
  * Override the default function that calculates resource size. For
  * example, video driver knows better how to calculate pixmap memory
  * usage and can therefore wrap or override size calculation for
- * RT_PIXMAP.
+ * X11_RESTYPE_PIXMAP.
  *
  * @param[in] type     Resource type used in size calculations.
  *
@@ -646,7 +646,7 @@ InitClientResources(ClientPtr client)
     int i, j;
 
     if (client == serverClient) {
-        lastResourceType = RT_LASTPREDEF;
+        lastResourceType = X11_RESTYPE_LASTPREDEF;
         lastResourceClass = RC_LASTPREDEF;
         TypeMask = RC_LASTPREDEF - 1;
         free(resourceTypes);

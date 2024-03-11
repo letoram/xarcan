@@ -800,7 +800,7 @@ TouchAddRegularListener(DeviceIntPtr dev, TouchPointInfoPtr ti,
         /* window owner */
         if (IsMaster(dev) && (win->eventMask & core_filter)) {
             TouchEventHistoryAllocate(ti);
-            TouchAddListener(ti, win->drawable.id, RT_WINDOW, CORE,
+            TouchAddListener(ti, win->drawable.id, X11_RESTYPE_WINDOW, CORE,
                              TOUCH_LISTENER_POINTER_REGULAR,
                              TOUCH_LISTENER_AWAITING_BEGIN,
                              win, NULL);
@@ -813,7 +813,7 @@ TouchAddRegularListener(DeviceIntPtr dev, TouchPointInfoPtr ti,
                 continue;
 
             TouchEventHistoryAllocate(ti);
-            TouchAddListener(ti, oclients->resource, RT_OTHERCLIENT, CORE,
+            TouchAddListener(ti, oclients->resource, X11_RESTYPE_OTHERCLIENT, CORE,
                              type, TOUCH_LISTENER_AWAITING_BEGIN, win, NULL);
             return TRUE;
         }

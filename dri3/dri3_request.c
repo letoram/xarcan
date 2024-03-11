@@ -238,14 +238,14 @@ proc_dri3_pixmap_from_buffer(ClientPtr client)
     pixmap->drawable.id = stuff->pixmap;
 
     /* security creation/labeling check */
-    rc = XaceHook(XACE_RESOURCE_ACCESS, client, stuff->pixmap, RT_PIXMAP,
+    rc = XaceHook(XACE_RESOURCE_ACCESS, client, stuff->pixmap, X11_RESTYPE_PIXMAP,
                   pixmap, X11_RESTYPE_NONE, NULL, DixCreateAccess);
 
     if (rc != Success) {
         (*drawable->pScreen->DestroyPixmap) (pixmap);
         return rc;
     }
-    if (!AddResource(stuff->pixmap, RT_PIXMAP, (void *) pixmap))
+    if (!AddResource(stuff->pixmap, X11_RESTYPE_PIXMAP, (void *) pixmap))
         return BadAlloc;
 
     return Success;
@@ -266,7 +266,7 @@ proc_dri3_buffer_from_pixmap(ClientPtr client)
     PixmapPtr pixmap;
 
     REQUEST_SIZE_MATCH(xDRI3BufferFromPixmapReq);
-    rc = dixLookupResourceByType((void **) &pixmap, stuff->pixmap, RT_PIXMAP,
+    rc = dixLookupResourceByType((void **) &pixmap, stuff->pixmap, X11_RESTYPE_PIXMAP,
                                  client, DixWriteAccess);
     if (rc != Success) {
         client->errorValue = stuff->pixmap;
@@ -502,14 +502,14 @@ proc_dri3_pixmap_from_buffers(ClientPtr client)
     pixmap->drawable.id = stuff->pixmap;
 
     /* security creation/labeling check */
-    rc = XaceHook(XACE_RESOURCE_ACCESS, client, stuff->pixmap, RT_PIXMAP,
+    rc = XaceHook(XACE_RESOURCE_ACCESS, client, stuff->pixmap, X11_RESTYPE_PIXMAP,
                   pixmap, X11_RESTYPE_NONE, NULL, DixCreateAccess);
 
     if (rc != Success) {
         (*screen->DestroyPixmap) (pixmap);
         return rc;
     }
-    if (!AddResource(stuff->pixmap, RT_PIXMAP, (void *) pixmap))
+    if (!AddResource(stuff->pixmap, X11_RESTYPE_PIXMAP, (void *) pixmap))
         return BadAlloc;
 
     return Success;
@@ -532,7 +532,7 @@ proc_dri3_buffers_from_pixmap(ClientPtr client)
     PixmapPtr pixmap;
 
     REQUEST_SIZE_MATCH(xDRI3BuffersFromPixmapReq);
-    rc = dixLookupResourceByType((void **) &pixmap, stuff->pixmap, RT_PIXMAP,
+    rc = dixLookupResourceByType((void **) &pixmap, stuff->pixmap, X11_RESTYPE_PIXMAP,
                                  client, DixWriteAccess);
     if (rc != Success) {
         client->errorValue = stuff->pixmap;

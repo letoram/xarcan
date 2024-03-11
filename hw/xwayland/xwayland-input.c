@@ -1592,7 +1592,7 @@ xwl_keyboard_search_window(ClientPtr client)
 {
     WindowPtr window = NullWindow;
 
-    FindClientResourcesByType(client, RT_WINDOW, find_toplevel_callback, &window);
+    FindClientResourcesByType(client, X11_RESTYPE_WINDOW, find_toplevel_callback, &window);
 
     return window;
 }

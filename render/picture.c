@@ -422,7 +422,7 @@ PictureInitIndexedFormat(ScreenPtr pScreen, PictFormatPtr format)
 
     if (format->index.vid == pScreen->rootVisual) {
         dixLookupResourceByType((void **) &format->index.pColormap,
-                                pScreen->defColormap, RT_COLORMAP,
+                                pScreen->defColormap, X11_RESTYPE_COLORMAP,
                                 serverClient, DixGetAttrAccess);
     }
     else {
@@ -590,7 +590,7 @@ GetPictureBytes(void *value, XID id, ResourceSizePtr size)
     size->pixmapRefSize = 0;
     if (picture->pDrawable && (picture->pDrawable->type == DRAWABLE_PIXMAP))
     {
-        SizeType pixmapSizeFunc = GetResourceTypeSizeFunc(RT_PIXMAP);
+        SizeType pixmapSizeFunc = GetResourceTypeSizeFunc(X11_RESTYPE_PIXMAP);
         ResourceSizeRec pixmapSize = { 0, 0, 0 };
         PixmapPtr pixmap = (PixmapPtr)picture->pDrawable;
         pixmapSizeFunc(pixmap, pixmap->drawable.id, &pixmapSize);
@@ -761,7 +761,7 @@ CreatePicture(Picture pid,
 
     /* security creation/labeling check */
     *error = XaceHook(XACE_RESOURCE_ACCESS, client, pid, PictureType, pPicture,
-                      RT_PIXMAP, pDrawable, DixCreateAccess | DixSetAttrAccess);
+                      X11_RESTYPE_PIXMAP, pDrawable, DixCreateAccess | DixSetAttrAccess);
     if (*error != Success)
         goto out;
 
@@ -1028,7 +1028,7 @@ cpClipMask(void **result, XID id, ScreenPtr screen, ClientPtr client, Mask mode)
         id = res->info[screen->myNum].id;
     }
 #endif
-    return dixLookupResourceByType(result, id, RT_PIXMAP, client, mode);
+    return dixLookupResourceByType(result, id, X11_RESTYPE_PIXMAP, client, mode);
 }
 
 #define NEXT_VAL(_type) (vlist ? (_type) *vlist++ : (_type) ulist++->val)

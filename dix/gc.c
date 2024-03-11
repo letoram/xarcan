@@ -423,10 +423,10 @@ static const struct {
     RESTYPE type;
     Mask access_mode;
 } xidfields[] = {
-    {GCTile, RT_PIXMAP, DixReadAccess},
-    {GCStipple, RT_PIXMAP, DixReadAccess},
-    {GCFont, X11_RESTYPE_FONT, DixUseAccess},
-    {GCClipMask, RT_PIXMAP, DixReadAccess},
+    {GCTile,     X11_RESTYPE_PIXMAP, DixReadAccess},
+    {GCStipple,  X11_RESTYPE_PIXMAP, DixReadAccess},
+    {GCFont,     X11_RESTYPE_FONT,   DixUseAccess},
+    {GCClipMask, X11_RESTYPE_PIXMAP, DixReadAccess},
 };
 
 int
@@ -549,7 +549,7 @@ CreateGC(DrawablePtr pDrawable, BITS32 mask, XID *pval, int *pStatus,
     }
 
     /* security creation/labeling check */
-    *pStatus = XaceHook(XACE_RESOURCE_ACCESS, client, gcid, RT_GC, pGC,
+    *pStatus = XaceHook(XACE_RESOURCE_ACCESS, client, gcid, X11_RESTYPE_GC, pGC,
                         X11_RESTYPE_NONE, NULL, DixCreateAccess | DixSetAttrAccess);
     if (*pStatus != Success)
         goto out;

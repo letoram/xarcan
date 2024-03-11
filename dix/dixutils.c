@@ -197,7 +197,7 @@ dixLookupWindow(WindowPtr *pWin, XID id, ClientPtr client, Mask access)
 int
 dixLookupGC(GCPtr *pGC, XID id, ClientPtr client, Mask access)
 {
-    return dixLookupResourceByType((void **) pGC, id, RT_GC, client, access);
+    return dixLookupResourceByType((void **) pGC, id, X11_RESTYPE_GC, client, access);
 }
 
 int
@@ -211,7 +211,7 @@ dixLookupFontable(FontPtr *pFont, XID id, ClientPtr client, Mask access)
                                  access);
     if (rc != BadFont)
         return rc;
-    rc = dixLookupResourceByType((void **) &pGC, id, RT_GC, client, access);
+    rc = dixLookupResourceByType((void **) &pGC, id, X11_RESTYPE_GC, client, access);
     if (rc == BadGC)
         return BadFont;
     if (rc == Success)

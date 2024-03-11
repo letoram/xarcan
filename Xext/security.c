@@ -751,12 +751,12 @@ SecurityResource(CallbackListPtr *pcbl, void *unused, void *calldata)
     subj = dixLookupPrivate(&rec->client->devPrivates, stateKey);
 
     /* disable background None for untrusted windows */
-    if ((requested & DixCreateAccess) && (rec->rtype == RT_WINDOW))
+    if ((requested & DixCreateAccess) && (rec->rtype == X11_RESTYPE_WINDOW))
         if (subj->haveState && subj->trustLevel != XSecurityClientTrusted)
             ((WindowPtr) rec->res)->forcedBG = TRUE;
 
     /* additional permissions for specific resource types */
-    if (rec->rtype == RT_WINDOW)
+    if (rec->rtype == X11_RESTYPE_WINDOW)
         allowed |= SecurityWindowExtraMask;
 
     /* special checks for server-owned resources */
@@ -765,7 +765,7 @@ SecurityResource(CallbackListPtr *pcbl, void *unused, void *calldata)
             /* additional operations allowed on root windows */
             allowed |= SecurityRootWindowExtraMask;
 
-        else if (rec->rtype == RT_COLORMAP)
+        else if (rec->rtype == X11_RESTYPE_COLORMAP)
             /* allow access to default colormaps */
             allowed = requested;
 

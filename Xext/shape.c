@@ -365,7 +365,7 @@ ProcShapeMask(ClientPtr client)
         srcRgn = 0;
     else {
         rc = dixLookupResourceByType((void **) &pPixmap, stuff->src,
-                                     RT_PIXMAP, client, DixReadAccess);
+                                     X11_RESTYPE_PIXMAP, client, DixReadAccess);
         if (rc != Success)
             return rc;
         if (pPixmap->drawable.pScreen != pScreen ||

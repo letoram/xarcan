@@ -478,7 +478,7 @@ PanoramiXConfigureWindow(ClientPtr client)
 
     /* because we need the parent */
     result = dixLookupResourceByType((void **) &pWin, stuff->window,
-                                     RT_WINDOW, client, DixWriteAccess);
+                                     X11_RESTYPE_WINDOW, client, DixWriteAccess);
     if (result != Success)
         return result;
 

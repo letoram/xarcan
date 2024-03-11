@@ -219,7 +219,7 @@ xf86HandleColormaps(ScreenPtr pScreen,
 
     /* get the default map */
     dixLookupResourceByType((void **) &pDefMap, pScreen->defColormap,
-                            RT_COLORMAP, serverClient, DixInstallAccess);
+                            X11_RESTYPE_COLORMAP, serverClient, DixInstallAccess);
 
     if (!CMapAllocateColormapPrivate(pDefMap)) {
         CMapUnwrapScreen(pScreen);

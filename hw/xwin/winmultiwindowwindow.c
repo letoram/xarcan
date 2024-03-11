@@ -717,7 +717,7 @@ winGetWindowID(WindowPtr pWin)
     ClientPtr c = wClient(pWin);
 
     /* */
-    FindClientResourcesByType(c, RT_WINDOW, winFindWindow, &wi);
+    FindClientResourcesByType(c, X11_RESTYPE_WINDOW, winFindWindow, &wi);
 
 #if ENABLE_DEBUG
     ErrorF("winGetWindowID - Window ID: %u\n", (unsigned int)wi.id);

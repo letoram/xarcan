@@ -99,7 +99,7 @@ xnestCreateWindow(WindowPtr pWin)
                 mask |= CWColormap;
                 if (pWin->optional->colormap) {
                     dixLookupResourceByType((void **) &pCmap, wColormap(pWin),
-                                            RT_COLORMAP, serverClient,
+                                            X11_RESTYPE_COLORMAP, serverClient,
                                             DixUseAccess);
                     attributes.colormap = xnestColormap(pCmap);
                 }
@@ -112,7 +112,7 @@ xnestCreateWindow(WindowPtr pWin)
         else {                  /* root windows have their own colormaps at creation time */
             visual = xnestVisualFromID(pWin->drawable.pScreen, wVisual(pWin));
             dixLookupResourceByType((void **) &pCmap, wColormap(pWin),
-                                    RT_COLORMAP, serverClient, DixUseAccess);
+                                    X11_RESTYPE_COLORMAP, serverClient, DixUseAccess);
             mask |= CWColormap;
             attributes.colormap = xnestColormap(pCmap);
         }
@@ -334,7 +334,7 @@ xnestChangeWindowAttributes(WindowPtr pWin, unsigned long mask)
         ColormapPtr pCmap;
 
         dixLookupResourceByType((void **) &pCmap, wColormap(pWin),
-                                RT_COLORMAP, serverClient, DixUseAccess);
+                                X11_RESTYPE_COLORMAP, serverClient, DixUseAccess);
 
         attributes.colormap = xnestColormap(pCmap);
 

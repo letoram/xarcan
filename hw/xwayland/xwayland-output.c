@@ -477,7 +477,7 @@ xwl_output_set_randr_emu_props(struct xwl_screen *xwl_screen, ClientPtr client)
     struct xwl_output_randr_emu_prop prop = {};
 
     xwl_output_randr_emu_prop(xwl_screen, client, &prop);
-    FindClientResourcesByType(client, RT_WINDOW,
+    FindClientResourcesByType(client, X11_RESTYPE_WINDOW,
                               xwl_output_set_randr_emu_prop_callback, &prop);
 }
 

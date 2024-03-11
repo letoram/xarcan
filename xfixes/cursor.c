@@ -597,7 +597,9 @@ typedef struct {
 } ReplaceCursorLookupRec, *ReplaceCursorLookupPtr;
 
 static const RESTYPE CursorRestypes[] = {
-    RT_WINDOW, RT_PASSIVEGRAB, X11_RESTYPE_CURSOR
+    X11_RESTYPE_WINDOW,
+    X11_RESTYPE_PASSIVEGRAB,
+    X11_RESTYPE_CURSOR
 };
 
 static Bool
@@ -610,14 +612,14 @@ ReplaceCursorLookup(void *value, XID id, void *closure)
     XID cursor = 0;
 
     switch (rcl->type) {
-    case RT_WINDOW:
+    case X11_RESTYPE_WINDOW:
         pWin = (WindowPtr) value;
         if (pWin->optional) {
             pCursorRef = &pWin->optional->cursor;
             pCursor = *pCursorRef;
         }
         break;
-    case RT_PASSIVEGRAB:
+    case X11_RESTYPE_PASSIVEGRAB:
         pGrab = (GrabPtr) value;
         pCursorRef = &pGrab->cursor;
         pCursor = *pCursorRef;
@@ -856,7 +858,7 @@ ProcXFixesHideCursor(ClientPtr client)
 
     REQUEST_SIZE_MATCH(xXFixesHideCursorReq);
 
-    ret = dixLookupResourceByType((void **) &pWin, stuff->window, RT_WINDOW,
+    ret = dixLookupResourceByType((void **) &pWin, stuff->window, X11_RESTYPE_WINDOW,
                                   client, DixGetAttrAccess);
     if (ret != Success) {
         client->errorValue = stuff->window;
@@ -920,7 +922,7 @@ ProcXFixesShowCursor(ClientPtr client)
 
     REQUEST_SIZE_MATCH(xXFixesShowCursorReq);
 
-    rc = dixLookupResourceByType((void **) &pWin, stuff->window, RT_WINDOW,
+    rc = dixLookupResourceByType((void **) &pWin, stuff->window, X11_RESTYPE_WINDOW,
                                  client, DixGetAttrAccess);
     if (rc != Success) {
         client->errorValue = stuff->window;

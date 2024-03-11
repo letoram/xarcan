@@ -4534,7 +4534,7 @@ EventSelectForWindow(WindowPtr pWin, ClientPtr client, Mask mask)
     check = (mask & ManagerMask);
     if (check) {
         rc = XaceHook(XACE_RESOURCE_ACCESS, client, pWin->drawable.id,
-                      RT_WINDOW, pWin, X11_RESTYPE_NONE, NULL, DixManageAccess);
+                      X11_RESTYPE_WINDOW, pWin, X11_RESTYPE_NONE, NULL, DixManageAccess);
         if (rc != Success)
             return rc;
     }
@@ -4577,7 +4577,7 @@ EventSelectForWindow(WindowPtr pWin, ClientPtr client, Mask mask)
         others->resource = FakeClientID(client->index);
         others->next = pWin->optional->otherClients;
         pWin->optional->otherClients = others;
-        if (!AddResource(others->resource, RT_OTHERCLIENT, (void *) pWin))
+        if (!AddResource(others->resource, X11_RESTYPE_OTHERCLIENT, (void *) pWin))
             return BadAlloc;
     }
  maskSet:

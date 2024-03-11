@@ -1395,7 +1395,7 @@ DoCreatePbuffer(ClientPtr client, int screenNum, XID fbconfigId,
     if (!pPixmap)
         return BadAlloc;
 
-    err = XaceHook(XACE_RESOURCE_ACCESS, client, glxDrawableId, RT_PIXMAP,
+    err = XaceHook(XACE_RESOURCE_ACCESS, client, glxDrawableId, X11_RESTYPE_PIXMAP,
                    pPixmap, X11_RESTYPE_NONE, NULL, DixCreateAccess);
     if (err != Success) {
         (*pGlxScreen->pScreen->DestroyPixmap) (pPixmap);
@@ -1406,7 +1406,7 @@ DoCreatePbuffer(ClientPtr client, int screenNum, XID fbconfigId,
      * resource so it and the DRI2 drawable will be reclaimed when the
      * pbuffer is destroyed. */
     pPixmap->drawable.id = glxDrawableId;
-    if (!AddResource(pPixmap->drawable.id, RT_PIXMAP, pPixmap))
+    if (!AddResource(pPixmap->drawable.id, X11_RESTYPE_PIXMAP, pPixmap))
         return BadAlloc;
 
     return DoCreateGLXDrawable(client, pGlxScreen, config, &pPixmap->drawable,

@@ -370,13 +370,13 @@ CreateColormap(Colormap mid, ScreenPtr pScreen, VisualPtr pVisual,
     }
     pmap->flags |= BeingCreated;
 
-    if (!AddResource(mid, RT_COLORMAP, (void *) pmap))
+    if (!AddResource(mid, X11_RESTYPE_COLORMAP, (void *) pmap))
         return BadAlloc;
 
     /*
      * Security creation/labeling check
      */
-    i = XaceHook(XACE_RESOURCE_ACCESS, clients[client], mid, RT_COLORMAP,
+    i = XaceHook(XACE_RESOURCE_ACCESS, clients[client], mid, X11_RESTYPE_COLORMAP,
                  pmap, X11_RESTYPE_NONE, NULL, DixCreateAccess);
     if (i != Success) {
         FreeResource(mid, X11_RESTYPE_NONE);
@@ -566,7 +566,7 @@ CopyColormapAndFree(Colormap mid, ColormapPtr pSrc, int client)
     }
     if (pmap->class & DynamicClass)
         UpdateColors(pmap);
-    /* XXX should worry about removing any RT_CMAPENTRY resource */
+    /* XXX should worry about removing any X11_RESTYPE_CMAPENTRY resource */
     return Success;
 }
 
@@ -1016,7 +1016,7 @@ AllocColor(ColormapPtr pmap,
             ColormapPtr prootmap;
 
             dixLookupResourceByType((void **) &prootmap,
-                                    pmap->pScreen->defColormap, RT_COLORMAP,
+                                    pmap->pScreen->defColormap, X11_RESTYPE_COLORMAP,
                                     clients[client], DixReadAccess);
 
             if (pmap->class == prootmap->class)
@@ -1034,7 +1034,7 @@ AllocColor(ColormapPtr pmap,
             ColormapPtr prootmap;
 
             dixLookupResourceByType((void **) &prootmap,
-                                    pmap->pScreen->defColormap, RT_COLORMAP,
+                                    pmap->pScreen->defColormap, X11_RESTYPE_COLORMAP,
                                     clients[client], DixReadAccess);
 
             if (pmap->class == prootmap->class) {
@@ -1087,7 +1087,7 @@ AllocColor(ColormapPtr pmap,
         }
         pcr->mid = pmap->mid;
         pcr->client = client;
-        if (!AddResource(FakeClientID(client), RT_CMAPENTRY, (void *) pcr))
+        if (!AddResource(FakeClientID(client), X11_RESTYPE_CMAPENTRY, (void *) pcr))
             return BadAlloc;
     }
     return Success;
@@ -1472,7 +1472,7 @@ FreeClientPixels(void *value, XID fakeid)
     colorResource *pcr = value;
     int rc;
 
-    rc = dixLookupResourceByType(&pmap, pcr->mid, RT_COLORMAP, serverClient,
+    rc = dixLookupResourceByType(&pmap, pcr->mid, X11_RESTYPE_COLORMAP, serverClient,
                                  DixRemoveAccess);
     if (rc == Success)
         FreePixels((ColormapPtr) pmap, pcr->client);
@@ -1535,7 +1535,7 @@ AllocColorCells(int client, ColormapPtr pmap, int colors, int planes,
     if ((ok == Success) && pcr) {
         pcr->mid = pmap->mid;
         pcr->client = client;
-        if (!AddResource(FakeClientID(client), RT_CMAPENTRY, (void *) pcr))
+        if (!AddResource(FakeClientID(client), X11_RESTYPE_CMAPENTRY, (void *) pcr))
             ok = BadAlloc;
     }
     else
@@ -1617,7 +1617,7 @@ AllocColorPlanes(int client, ColormapPtr pmap, int colors,
     if ((ok == Success) && pcr) {
         pcr->mid = pmap->mid;
         pcr->client = client;
-        if (!AddResource(FakeClientID(client), RT_CMAPENTRY, (void *) pcr))
+        if (!AddResource(FakeClientID(client), X11_RESTYPE_CMAPENTRY, (void *) pcr))
             ok = BadAlloc;
     }
     else
@@ -2092,7 +2092,7 @@ FreeColors(ColormapPtr pmap, int client, int count, Pixel * pixels, Pixel mask)
         clients[client]->errorValue = *pixels | mask;
         result = BadValue;
     }
-    /* XXX should worry about removing any RT_CMAPENTRY resource */
+    /* XXX should worry about removing any X11_RESTYPE_CMAPENTRY resource */
     return result;
 }
 
@@ -2539,7 +2539,7 @@ ResizeVisualArray(ScreenPtr pScreen, int new_visual_count, DepthPtr depth)
 
     cdata.visuals = visuals;
     cdata.pScreen = pScreen;
-    FindClientResourcesByType(serverClient, RT_COLORMAP,
+    FindClientResourcesByType(serverClient, X11_RESTYPE_COLORMAP,
                               _colormap_find_resource, &cdata);
 
     pScreen->visuals = visuals;

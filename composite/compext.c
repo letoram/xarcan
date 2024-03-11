@@ -130,7 +130,7 @@ ProcCompositeQueryVersion(ClientPtr client)
     do {								\
 	int err;							\
 	err = dixLookupResourceByType((void **) &pWindow, wid,	\
-				      RT_WINDOW, client, mode);		\
+				      X11_RESTYPE_WINDOW, client, mode);\
 	if (err != Success) {						\
 	    client->errorValue = wid;					\
 	    return err;							\
@@ -252,14 +252,14 @@ ProcCompositeNameWindowPixmap(ClientPtr client)
         return BadMatch;
 
     /* security creation/labeling check */
-    rc = XaceHook(XACE_RESOURCE_ACCESS, client, stuff->pixmap, RT_PIXMAP,
-                  pPixmap, RT_WINDOW, pWin, DixCreateAccess);
+    rc = XaceHook(XACE_RESOURCE_ACCESS, client, stuff->pixmap, X11_RESTYPE_PIXMAP,
+                  pPixmap, X11_RESTYPE_WINDOW, pWin, DixCreateAccess);
     if (rc != Success)
         return rc;
 
     ++pPixmap->refcnt;
 
-    if (!AddResource(stuff->pixmap, RT_PIXMAP, (void *) pPixmap))
+    if (!AddResource(stuff->pixmap, X11_RESTYPE_PIXMAP, (void *) pPixmap))
         return BadAlloc;
 
     if (pScreen->NameWindowPixmap) {
@@ -307,7 +307,8 @@ ProcCompositeGetOverlayWindow(ClientPtr client)
         }
 
     rc = XaceHook(XACE_RESOURCE_ACCESS, client, cs->pOverlayWin->drawable.id,
-                  RT_WINDOW, cs->pOverlayWin, X11_RESTYPE_NONE, NULL, DixGetAttrAccess);
+                  X11_RESTYPE_WINDOW, cs->pOverlayWin, X11_RESTYPE_NONE,
+                  NULL, DixGetAttrAccess);
     if (rc != Success) {
         FreeResource(pOc->resource, X11_RESTYPE_NONE);
         return rc;
@@ -515,7 +516,7 @@ GetCompositeWindowBytes(void *value, XID id, ResourceSizePtr size)
     /* account for redirection */
     if (window->redirectDraw != RedirectDrawNone)
     {
-        SizeType pixmapSizeFunc = GetResourceTypeSizeFunc(RT_PIXMAP);
+        SizeType pixmapSizeFunc = GetResourceTypeSizeFunc(X11_RESTYPE_PIXMAP);
         ResourceSizeRec pixmapSize = { 0, 0 };
         ScreenPtr screen = window->drawable.pScreen;
         PixmapPtr pixmap = screen->GetWindowPixmap(window);
@@ -556,8 +557,8 @@ CompositeExtensionInit(void)
     if (!CompositeClientWindowType)
         return;
 
-    coreGetWindowBytes = GetResourceTypeSizeFunc(RT_WINDOW);
-    SetResourceTypeSizeFunc(RT_WINDOW, GetCompositeWindowBytes);
+    coreGetWindowBytes = GetResourceTypeSizeFunc(X11_RESTYPE_WINDOW);
+    SetResourceTypeSizeFunc(X11_RESTYPE_WINDOW, GetCompositeWindowBytes);
 
     CompositeClientSubwindowsType = CreateNewResourceType
         (FreeCompositeClientSubwindows, "CompositeClientSubwindows");
@@ -728,7 +729,8 @@ PanoramiXCompositeNameWindowPixmap(ClientPtr client)
 
     FOR_NSCREENS(i) {
         rc = dixLookupResourceByType((void **) &pWin, win->info[i].id,
-                                     RT_WINDOW, client, DixGetAttrAccess);
+                                     X11_RESTYPE_WINDOW, client,
+                                     DixGetAttrAccess);
         if (rc != Success) {
             client->errorValue = stuff->window;
             free(newPix);
@@ -752,7 +754,7 @@ PanoramiXCompositeNameWindowPixmap(ClientPtr client)
             return BadMatch;
         }
 
-        if (!AddResource(newPix->info[i].id, RT_PIXMAP, (void *) pPixmap))
+        if (!AddResource(newPix->info[i].id, X11_RESTYPE_PIXMAP, (void *) pPixmap))
             return BadAlloc;
 
         ++pPixmap->refcnt;
@@ -796,7 +798,8 @@ PanoramiXCompositeGetOverlayWindow(ClientPtr client)
 
     FOR_NSCREENS_BACKWARD(i) {
         rc = dixLookupResourceByType((void **) &pWin, win->info[i].id,
-                                     RT_WINDOW, client, DixGetAttrAccess);
+                                     X11_RESTYPE_WINDOW, client,
+                                     DixGetAttrAccess);
         if (rc != Success) {
             client->errorValue = stuff->window;
             free(overlayWin);
@@ -827,7 +830,7 @@ PanoramiXCompositeGetOverlayWindow(ClientPtr client)
 
         rc = XaceHook(XACE_RESOURCE_ACCESS, client,
                       cs->pOverlayWin->drawable.id,
-                      RT_WINDOW, cs->pOverlayWin, X11_RESTYPE_NONE, NULL,
+                      X11_RESTYPE_WINDOW, cs->pOverlayWin, X11_RESTYPE_NONE, NULL,
                       DixGetAttrAccess);
         if (rc != Success) {
             FreeResource(pOc->resource, X11_RESTYPE_NONE);
