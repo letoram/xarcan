@@ -47,6 +47,7 @@
 #include "drm-client-protocol.h"
 
 #include "xwayland-glamor.h"
+#include "xwayland-glamor-gbm.h"
 #include "xwayland-pixmap.h"
 #include "xwayland-screen.h"
 
@@ -83,6 +84,14 @@ xwl_gbm_get(struct xwl_screen *xwl_screen)
 {
     return dixLookupPrivate(&xwl_screen->screen->devPrivates,
                             &xwl_gbm_private_key);
+}
+
+Bool
+xwl_glamor_has_wl_drm(struct xwl_screen *xwl_screen)
+{
+    struct xwl_gbm_private *xwl_gbm = xwl_gbm_get(xwl_screen);
+
+    return !!(xwl_gbm->drm != NULL);
 }
 
 /* There is a workaround for Mesa behaviour, which will cause black windows
@@ -1008,19 +1017,6 @@ xwl_glamor_gbm_has_egl_extension(void)
 }
 
 static Bool
-xwl_glamor_gbm_has_wl_interfaces(struct xwl_screen *xwl_screen)
-{
-    struct xwl_gbm_private *xwl_gbm = xwl_gbm_get(xwl_screen);
-
-    if (xwl_gbm->drm == NULL && xwl_screen->dmabuf_protocol_version < 4) {
-        LogMessageVerb(X_INFO, 3, "glamor: 'wl_drm' not supported and linux-dmabuf v4 not supported\n");
-        return FALSE;
-    }
-
-    return TRUE;
-}
-
-static Bool
 xwl_glamor_try_to_make_context_current(struct xwl_screen *xwl_screen)
 {
     if (xwl_screen->egl_context == EGL_NO_CONTEXT)
@@ -1305,7 +1301,6 @@ xwl_glamor_init_gbm(struct xwl_screen *xwl_screen)
     dixSetPrivate(&xwl_screen->screen->devPrivates, &xwl_gbm_private_key,
                   xwl_gbm);
 
-    xwl_screen->gbm_backend.has_wl_interfaces = xwl_glamor_gbm_has_wl_interfaces;
     xwl_screen->gbm_backend.init_egl = xwl_glamor_gbm_init_egl;
     xwl_screen->gbm_backend.init_screen = xwl_glamor_gbm_init_screen;
     xwl_screen->gbm_backend.get_wl_buffer_for_pixmap = xwl_glamor_gbm_get_wl_buffer_for_pixmap;

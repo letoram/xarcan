@@ -121,7 +121,13 @@ Bool
 xwl_glamor_has_wl_interfaces(struct xwl_screen *xwl_screen,
                             struct xwl_egl_backend *xwl_egl_backend)
 {
-    return xwl_egl_backend->has_wl_interfaces(xwl_screen);
+    if (!xwl_glamor_has_wl_drm(xwl_screen) &&
+        xwl_screen->dmabuf_protocol_version < 4) {
+        LogMessageVerb(X_INFO, 3, "glamor: 'wl_drm' not supported and linux-dmabuf v4 not supported\n");
+        return FALSE;
+    }
+
+    return TRUE;
 }
 
 struct wl_buffer *
