@@ -511,8 +511,8 @@ init_buffer_params_fallback(struct xwl_pixmap *xwl_pixmap,
     return TRUE;
 }
 
-static struct wl_buffer *
-xwl_glamor_gbm_get_wl_buffer_for_pixmap(PixmapPtr pixmap)
+struct wl_buffer *
+xwl_glamor_pixmap_get_wl_buffer(PixmapPtr pixmap)
 {
     struct xwl_screen *xwl_screen = xwl_screen_get(pixmap->drawable.pScreen);
     struct xwl_pixmap *xwl_pixmap = xwl_pixmap_get(pixmap);
@@ -1301,7 +1301,6 @@ xwl_glamor_init_gbm(struct xwl_screen *xwl_screen)
     dixSetPrivate(&xwl_screen->screen->devPrivates, &xwl_gbm_private_key,
                   xwl_gbm);
 
-    xwl_screen->gbm_backend.get_wl_buffer_for_pixmap = xwl_glamor_gbm_get_wl_buffer_for_pixmap;
     xwl_screen->gbm_backend.check_flip = NULL;
     xwl_screen->gbm_backend.get_main_device = xwl_gbm_get_main_device;
     xwl_screen->gbm_backend.is_available = TRUE;
