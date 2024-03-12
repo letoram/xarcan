@@ -39,6 +39,7 @@
 #include "glx_extinit.h"
 #endif
 
+#include "drm-client-protocol.h"
 #include "linux-dmabuf-unstable-v1-client-protocol.h"
 
 #include "xwayland-dmabuf.h"
@@ -110,14 +111,10 @@ xwl_glamor_init_wl_registry(struct xwl_screen *xwl_screen,
                             uint32_t id, const char *interface,
                             uint32_t version)
 {
-    if (xwl_screen->gbm_backend.is_available &&
-        xwl_screen->gbm_backend.init_wl_registry(xwl_screen,
-                                                 registry,
-                                                 id,
-                                                 interface,
-                                                 version)) {
-        /* no-op */
-    }
+    if (strcmp(interface, wl_drm_interface.name) == 0)
+        xwl_screen_set_drm_interface(xwl_screen, id, version);
+    else if (strcmp(interface, zwp_linux_dmabuf_v1_interface.name) == 0)
+        xwl_screen_set_dmabuf_interface(xwl_screen, id, version);
 }
 
 Bool

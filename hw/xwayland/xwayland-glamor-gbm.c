@@ -1001,24 +1001,6 @@ xwl_screen_set_drm_interface(struct xwl_screen *xwl_screen,
 }
 
 static Bool
-xwl_glamor_gbm_init_wl_registry(struct xwl_screen *xwl_screen,
-                                struct wl_registry *wl_registry,
-                                uint32_t id, const char *name,
-                                uint32_t version)
-{
-    if (strcmp(name, wl_drm_interface.name) == 0) {
-        xwl_screen_set_drm_interface(xwl_screen, id, version);
-        return TRUE;
-    } else if (strcmp(name, zwp_linux_dmabuf_v1_interface.name) == 0) {
-        xwl_screen_set_dmabuf_interface(xwl_screen, id, version);
-        return TRUE;
-    }
-
-    /* no match */
-    return FALSE;
-}
-
-static Bool
 xwl_glamor_gbm_has_egl_extension(void)
 {
     return (epoxy_has_egl_extension(NULL, "EGL_MESA_platform_gbm") ||
@@ -1323,7 +1305,6 @@ xwl_glamor_init_gbm(struct xwl_screen *xwl_screen)
     dixSetPrivate(&xwl_screen->screen->devPrivates, &xwl_gbm_private_key,
                   xwl_gbm);
 
-    xwl_screen->gbm_backend.init_wl_registry = xwl_glamor_gbm_init_wl_registry;
     xwl_screen->gbm_backend.has_wl_interfaces = xwl_glamor_gbm_has_wl_interfaces;
     xwl_screen->gbm_backend.init_egl = xwl_glamor_gbm_init_egl;
     xwl_screen->gbm_backend.init_screen = xwl_glamor_gbm_init_screen;
