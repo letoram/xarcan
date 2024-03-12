@@ -113,7 +113,7 @@ xwl_glamor_init_wl_registry(struct xwl_screen *xwl_screen,
         xwl_screen_set_dmabuf_interface(xwl_screen, id, version);
 }
 
-Bool
+static Bool
 xwl_glamor_has_wl_interfaces(struct xwl_screen *xwl_screen,
                             struct xwl_egl_backend *xwl_egl_backend)
 {
