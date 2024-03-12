@@ -37,6 +37,7 @@
 #include <X11/Xatom.h>
 
 #include "os/osdep.h"
+#include "os/xserver_poll.h"
 
 #include <micmap.h>
 #include <misyncshm.h>
@@ -46,7 +47,6 @@
 #include <propertyst.h>
 #include <inputstr.h>
 #include <xacestr.h>
-#include <xserver_poll.h>
 
 #include "xwayland-cursor.h"
 #include "xwayland-screen.h"
