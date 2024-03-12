@@ -31,6 +31,7 @@
 #include <wayland-util.h>
 
 #include "xwayland-dmabuf.h"
+#include "xwayland-glamor-gbm.h"
 #include "xwayland-screen.h"
 #include "xwayland-types.h"
 #include "xwayland-window-buffers.h"
@@ -176,7 +177,7 @@ xwl_screen_get_main_dev(struct xwl_screen *xwl_screen)
      * the compositor told us.
      */
     if (xwl_screen->gbm_backend.is_available)
-        return xwl_screen->gbm_backend.get_main_device(xwl_screen);
+        return xwl_gbm_get_main_device(xwl_screen);
     else
         return xwl_screen->default_feedback.main_dev;
 }
