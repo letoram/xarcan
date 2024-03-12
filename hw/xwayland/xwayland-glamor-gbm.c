@@ -1301,7 +1301,6 @@ xwl_glamor_init_gbm(struct xwl_screen *xwl_screen)
     dixSetPrivate(&xwl_screen->screen->devPrivates, &xwl_gbm_private_key,
                   xwl_gbm);
 
-    xwl_screen->gbm_backend.check_flip = NULL;
     xwl_screen->gbm_backend.get_main_device = xwl_gbm_get_main_device;
     xwl_screen->gbm_backend.is_available = TRUE;
     xwl_screen->gbm_backend.backend_flags = XWL_EGL_BACKEND_NEEDS_BUFFER_FLUSH |

@@ -93,14 +93,10 @@ Bool
 xwl_glamor_check_flip(WindowPtr present_window, PixmapPtr pixmap)
 {
     ScreenPtr screen = pixmap->drawable.pScreen;
-    struct xwl_screen *xwl_screen = xwl_screen_get(screen);
     PixmapPtr backing_pixmap = screen->GetWindowPixmap(present_window);
 
     if (pixmap->drawable.depth != backing_pixmap->drawable.depth)
         return FALSE;
-
-    if (xwl_screen->egl_backend->check_flip)
-        return xwl_screen->egl_backend->check_flip(pixmap);
 
     return TRUE;
 }
