@@ -416,7 +416,7 @@ xwl_screen_post_damage(struct xwl_screen *xwl_screen)
         return;
 
 #ifdef XWL_HAS_GLAMOR
-    if (xwl_glamor_needs_buffer_flush(xwl_screen))
+    if (xwl_screen->glamor)
         glamor_block_handler(xwl_screen->screen);
 #endif
 
