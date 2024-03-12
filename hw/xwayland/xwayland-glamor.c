@@ -390,7 +390,7 @@ xwl_glamor_init(struct xwl_screen *xwl_screen)
         return FALSE;
     }
 
-    if (!xwl_screen->egl_backend->init_egl(xwl_screen)) {
+    if (!xwl_glamor_gbm_init_egl(xwl_screen)) {
         ErrorF("EGL setup failed, disabling glamor\n");
         return FALSE;
     }

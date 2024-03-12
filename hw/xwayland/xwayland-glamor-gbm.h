@@ -36,5 +36,6 @@
 
 void xwl_glamor_init_gbm(struct xwl_screen *xwl_screen);
 Bool xwl_glamor_has_wl_drm(struct xwl_screen *xwl_screen);
+Bool xwl_glamor_gbm_init_egl(struct xwl_screen *xwl_screen);
 
 #endif /* XWAYLAND_GLAMOR_GBM_H */
