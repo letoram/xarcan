@@ -37,7 +37,8 @@
 #ifdef DEBUG
 #define ARCAN_TRACE
 #endif
-static inline void trace(const char* msg, ...)
+
+static void trace(const char* msg, ...)
 {
 #ifdef ARCAN_TRACE
     va_list args;
@@ -110,25 +111,35 @@ mouseSpriteSet(DeviceIntPtr dev, ScreenPtr scr, CursorPtr cursor, int cx, int cy
 {
     arcanScrPriv *scrpriv = screenPtrArcan(scr);
     struct arcan_shmif_cont* ccon = scrpriv->cursor;
+
     if (!ccon || !ccon->addr)
         return;
 
 /* Some clients will flip-flop cursors on and off between frames as a means of
  * implementing 'saveUnders' or flicker-free cursors. This means that we can't
- * blindly just forward cursor state. */
-   if (!cursor){
+ * blindly just forward cursor state. Instead check if the [cx, cy] from the
+ * last sent viewport has changed from when it was last visible. This might not
+ * be enough (i.e. autohide after a time), consider also having a frame-
+ * counter as the reference state */
+    if (!cursor){
         trace("SpriteSet(NULL):disable_cursor");
+        if (!scrpriv->cursor_event.ext.viewport.invisible){
+            if (cx == scrpriv->cursor_event.ext.viewport.x &&
+                cy == scrpriv->cursor_event.ext.viewport.y){
+                return;
+            }
+
+            scrpriv->cursor_event.ext.viewport.invisible = true;
+            arcan_shmif_enqueue(ccon, &scrpriv->cursor_event);
+        }
+
         scrpriv->cursorRealized = false;
         arcan_shmif_enqueue(ccon, &(arcan_event){
             .ext.kind = ARCAN_EVENT(CURSORHINT),
             .ext.message.data = "hidden"
         });
 
-        if (!scrpriv->cursor_event.ext.viewport.invisible){
-            scrpriv->cursor_event.ext.viewport.invisible = true;
-            arcan_shmif_enqueue(ccon, &scrpriv->cursor_event);
-        }
-        return;
+       return;
     }
 
 /* if there is a matching glyph, prefer sending that instead */
@@ -164,21 +175,21 @@ mouseSpriteSet(DeviceIntPtr dev, ScreenPtr scr, CursorPtr cursor, int cx, int cy
          case Xhand1:
          case Xhand2:
          arcan_shmif_enqueue(ccon, &(arcan_event){
-            .ext.kind = ARCAN_EVENT(CURSORHINT),
-            .ext.message.data = "hand"
-        });
-        break;
-        case Xcircle:
-        arcan_shmif_enqueue(ccon, &(arcan_event){
+             .ext.kind = ARCAN_EVENT(CURSORHINT),
+             .ext.message.data = "hand"
+         });
+         break;
+         case Xcircle:
+         arcan_shmif_enqueue(ccon, &(arcan_event){
             .ext.kind = ARCAN_EVENT(CURSORHINT),
             .ext.message.data = "forbidden"
-        });
-        break;
-        case Xplus:
-        arcan_shmif_enqueue(ccon, &(arcan_event){
+         });
+         break;
+         case Xplus:
+         arcan_shmif_enqueue(ccon, &(arcan_event){
             .ext.kind = ARCAN_EVENT(CURSORHINT),
             .ext.message.data = "cell"
-        });
+         });
         break;
         case Xtarget:
         arcan_shmif_enqueue(ccon, &(arcan_event){
@@ -274,16 +285,25 @@ mouseSpriteSet(DeviceIntPtr dev, ScreenPtr scr, CursorPtr cursor, int cx, int cy
               ccon->vidp[y * ccon->pitch + x] = cc;
           }
       }
+
+      arcan_shmif_signal(ccon, SHMIF_SIGVID | SHMIF_SIGBLK_NONE);
     }
 
     trace("cursor-signal");
-    arcan_shmif_signal(ccon, SHMIF_SIGVID | SHMIF_SIGBLK_NONE);
 
 /* mark as visible again so the hinted cursor won't be used */
     if (scrpriv->cursor_event.ext.viewport.invisible){
         trace("cursor-toggle-custom");
         scrpriv->cursor_event.ext.viewport.invisible = false;
         arcan_shmif_enqueue(ccon, &scrpriv->cursor_event);
+    }
+    else {
+        if (scrpriv->cursor_event.ext.viewport.x != cx ||
+            scrpriv->cursor_event.ext.viewport.y != cy){
+            scrpriv->cursor_event.ext.viewport.x = cx;
+            scrpriv->cursor_event.ext.viewport.y = cy;
+            arcan_shmif_enqueue(ccon, &scrpriv->cursor_event);
+        }
     }
 }
 
