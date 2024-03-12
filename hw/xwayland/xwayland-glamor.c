@@ -300,19 +300,13 @@ xwl_glamor_needs_buffer_flush(struct xwl_screen *xwl_screen)
     if (!xwl_screen->glamor || !xwl_screen->egl_backend)
         return FALSE;
 
-    return (xwl_screen->egl_backend->backend_flags &
-                XWL_EGL_BACKEND_NEEDS_BUFFER_FLUSH);
+    return TRUE;
 }
 
 Bool
 xwl_glamor_needs_n_buffering(struct xwl_screen *xwl_screen)
 {
-    /* wl_shm benefits from n-buffering */
-    if (!xwl_screen->glamor || !xwl_screen->egl_backend)
-        return TRUE;
-
-    return (xwl_screen->egl_backend->backend_flags &
-                XWL_EGL_BACKEND_NEEDS_N_BUFFERING);
+    return TRUE;
 }
 
 void

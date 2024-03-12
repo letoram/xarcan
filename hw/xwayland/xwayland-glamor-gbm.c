@@ -1306,6 +1306,4 @@ xwl_glamor_init_gbm(struct xwl_screen *xwl_screen)
                   xwl_gbm);
 
     xwl_screen->gbm_backend.is_available = TRUE;
-    xwl_screen->gbm_backend.backend_flags = XWL_EGL_BACKEND_NEEDS_BUFFER_FLUSH |
-                                            XWL_EGL_BACKEND_NEEDS_N_BUFFERING;
 }
