@@ -104,9 +104,6 @@ ddxUseMsg(void)
     ErrorF("-initfd fd             add given fd as a listen socket for initialization clients\n");
     ErrorF("-listenfd fd           add given fd as a listen socket\n");
     ErrorF("-listen fd             deprecated, use \"-listenfd\" instead\n");
-#ifdef XWL_HAS_EGLSTREAM
-    ErrorF("-eglstream             use eglstream backend for nvidia GPUs\n");
-#endif
     ErrorF("-shm                   use shared memory for passing buffers\n");
 #ifdef XWL_HAS_GLAMOR
     ErrorF("-glamor [gl|es|off]    use given API for Glamor acceleration. Incompatible with -shm option\n");
@@ -236,9 +233,6 @@ ddxProcessArgument(int argc, char *argv[], int i)
             }
         }
         LogSetParameter(XLOG_VERBOSITY, ++verbosity);
-        return 1;
-    }
-    else if (strcmp(argv[i], "-eglstream") == 0) {
         return 1;
     }
     else if (strcmp(argv[i], "-version") == 0) {

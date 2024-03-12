@@ -102,30 +102,14 @@ if build_ei
 endif
 
 xwayland_glamor = []
-eglstream_srcs = []
 if build_xwayland_glamor
     srcs += [
               'xwayland-glamor.c',
               'xwayland-dmabuf.h',
-              'xwayland-dmabuf.c'
+              'xwayland-dmabuf.c',
+              'xwayland-glamor-gbm.c'
             ]
-    if gbm_dep.found()
-        srcs += [
-                  'xwayland-glamor-gbm.c',
-                ]
-    endif
-    if build_eglstream
-        eglstream_protodir = eglstream_dep.get_variable(pkgconfig : 'pkgdatadir')
-        eglstream_xml = join_paths(eglstream_protodir, 'wayland-eglstream.xml')
-        eglstream_controller_xml = join_paths(eglstream_protodir, 'wayland-eglstream-controller.xml')
 
-        srcs += client_header.process(eglstream_xml)
-        srcs += client_header.process(eglstream_controller_xml)
-        srcs += code.process(eglstream_xml)
-        srcs += code.process(eglstream_controller_xml)
-
-        srcs += 'xwayland-glamor-eglstream.c'
-    endif
     if build_xv
         srcs += 'xwayland-glamor-xv.c'
     endif
@@ -176,7 +160,7 @@ xwayland_server = executable(
 xwayland_vars = [
     'have_glamor=' + build_glamor.to_string(),
     'have_glamor_api=' + build_glamor.to_string(),
-    'have_eglstream=' + build_eglstream.to_string(),
+    'have_eglstream=false',
     'have_initfd=true',
     'have_listenfd=true',
     'have_verbose=true',

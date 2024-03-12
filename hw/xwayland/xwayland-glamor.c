@@ -116,13 +116,6 @@ xwl_glamor_init_wl_registry(struct xwl_screen *xwl_screen,
                                                  interface,
                                                  version)) {
         /* no-op */
-    } else if (xwl_screen->eglstream_backend.is_available &&
-               xwl_screen->eglstream_backend.init_wl_registry(xwl_screen,
-                                                              registry,
-                                                              id,
-                                                              interface,
-                                                              version)) {
-        /* no-op */
     }
 }
 
@@ -348,17 +341,12 @@ xwl_glamor_create_pixmap_for_window(struct xwl_window *xwl_window)
 }
 
 void
-xwl_glamor_init_backends(struct xwl_screen *xwl_screen, Bool use_eglstream)
+xwl_glamor_init_backends(struct xwl_screen *xwl_screen)
 {
 #ifdef GLAMOR_HAS_GBM
     xwl_glamor_init_gbm(xwl_screen);
-    if (!xwl_screen->gbm_backend.is_available && !use_eglstream)
-        ErrorF("Xwayland glamor: GBM backend (default) is not available\n");
-#endif
-#ifdef XWL_HAS_EGLSTREAM
-    xwl_glamor_init_eglstream(xwl_screen);
-    if (!xwl_screen->eglstream_backend.is_available && use_eglstream)
-        ErrorF("Xwayland glamor: EGLStream backend requested but not available\n");
+    if (!xwl_screen->gbm_backend.is_available)
+        ErrorF("Xwayland glamor: GBM backend is not available\n");
 #endif
 }
 
@@ -380,31 +368,10 @@ xwl_glamor_select_gbm_backend(struct xwl_screen *xwl_screen)
     return FALSE;
 }
 
-static Bool
-xwl_glamor_select_eglstream_backend(struct xwl_screen *xwl_screen)
-{
-#ifdef XWL_HAS_EGLSTREAM
-    if (xwl_screen->eglstream_backend.is_available &&
-        xwl_glamor_has_wl_interfaces(xwl_screen, &xwl_screen->eglstream_backend)) {
-        xwl_screen->egl_backend = &xwl_screen->eglstream_backend;
-        LogMessageVerb(X_INFO, 3, "glamor: Using EGLStream backend\n");
-        return TRUE;
-    }
-    else
-        LogMessageVerb(X_INFO, 3,
-                       "Missing Wayland requirements for glamor EGLStream backend\n");
-#endif
-
-    return FALSE;
-}
-
 void
-xwl_glamor_select_backend(struct xwl_screen *xwl_screen, Bool use_eglstream)
+xwl_glamor_select_backend(struct xwl_screen *xwl_screen)
 {
-    if (!xwl_glamor_select_eglstream_backend(xwl_screen)) {
-        if (!use_eglstream)
-            xwl_glamor_select_gbm_backend(xwl_screen);
-    }
+    xwl_glamor_select_gbm_backend(xwl_screen);
 }
 
 Bool

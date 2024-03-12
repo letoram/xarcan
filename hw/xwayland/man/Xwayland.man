@@ -54,13 +54,6 @@ support (optional).
 
 This option is not compatible with rootless mode (\fI-rootless\fP).
 .TP 8
-.B \-eglstream
-Use EGLStream backend for NVidia GPUs. If \fIXwayland\fP was compiled with
-EGLStream support, this option will instruct \fIXwayland\fP to try that
-backend first, then fallback to the GBM backend if EGLStream is not supported
-by the Wayland server. Without this option, \fIXwayland\fP tries the GBM
-backend first, and fallback to EGLStream if GBM is not usable.
-.TP 8
 .B \-enable-ei-portal
 Enable support for the XDG portal for input emulation.
 

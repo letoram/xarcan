@@ -758,9 +758,6 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
     int ret, bpc, green_bpc, i;
     unsigned int xwl_width = 640;
     unsigned int xwl_height = 480;
-#ifdef XWL_HAS_GLAMOR
-    Bool use_eglstreams = FALSE;
-#endif
     Bool use_fixed_size = FALSE;
 
     if (!dixRegisterPrivateKey(&xwl_screen_private_key, PRIVATE_SCREEN, 0))
@@ -812,13 +809,6 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
         }
         else if (strcmp(argv[i], "-shm") == 0) {
             xwl_screen->glamor = XWL_GLAMOR_NONE;
-        }
-        else if (strcmp(argv[i], "-eglstream") == 0) {
-#ifdef XWL_HAS_EGLSTREAM
-            use_eglstreams = TRUE;
-#else
-            ErrorF("Xwayland glamor: this build does not have EGLStream support\n");
-#endif
         }
 #ifdef XWL_HAS_GLAMOR
         else if (strcmp(argv[i], "-glamor") == 0) {
@@ -885,7 +875,7 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
 
 #ifdef XWL_HAS_GLAMOR
     if (xwl_screen->glamor)
-        xwl_glamor_init_backends(xwl_screen, use_eglstreams);
+        xwl_glamor_init_backends(xwl_screen);
 #endif
 
     /* In rootless mode, we don't have any screen storage, and the only
@@ -1008,7 +998,7 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
 
 #ifdef XWL_HAS_GLAMOR
     if (xwl_screen->glamor) {
-        xwl_glamor_select_backend(xwl_screen, use_eglstreams);
+        xwl_glamor_select_backend(xwl_screen);
 
         if (xwl_screen->egl_backend == NULL || !xwl_glamor_init(xwl_screen)) {
            ErrorF("Failed to initialize glamor, falling back to sw\n");

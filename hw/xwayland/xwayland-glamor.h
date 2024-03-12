@@ -118,10 +118,8 @@ struct xwl_egl_backend {
 
 #ifdef XWL_HAS_GLAMOR
 
-void xwl_glamor_init_backends(struct xwl_screen *xwl_screen,
-                              Bool use_eglstream);
-void xwl_glamor_select_backend(struct xwl_screen *xwl_screen,
-                               Bool use_eglstream);
+void xwl_glamor_init_backends(struct xwl_screen *xwl_screen);
+void xwl_glamor_select_backend(struct xwl_screen *xwl_screen);
 Bool xwl_glamor_init(struct xwl_screen *xwl_screen);
 
 Bool xwl_screen_set_drm_interface(struct xwl_screen *xwl_screen,
@@ -147,22 +145,8 @@ PixmapPtr xwl_glamor_create_pixmap_for_window (struct xwl_window *xwl_window);
 Bool xwl_glamor_xv_init(ScreenPtr pScreen);
 #endif /* XV */
 
-#endif /* XWL_HAS_GLAMOR */
-
-#ifdef GLAMOR_HAS_GBM
 void xwl_glamor_init_gbm(struct xwl_screen *xwl_screen);
-#else
-static inline void xwl_glamor_init_gbm(struct xwl_screen *xwl_screen)
-{
-}
-#endif
 
-#ifdef XWL_HAS_EGLSTREAM
-void xwl_glamor_init_eglstream(struct xwl_screen *xwl_screen);
-#else
-static inline void xwl_glamor_init_eglstream(struct xwl_screen *xwl_screen)
-{
-}
-#endif
+#endif /* XWL_HAS_GLAMOR */
 
 #endif /* XWAYLAND_GLAMOR_H */

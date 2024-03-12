@@ -128,7 +128,6 @@ struct xwl_screen {
     void *egl_display, *egl_context;
 
     struct xwl_egl_backend gbm_backend;
-    struct xwl_egl_backend eglstream_backend;
     /* pointer to the current backend for creating pixmaps on wayland */
     struct xwl_egl_backend *egl_backend;
 
