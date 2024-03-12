@@ -169,12 +169,6 @@ wl_drm_format_for_depth(int depth)
     }
 }
 
-static drmDevice *
-xwl_screen_get_main_dev(struct xwl_screen *xwl_screen)
-{
-    return xwl_gbm_get_main_device(xwl_screen);
-}
-
 static Bool
 xwl_dmabuf_get_formats(struct xwl_format *format_array, int format_array_len,
                        CARD32 *num_formats, CARD32 **formats)
@@ -248,7 +242,7 @@ xwl_glamor_get_formats(ScreenPtr screen,
         return FALSE;
 
     if (xwl_screen->dmabuf_protocol_version >= 4) {
-        drmDevice *main_dev = xwl_screen_get_main_dev(xwl_screen);
+        drmDevice *main_dev = xwl_gbm_get_main_device(xwl_screen);
 
         return xwl_dmabuf_get_formats_for_device(&xwl_screen->default_feedback, main_dev,
                                           num_formats, formats);
@@ -334,7 +328,7 @@ xwl_glamor_get_modifiers(ScreenPtr screen, uint32_t format,
         return FALSE;
 
     if (xwl_screen->dmabuf_protocol_version >= 4) {
-        main_dev = xwl_screen_get_main_dev(xwl_screen);
+        main_dev = xwl_gbm_get_main_device(xwl_screen);
 
         return xwl_dmabuf_get_modifiers_for_device(&xwl_screen->default_feedback, main_dev,
                                                    format, num_modifiers, modifiers, NULL);
@@ -373,7 +367,7 @@ xwl_glamor_get_drawable_modifiers_and_scanout(DrawablePtr drawable,
     if (!xwl_window)
         return FALSE;
 
-    main_dev = xwl_screen_get_main_dev(xwl_screen);
+    main_dev = xwl_gbm_get_main_device(xwl_screen);
 
     return xwl_dmabuf_get_modifiers_for_device(&xwl_window->feedback, main_dev,
                                                format, num_modifiers, modifiers,
