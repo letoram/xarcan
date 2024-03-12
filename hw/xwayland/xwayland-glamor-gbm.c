@@ -1283,27 +1283,25 @@ drmDevice *xwl_gbm_get_main_device(struct xwl_screen *xwl_screen)
     return xwl_gbm->device;
 }
 
-void
+Bool
 xwl_glamor_init_gbm(struct xwl_screen *xwl_screen)
 {
     struct xwl_gbm_private *xwl_gbm;
 
-    xwl_screen->gbm_backend.is_available = FALSE;
-
     if (!xwl_glamor_gbm_has_egl_extension())
-        return;
+        return FALSE;
 
     if (!dixRegisterPrivateKey(&xwl_gbm_private_key, PRIVATE_SCREEN, 0))
-        return;
+        return FALSE;
 
     xwl_gbm = calloc(sizeof(*xwl_gbm), 1);
     if (!xwl_gbm) {
         ErrorF("glamor: Not enough memory to setup GBM, disabling\n");
-        return;
+        return FALSE;
     }
 
     dixSetPrivate(&xwl_screen->screen->devPrivates, &xwl_gbm_private_key,
                   xwl_gbm);
 
-    xwl_screen->gbm_backend.is_available = TRUE;
+    return TRUE;
 }
