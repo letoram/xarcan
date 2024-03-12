@@ -396,9 +396,3 @@ xwl_window_swap_pixmap(struct xwl_window *xwl_window)
 
     return xwl_window_buffer->pixmap;
 }
-
-PixmapPtr
-xwl_window_buffers_get_pixmap(struct xwl_window *xwl_window)
-{
-    return xwl_window_swap_pixmap(xwl_window);
-}

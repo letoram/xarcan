@@ -1349,7 +1349,7 @@ xwl_window_attach_buffer(struct xwl_window *xwl_window)
     PixmapPtr pixmap;
     int i;
 
-    pixmap = xwl_window_buffers_get_pixmap(xwl_window);
+    pixmap = xwl_window_swap_pixmap(xwl_window);
     buffer = xwl_pixmap_get_wl_buffer(pixmap);
 
     if (!buffer) {
