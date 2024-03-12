@@ -995,7 +995,7 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
     if (xwl_screen->glamor) {
         xwl_glamor_select_backend(xwl_screen);
 
-        if (xwl_screen->egl_backend == NULL || !xwl_glamor_init(xwl_screen)) {
+        if (!xwl_glamor_init(xwl_screen)) {
            ErrorF("Failed to initialize glamor, falling back to sw\n");
            xwl_screen->glamor = XWL_GLAMOR_NONE;
         }

@@ -127,10 +127,6 @@ struct xwl_screen {
     struct xwl_format *formats;
     void *egl_display, *egl_context;
 
-    struct xwl_egl_backend gbm_backend;
-    /* pointer to the current backend for creating pixmaps on wayland */
-    struct xwl_egl_backend *egl_backend;
-
     struct glamor_context *glamor_ctx;
 
     Atom allow_commits_prop;

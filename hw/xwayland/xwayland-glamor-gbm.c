@@ -409,7 +409,7 @@ xwl_glamor_create_pixmap_for_window(struct xwl_window *xwl_window)
     WindowPtr window = xwl_window->window;
     unsigned border_width = 2 * window->borderWidth;
 
-    if (!xwl_screen->glamor || !xwl_screen->egl_backend)
+    if (!xwl_screen->glamor)
         return NullPixmap;
 
     return xwl_glamor_gbm_create_pixmap_internal(xwl_screen,

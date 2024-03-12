@@ -114,8 +114,7 @@ xwl_glamor_init_wl_registry(struct xwl_screen *xwl_screen,
 }
 
 static Bool
-xwl_glamor_has_wl_interfaces(struct xwl_screen *xwl_screen,
-                            struct xwl_egl_backend *xwl_egl_backend)
+xwl_glamor_has_wl_interfaces(struct xwl_screen *xwl_screen)
 {
     if (!xwl_glamor_has_wl_drm(xwl_screen) &&
         xwl_screen->dmabuf_protocol_version < 4) {
@@ -273,7 +272,7 @@ glamor_egl_fd_name_from_pixmap(ScreenPtr screen,
 Bool
 xwl_glamor_needs_buffer_flush(struct xwl_screen *xwl_screen)
 {
-    if (!xwl_screen->glamor || !xwl_screen->egl_backend)
+    if (!xwl_screen->glamor)
         return FALSE;
 
     return TRUE;
@@ -298,8 +297,7 @@ static Bool
 xwl_glamor_select_gbm_backend(struct xwl_screen *xwl_screen)
 {
 #ifdef GLAMOR_HAS_GBM
-    if (xwl_glamor_has_wl_interfaces(xwl_screen, &xwl_screen->gbm_backend)) {
-        xwl_screen->egl_backend = &xwl_screen->gbm_backend;
+    if (xwl_glamor_has_wl_interfaces(xwl_screen)) {
         LogMessageVerb(X_INFO, 3, "glamor: Using GBM backend\n");
         return TRUE;
     }
