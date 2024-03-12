@@ -172,14 +172,7 @@ wl_drm_format_for_depth(int depth)
 static drmDevice *
 xwl_screen_get_main_dev(struct xwl_screen *xwl_screen)
 {
-    /*
-     * If we have gbm then get our main device from it. Otherwise use what
-     * the compositor told us.
-     */
-    if (xwl_screen->gbm_backend.is_available)
-        return xwl_gbm_get_main_device(xwl_screen);
-    else
-        return xwl_screen->default_feedback.main_dev;
+    return xwl_gbm_get_main_device(xwl_screen);
 }
 
 static Bool

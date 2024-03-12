@@ -313,8 +313,7 @@ void
 xwl_glamor_init_backends(struct xwl_screen *xwl_screen)
 {
 #ifdef GLAMOR_HAS_GBM
-    xwl_glamor_init_gbm(xwl_screen);
-    if (!xwl_screen->gbm_backend.is_available)
+    if (!xwl_glamor_init_gbm(xwl_screen))
         ErrorF("Xwayland glamor: GBM backend is not available\n");
 #endif
 }
@@ -323,8 +322,7 @@ static Bool
 xwl_glamor_select_gbm_backend(struct xwl_screen *xwl_screen)
 {
 #ifdef GLAMOR_HAS_GBM
-    if (xwl_screen->gbm_backend.is_available &&
-        xwl_glamor_has_wl_interfaces(xwl_screen, &xwl_screen->gbm_backend)) {
+    if (xwl_glamor_has_wl_interfaces(xwl_screen, &xwl_screen->gbm_backend)) {
         xwl_screen->egl_backend = &xwl_screen->gbm_backend;
         LogMessageVerb(X_INFO, 3, "glamor: Using GBM backend\n");
         return TRUE;
