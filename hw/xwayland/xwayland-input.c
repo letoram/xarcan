@@ -547,7 +547,7 @@ pointer_handle_enter(void *data, struct wl_pointer *pointer,
     dy = xwl_seat->focus_window->window->drawable.y;
 
     /* We just entered a new xwindow, forget about the old last xwindow */
-    xwl_seat->last_xwindow = NullWindow;
+    xwl_seat->last_focus_window = NULL;
 
     master = GetMaster(dev, POINTER_OR_FLOAT);
     (*pScreen->SetCursorPosition) (dev, pScreen, dx + sx, dy + sy, TRUE);
@@ -615,7 +615,7 @@ pointer_handle_leave(void *data, struct wl_pointer *pointer,
      * in sprite_check_lost_focus()
      */
     if (xwl_seat->focus_window) {
-        xwl_seat->last_xwindow = xwl_seat->focus_window->window;
+        xwl_seat->last_focus_window = xwl_seat->focus_window;
         xwl_seat->focus_window = NULL;
         focus_lost = TRUE;
     }
@@ -3192,8 +3192,9 @@ sprite_check_lost_focus(SpritePtr sprite, WindowPtr window)
         return TRUE;
 
     if (xwl_seat->focus_window == NULL &&
-        xwl_seat->last_xwindow != NullWindow &&
-        (IsParent(xwl_seat->last_xwindow, window) || xwl_seat->last_xwindow == window))
+        xwl_seat->last_focus_window != NULL &&
+        (xwl_seat->last_focus_window->window == window ||
+         IsParent(xwl_seat->last_focus_window->window, window)))
         return TRUE;
 
     return FALSE;
@@ -3227,13 +3228,13 @@ xwl_xy_to_window(ScreenPtr screen, SpritePtr sprite, int x, int y)
 }
 
 void
-xwl_seat_clear_touch(struct xwl_seat *xwl_seat, WindowPtr window)
+xwl_seat_clear_touch(struct xwl_seat *xwl_seat, struct xwl_window *xwl_window)
 {
     struct xwl_touch *xwl_touch, *next_xwl_touch;
 
     xorg_list_for_each_entry_safe(xwl_touch, next_xwl_touch,
                                   &xwl_seat->touches, link_touch) {
-        if (xwl_touch->window->window == window) {
+        if (xwl_touch->window == xwl_window) {
             xorg_list_del(&xwl_touch->link_touch);
             free(xwl_touch);
         }

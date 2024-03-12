@@ -1452,23 +1452,6 @@ xwl_unrealize_window(WindowPtr window)
 
     xwl_screen = xwl_screen_get(screen);
 
-    xorg_list_for_each_entry(xwl_seat, &xwl_screen->seat_list, link) {
-        if (xwl_seat->focus_window && xwl_seat->focus_window->window == window)
-            xwl_seat->focus_window = NULL;
-        if (xwl_seat->tablet_focus_window && xwl_seat->tablet_focus_window->window == window)
-            xwl_seat->tablet_focus_window = NULL;
-        if (xwl_seat->last_xwindow == window)
-            xwl_seat->last_xwindow = NullWindow;
-        if (xwl_seat->cursor_confinement_window &&
-            xwl_seat->cursor_confinement_window->window == window)
-            xwl_seat_unconfine_pointer(xwl_seat);
-        if (xwl_seat->pointer_warp_emulator &&
-            xwl_seat->pointer_warp_emulator->locked_window &&
-            xwl_seat->pointer_warp_emulator->locked_window->window == window)
-            xwl_seat_destroy_pointer_warp_emulator(xwl_seat);
-        xwl_seat_clear_touch(xwl_seat, window);
-    }
-
     compUnredirectWindow(serverClient, window, CompositeRedirectManual);
 
     screen->UnrealizeWindow = xwl_screen->UnrealizeWindow;
@@ -1479,6 +1462,21 @@ xwl_unrealize_window(WindowPtr window)
     xwl_window = xwl_window_get(window);
     if (!xwl_window)
         return ret;
+
+    xorg_list_for_each_entry(xwl_seat, &xwl_screen->seat_list, link) {
+        if (xwl_seat->focus_window == xwl_window)
+            xwl_seat->focus_window = NULL;
+        if (xwl_seat->tablet_focus_window == xwl_window)
+            xwl_seat->tablet_focus_window = NULL;
+        if (xwl_seat->last_focus_window == xwl_window)
+            xwl_seat->last_focus_window = NULL;
+        if (xwl_seat->cursor_confinement_window == xwl_window)
+            xwl_seat_unconfine_pointer(xwl_seat);
+        if (xwl_seat->pointer_warp_emulator &&
+            xwl_seat->pointer_warp_emulator->locked_window == xwl_window)
+            xwl_seat_destroy_pointer_warp_emulator(xwl_seat);
+        xwl_seat_clear_touch(xwl_seat, xwl_window);
+    }
 
     if (xwl_window_has_viewport_enabled(xwl_window))
         xwl_window_disable_viewport(xwl_window);
