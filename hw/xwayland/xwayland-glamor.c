@@ -284,37 +284,6 @@ xwl_glamor_needs_n_buffering(struct xwl_screen *xwl_screen)
     return TRUE;
 }
 
-void
-xwl_glamor_init_backends(struct xwl_screen *xwl_screen)
-{
-#ifdef GLAMOR_HAS_GBM
-    if (!xwl_glamor_init_gbm(xwl_screen))
-        ErrorF("Xwayland glamor: GBM backend is not available\n");
-#endif
-}
-
-static Bool
-xwl_glamor_select_gbm_backend(struct xwl_screen *xwl_screen)
-{
-#ifdef GLAMOR_HAS_GBM
-    if (xwl_glamor_has_wl_interfaces(xwl_screen)) {
-        LogMessageVerb(X_INFO, 3, "glamor: Using GBM backend\n");
-        return TRUE;
-    }
-    else
-        LogMessageVerb(X_INFO, 3,
-                       "Missing Wayland requirements for glamor GBM backend\n");
-#endif
-
-    return FALSE;
-}
-
-void
-xwl_glamor_select_backend(struct xwl_screen *xwl_screen)
-{
-    xwl_glamor_select_gbm_backend(xwl_screen);
-}
-
 Bool
 xwl_glamor_init(struct xwl_screen *xwl_screen)
 {
@@ -324,6 +293,11 @@ xwl_glamor_init(struct xwl_screen *xwl_screen)
     no_glamor_env = getenv("XWAYLAND_NO_GLAMOR");
     if (no_glamor_env && *no_glamor_env != '0') {
         ErrorF("Disabling glamor and dri3 support, XWAYLAND_NO_GLAMOR is set\n");
+        return FALSE;
+    }
+
+    if (!xwl_glamor_has_wl_interfaces(xwl_screen)) {
+        ErrorF("Xwayland glamor: GBM Wayland interfaces not available\n");
         return FALSE;
     }
 

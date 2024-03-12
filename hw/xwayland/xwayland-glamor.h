@@ -119,8 +119,6 @@ struct xwl_egl_backend {
 
 #ifdef XWL_HAS_GLAMOR
 
-void xwl_glamor_init_backends(struct xwl_screen *xwl_screen);
-void xwl_glamor_select_backend(struct xwl_screen *xwl_screen);
 Bool xwl_glamor_init(struct xwl_screen *xwl_screen);
 
 Bool xwl_screen_set_drm_interface(struct xwl_screen *xwl_screen,

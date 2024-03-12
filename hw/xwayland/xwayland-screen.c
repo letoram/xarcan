@@ -869,8 +869,10 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
     }
 
 #ifdef XWL_HAS_GLAMOR
-    if (xwl_screen->glamor)
-        xwl_glamor_init_backends(xwl_screen);
+    if (xwl_screen->glamor && !xwl_glamor_init_gbm(xwl_screen)) {
+        ErrorF("xwayland glamor: failed to setup GBM backend, falling back to sw accel\n");
+        xwl_screen->glamor = 0;
+    }
 #endif
 
     /* In rootless mode, we don't have any screen storage, and the only
@@ -992,13 +994,9 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
         return FALSE;
 
 #ifdef XWL_HAS_GLAMOR
-    if (xwl_screen->glamor) {
-        xwl_glamor_select_backend(xwl_screen);
-
-        if (!xwl_glamor_init(xwl_screen)) {
-           ErrorF("Failed to initialize glamor, falling back to sw\n");
-           xwl_screen->glamor = XWL_GLAMOR_NONE;
-        }
+    if (xwl_screen->glamor && !xwl_glamor_init(xwl_screen)) {
+       ErrorF("Failed to initialize glamor, falling back to sw\n");
+       xwl_screen->glamor = XWL_GLAMOR_NONE;
     }
 #endif
 
