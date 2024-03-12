@@ -36,12 +36,6 @@
 #include "xwayland-types.h"
 #include "xwayland-glamor-gbm.h"
 
-typedef enum _xwl_egl_backend_flags {
-    XWL_EGL_BACKEND_NO_FLAG = 0,
-    XWL_EGL_BACKEND_NEEDS_BUFFER_FLUSH = (1 << 0),
-    XWL_EGL_BACKEND_NEEDS_N_BUFFERING = (1 << 1),
-} xwl_egl_backend_flags;
-
 typedef enum _xwl_glamor_mode_flags{
     XWL_GLAMOR_NONE = 0,
     XWL_GLAMOR_GL = (1 << 0),
