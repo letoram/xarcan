@@ -55,7 +55,6 @@ void xwl_glamor_init_wl_registry(struct xwl_screen *xwl_screen,
                                  uint32_t id, const char *interface,
                                  uint32_t version);
 void xwl_glamor_egl_make_current(struct xwl_screen *xwl_screen);
-Bool xwl_glamor_needs_n_buffering(struct xwl_screen *xwl_screen);
 Bool xwl_glamor_check_flip(WindowPtr present_window, PixmapPtr pixmap);
 PixmapPtr xwl_glamor_create_pixmap_for_window (struct xwl_window *xwl_window);
 

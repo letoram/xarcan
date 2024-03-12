@@ -270,12 +270,6 @@ glamor_egl_fd_name_from_pixmap(ScreenPtr screen,
 }
 
 Bool
-xwl_glamor_needs_n_buffering(struct xwl_screen *xwl_screen)
-{
-    return TRUE;
-}
-
-Bool
 xwl_glamor_init(struct xwl_screen *xwl_screen)
 {
     ScreenPtr screen = xwl_screen->screen;

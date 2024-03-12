@@ -400,12 +400,5 @@ xwl_window_swap_pixmap(struct xwl_window *xwl_window)
 PixmapPtr
 xwl_window_buffers_get_pixmap(struct xwl_window *xwl_window)
 {
-#ifdef XWL_HAS_GLAMOR
-    struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
-
-    if (!xwl_glamor_needs_n_buffering(xwl_screen))
-        return xwl_screen->screen->GetWindowPixmap(xwl_window->window);
-#endif /* XWL_HAS_GLAMOR */
-
     return xwl_window_swap_pixmap(xwl_window);
 }
