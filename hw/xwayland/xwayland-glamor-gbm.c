@@ -402,13 +402,17 @@ xwl_glamor_gbm_create_pixmap(ScreenPtr screen,
                                                  width, height, depth, hint, FALSE);
 }
 
-static PixmapPtr
-xwl_glamor_gbm_create_pixmap_for_window(struct xwl_window *xwl_window)
+PixmapPtr
+xwl_glamor_create_pixmap_for_window(struct xwl_window *xwl_window)
 {
+    struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
     WindowPtr window = xwl_window->window;
     unsigned border_width = 2 * window->borderWidth;
 
-    return xwl_glamor_gbm_create_pixmap_internal(xwl_window->xwl_screen,
+    if (!xwl_screen->glamor || !xwl_screen->egl_backend)
+        return NullPixmap;
+
+    return xwl_glamor_gbm_create_pixmap_internal(xwl_screen,
                                                  &window->drawable,
                                                  window->drawable.width + border_width,
                                                  window->drawable.height + border_width,
@@ -1304,5 +1308,4 @@ xwl_glamor_init_gbm(struct xwl_screen *xwl_screen)
     xwl_screen->gbm_backend.is_available = TRUE;
     xwl_screen->gbm_backend.backend_flags = XWL_EGL_BACKEND_NEEDS_BUFFER_FLUSH |
                                             XWL_EGL_BACKEND_NEEDS_N_BUFFERING;
-    xwl_screen->gbm_backend.create_pixmap_for_window = xwl_glamor_gbm_create_pixmap_for_window;
 }
