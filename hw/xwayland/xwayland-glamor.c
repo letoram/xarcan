@@ -127,19 +127,6 @@ xwl_glamor_has_wl_interfaces(struct xwl_screen *xwl_screen,
 }
 
 Bool
-xwl_glamor_post_damage(struct xwl_window *xwl_window,
-                       PixmapPtr pixmap)
-{
-    struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
-    RegionPtr region = xwl_window_get_damage_region(xwl_window);
-
-    if (xwl_screen->egl_backend->post_damage)
-        return xwl_screen->egl_backend->post_damage(xwl_window, pixmap, region);
-
-    return TRUE;
-}
-
-Bool
 xwl_glamor_allow_commits(struct xwl_window *xwl_window)
 {
     struct xwl_screen *xwl_screen = xwl_window->xwl_screen;

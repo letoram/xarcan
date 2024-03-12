@@ -1357,15 +1357,6 @@ xwl_window_attach_buffer(struct xwl_window *xwl_window)
         return FALSE;
     }
 
-#ifdef XWL_HAS_GLAMOR
-    if (xwl_screen->glamor) {
-        if (!xwl_glamor_post_damage(xwl_window, pixmap)) {
-            ErrorF("glamor: Failed to post damage\n");
-            return FALSE;
-        }
-    }
-#endif
-
     wl_surface_attach(xwl_window->surface, buffer, 0, 0);
 
     /* Arbitrary limit to try to avoid flooding the Wayland
