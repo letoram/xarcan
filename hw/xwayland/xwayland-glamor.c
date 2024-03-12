@@ -126,17 +126,6 @@ xwl_glamor_has_wl_interfaces(struct xwl_screen *xwl_screen,
     return TRUE;
 }
 
-Bool
-xwl_glamor_allow_commits(struct xwl_window *xwl_window)
-{
-    struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
-
-    if (xwl_screen->egl_backend->allow_commits)
-        return xwl_screen->egl_backend->allow_commits(xwl_window);
-    else
-        return TRUE;
-}
-
 static void
 xwl_avoid_implicit_redirect(WindowPtr window)
 {
