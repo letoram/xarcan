@@ -302,7 +302,6 @@ struct pcvtid {
 
 #define SYSCALL(call) while(((call) == -1) && (errno == EINTR))
 
-#define XF86_OS_PRIVS
 #include "xf86_OSproc.h"
 
 #endif                          /* _XF86_OSLIB_H */

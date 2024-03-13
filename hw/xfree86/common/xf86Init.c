@@ -62,10 +62,10 @@
 #include "systemd-logind.h"
 #include "loaderProcs.h"
 
-#define XF86_OS_PRIVS
 #include "xf86.h"
 #include "xf86Priv.h"
 #include "xf86Config.h"
+#include "xf86_os_support.h"
 #include "xf86_OSlib.h"
 #include "xf86cmap.h"
 #include "xorgVersion.h"

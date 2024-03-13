@@ -33,6 +33,7 @@
 
 #include "xf86.h"
 #include "xf86Priv.h"
+#include "xf86_os_support.h"
 #include "xf86_OSlib.h"
 #ifdef HAVE_SYS_KD_H
 #include <sys/kd.h>

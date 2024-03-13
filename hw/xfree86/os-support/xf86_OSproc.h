@@ -167,23 +167,6 @@ extern _X_EXPORT int xf86InstallSIGIOHandler(int fd, void (*f) (int, void *),
                                              void *);
 extern _X_EXPORT int xf86RemoveSIGIOHandler(int fd);
 
-#ifdef XF86_OS_PRIVS
-typedef void (*PMClose) (void);
-extern _X_EXPORT void xf86OpenConsole(void);
-extern _X_EXPORT void xf86CloseConsole(void);
-extern _X_HIDDEN Bool xf86VTActivate(int vtno);
-extern _X_EXPORT Bool xf86VTSwitchPending(void);
-extern _X_EXPORT Bool xf86VTSwitchAway(void);
-extern _X_EXPORT Bool xf86VTSwitchTo(void);
-extern _X_EXPORT void xf86VTRequest(int sig);
-extern _X_EXPORT int xf86ProcessArgument(int, char **, int);
-extern _X_EXPORT void xf86UseMsg(void);
-extern _X_EXPORT PMClose xf86OSPMOpen(void);
-
-extern _X_EXPORT void xf86InitVidMem(void);
-
-#endif                          /* XF86_OS_PRIVS */
-
 #ifdef XSERVER_PLATFORM_BUS
 #include "hotplug.h"
 void
