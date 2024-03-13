@@ -162,7 +162,6 @@ extern _X_EXPORT Bool xf86GARTCloseScreen(int screenNum);
    wrappers than to wrap each individual function called. */
 extern _X_EXPORT int xf86InstallSIGIOHandler(int fd, void (*f) (int, void *),
                                              void *);
-extern _X_EXPORT int xf86RemoveSIGIOHandler(int fd);
 
 #ifdef XSERVER_PLATFORM_BUS
 #include "hotplug.h"
