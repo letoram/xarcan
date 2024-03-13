@@ -157,7 +157,6 @@ extern _X_EXPORT Bool xf86DeallocateGARTMemory(int screenNum, int key);
 extern _X_EXPORT Bool xf86BindGARTMemory(int screenNum, int key,
                                          unsigned long offset);
 extern _X_EXPORT Bool xf86UnbindGARTMemory(int screenNum, int key);
-extern _X_EXPORT Bool xf86EnableAGP(int screenNum, CARD32 mode);
 extern _X_EXPORT Bool xf86GARTCloseScreen(int screenNum);
 
 /* These routines are in shared/sigio.c and are not loaded as part of the

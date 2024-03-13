@@ -94,9 +94,3 @@ xf86UnbindGARTMemory(int screenNum, int key)
 {
     return FALSE;
 }
-
-Bool
-xf86EnableAGP(int screenNum, CARD32 mode)
-{
-    return FALSE;
-}

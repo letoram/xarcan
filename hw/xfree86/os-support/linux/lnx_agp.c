@@ -352,23 +352,3 @@ xf86UnbindGARTMemory(int screenNum, int key)
 
     return TRUE;
 }
-
-/* XXX Interface may change. */
-Bool
-xf86EnableAGP(int screenNum, CARD32 mode)
-{
-    agp_setup setup;
-
-    if (!GARTInit(screenNum) || acquiredScreen != screenNum)
-        return FALSE;
-
-    setup.agp_mode = mode;
-    if (ioctl(gartFd, AGPIOC_SETUP, &setup) != 0) {
-        xf86DrvMsg(screenNum, X_WARNING, "xf86EnableAGP: "
-                   "AGPIOC_SETUP with mode %ld failed (%s)\n",
-                   (unsigned long) mode, strerror(errno));
-        return FALSE;
-    }
-
-    return TRUE;
-}
