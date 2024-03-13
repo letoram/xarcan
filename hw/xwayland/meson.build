@@ -107,7 +107,8 @@ if build_xwayland_glamor
               'xwayland-glamor.c',
               'xwayland-dmabuf.h',
               'xwayland-dmabuf.c',
-              'xwayland-glamor-gbm.c'
+              'xwayland-glamor-gbm.c',
+              'xwayland-glamor-gbm.h'
             ]
 
     if build_xv

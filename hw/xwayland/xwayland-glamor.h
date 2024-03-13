@@ -34,6 +34,7 @@
 #include <xf86drm.h>
 
 #include "xwayland-types.h"
+#include "xwayland-glamor-gbm.h"
 
 typedef enum _xwl_egl_backend_flags {
     XWL_EGL_BACKEND_NO_FLAG = 0,
@@ -144,8 +145,6 @@ PixmapPtr xwl_glamor_create_pixmap_for_window (struct xwl_window *xwl_window);
 /* glamor Xv Adaptor */
 Bool xwl_glamor_xv_init(ScreenPtr pScreen);
 #endif /* XV */
-
-void xwl_glamor_init_gbm(struct xwl_screen *xwl_screen);
 
 #endif /* XWL_HAS_GLAMOR */
 
