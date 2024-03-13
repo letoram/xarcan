@@ -25,5 +25,6 @@ PMClose xf86OSPMOpen(void);
 void xf86InitVidMem(void);
 
 void xf86OSRingBell(int volume, int pitch, int duration);
+void xf86OSInputThreadInit(void);
 
 #endif /* _XSERVER_XF86_OS_SUPPORT */
