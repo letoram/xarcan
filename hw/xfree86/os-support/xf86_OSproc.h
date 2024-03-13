@@ -118,7 +118,6 @@ extern _X_EXPORT void xf86DisableIO(void);
 extern _X_EXPORT void xf86SetTVOut(int);
 extern _X_EXPORT void xf86SetRGBOut(void);
 #endif
-extern _X_EXPORT void xf86OSRingBell(int, int, int);
 extern _X_EXPORT void xf86SlowBcopy(unsigned char *, unsigned char *, int);
 extern _X_EXPORT int xf86OpenSerial(XF86OptionPtr options);
 extern _X_EXPORT int xf86SetSerial(int fd, XF86OptionPtr options);
