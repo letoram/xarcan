@@ -412,16 +412,6 @@ xf86WaitForInput(int fd, int timeout)
 }
 
 int
-xf86SerialSendBreak(int fd, int duration)
-{
-    int r;
-
-    SYSCALL(r = tcsendbreak(fd, duration));
-    return r;
-
-}
-
-int
 xf86FlushInput(int fd)
 {
     struct pollfd poll_fd;

@@ -129,7 +129,6 @@ extern _X_EXPORT int xf86WriteSerial(int fd, const void *buf, int count);
 extern _X_EXPORT int xf86CloseSerial(int fd);
 extern _X_EXPORT int xf86FlushInput(int fd);
 extern _X_EXPORT int xf86WaitForInput(int fd, int timeout);
-extern _X_EXPORT int xf86SerialSendBreak(int fd, int duration);
 extern _X_EXPORT int xf86SetSerialModemState(int fd, int state);
 extern _X_EXPORT int xf86GetSerialModemState(int fd);
 extern _X_EXPORT int xf86SerialModemSetBits(int fd, int bits);
