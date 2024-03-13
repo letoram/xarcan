@@ -151,7 +151,6 @@ extern _X_EXPORT Bool xf86AcquireGART(int screenNum);
 extern _X_EXPORT Bool xf86ReleaseGART(int screenNum);
 extern _X_EXPORT int xf86AllocateGARTMemory(int screenNum, unsigned long size,
                                             int type, unsigned long *physical);
-extern _X_EXPORT Bool xf86DeallocateGARTMemory(int screenNum, int key);
 extern _X_EXPORT Bool xf86BindGARTMemory(int screenNum, int key,
                                          unsigned long offset);
 extern _X_EXPORT Bool xf86UnbindGARTMemory(int screenNum, int key);
