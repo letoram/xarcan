@@ -59,4 +59,12 @@ void
 xf86PlatformReprobeDevice(int index, struct OdevAttributes *attribs);
 #endif
 
+#if defined(__sun)
+extern char xf86SolarisFbDev[PATH_MAX];
+
+/* these are only used inside sun-specific os-support */
+void xf86VTAcquire(int);
+void xf86VTRelease(int);
+#endif
+
 #endif /* _XSERVER_XF86_OS_SUPPORT */
