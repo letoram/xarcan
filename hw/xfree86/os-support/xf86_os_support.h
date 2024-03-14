@@ -10,8 +10,6 @@
 
 #include <X11/Xdefs.h>
 
-#include "xf86OSpriv.h"
-
 typedef void (*PMClose) (void);
 
 void xf86OpenConsole(void);
@@ -30,6 +28,10 @@ void xf86OSRingBell(int volume, int pitch, int duration);
 void xf86OSInputThreadInit(void);
 Bool xf86DeallocateGARTMemory(int screenNum, int key);
 int xf86RemoveSIGIOHandler(int fd);
+
+typedef struct {
+    Bool initialised;
+} VidMemInfo, *VidMemInfoPtr;
 
 void xf86OSInitVidMem(VidMemInfoPtr);
 
