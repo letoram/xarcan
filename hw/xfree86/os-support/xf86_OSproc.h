@@ -87,19 +87,6 @@
 #define XF86_M_RNG		0x080   /* ring */
 #define XF86_M_DSR		0x100   /* data set ready */
 
-/*
- * This is to prevent re-entrancy to FatalError() when aborting.
- * Anything that can be called as a result of ddxGiveUp() should use this
- * instead of FatalError().
- */
-
-#define xf86FatalError(a, b) \
-	if (dispatchException & DE_TERMINATE) { \
-		ErrorF(a, b); \
-		ErrorF("\n"); \
-		return; \
-	} else FatalError(a, b)
-
 /***************************************************************************/
 /* Prototypes                                                              */
 /***************************************************************************/

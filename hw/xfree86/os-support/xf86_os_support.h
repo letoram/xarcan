@@ -10,6 +10,21 @@
 
 #include <X11/Xdefs.h>
 
+#include "os.h"
+
+/*
+ * This is to prevent re-entrancy to FatalError() when aborting.
+ * Anything that can be called as a result of ddxGiveUp() should use this
+ * instead of FatalError().
+ */
+
+#define xf86FatalError(a, b) \
+	if (dispatchException & DE_TERMINATE) { \
+		ErrorF(a, b); \
+		ErrorF("\n"); \
+		return; \
+	} else FatalError(a, b)
+
 typedef void (*PMClose) (void);
 
 void xf86OpenConsole(void);
