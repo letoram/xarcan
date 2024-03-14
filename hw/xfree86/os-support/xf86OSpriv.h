@@ -36,6 +36,4 @@ typedef struct {
     Bool initialised;
 } VidMemInfo, *VidMemInfoPtr;
 
-void xf86OSInitVidMem(VidMemInfoPtr);
-
 #endif                          /* _XF86OSPRIV_H */

@@ -39,8 +39,8 @@
 #include <sys/sysctl.h>
 #endif
 
+#include "xf86_os_support.h"
 #include "xf86_OSlib.h"
-#include "xf86OSpriv.h"
 
 #if defined(__NetBSD__) && !defined(MAP_FILE)
 #define MAP_FLAGS MAP_SHARED
