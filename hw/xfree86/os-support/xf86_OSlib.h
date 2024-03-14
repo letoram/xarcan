@@ -151,11 +151,6 @@ extern _X_HIDDEN char xf86SolarisFbDev[PATH_MAX];
 #undef STRING
 #undef LEFTALT
 #undef RIGHTALT
-
-#define LED_CAP LED_CAPS_LOCK
-#define LED_NUM LED_NUM_LOCK
-#define LED_SCR LED_SCROLL_LOCK
-#define LED_COMP LED_COMPOSE
 #endif                          /* __sun */
 
 #if !defined(VT_ACKACQ)
