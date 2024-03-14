@@ -134,7 +134,6 @@ extern _X_HIDDEN char xf86SolarisFbDev[PATH_MAX];
 #define DEV_MEM "/dev/pmem"
 #endif
 #define CLEARDTR_SUPPORT
-#define POSIX_TTY
 #endif                          /* SVR4 */
 
 #endif                          /* (SYSV || SVR4) */
@@ -169,8 +168,6 @@ extern _X_HIDDEN char xf86SolarisFbDev[PATH_MAX];
 #define CLEARDTR_SUPPORT
 #endif
 
-#define POSIX_TTY
-
 #endif                          /* __linux__ || __GLIBC__ */
 
 /**************************************************************************/
@@ -183,7 +180,6 @@ extern _X_HIDDEN char xf86SolarisFbDev[PATH_MAX];
 
 #include <termios.h>
 #define termio termios
-#define POSIX_TTY
 
 #include <errno.h>
 
