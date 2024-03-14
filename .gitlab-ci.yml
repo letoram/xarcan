@@ -127,6 +127,7 @@ meson-dist:
 check-commits:
   extends:
     - .fdo.ci-fairy
+  needs: []
   stage: test
   script:
     - ci-fairy check-commits --junit-xml=results.xml
@@ -145,6 +146,7 @@ check-commits:
 check-merge-request:
   extends:
     - .fdo.ci-fairy
+  needs: []
   stage: test
   rules:
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
