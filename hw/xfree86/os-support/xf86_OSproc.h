@@ -87,7 +87,6 @@
 #define XF86_M_RNG		0x080   /* ring */
 #define XF86_M_DSR		0x100   /* data set ready */
 
-#ifndef NO_OSLIB_PROTOTYPES
 /*
  * This is to prevent re-entrancy to FatalError() when aborting.
  * Anything that can be called as a result of ddxGiveUp() should use this
@@ -198,5 +197,4 @@ xf86PlatformReprobeDevice(int index, struct OdevAttributes *attribs);
 #endif
 
 _XFUNCPROTOEND
-#endif                          /* NO_OSLIB_PROTOTYPES */
 #endif                          /* _XF86_OSPROC_H */
