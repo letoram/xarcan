@@ -77,8 +77,8 @@ extern void winDebug(const char *format, ...);
 extern void winReshapeMultiWindow(WindowPtr pWin);
 extern void winUpdateRgnMultiWindow(WindowPtr pWin);
 
-#ifndef CYGDEBUG
-#define CYGDEBUG NO
+#ifndef ENABLE_DEBUG
+#define ENABLE_DEBUG NO
 #endif
 
 /*
@@ -189,7 +189,7 @@ static Bool g_shutdown = FALSE;
  * Translate msg id to text, for debug purposes
  */
 
-#if CYGMULTIWINDOW_DEBUG
+#if ENABLE_DEBUG
 static const char *
 MessageName(winWMMessagePtr msg)
 {
@@ -386,7 +386,7 @@ GetWindowName(WMInfoPtr pWMInfo, xcb_window_t iWin, char **ppWindowName)
     xcb_connection_t *conn = pWMInfo->conn;
     char *pszWindowName = NULL;
 
-#if CYGMULTIWINDOW_DEBUG
+#if ENABLE_DEBUG
     ErrorF("GetWindowName\n");
 #endif
 
@@ -791,7 +791,7 @@ winMultiWindowWMProc(void *pArg)
     /* Initialize the Window Manager */
     winInitMultiWindowWM(pWMInfo, pProcArg);
 
-#if CYGMULTIWINDOW_DEBUG
+#if ENABLE_DEBUG
     ErrorF("winMultiWindowWMProc ()\n");
 #endif
 
@@ -808,7 +808,7 @@ winMultiWindowWMProc(void *pArg)
             pthread_exit(NULL);
         }
 
-#if CYGMULTIWINDOW_DEBUG
+#if ENABLE_DEBUG
         ErrorF("winMultiWindowWMProc - MSG: %s (%d) ID: %d\n",
                MessageName(&(pNode->msg)), (int)pNode->msg.msg, (int)pNode->msg.dwID);
 #endif
@@ -1002,7 +1002,7 @@ winMultiWindowWMProc(void *pArg)
     /* Free the passed-in argument */
     free(pProcArg);
 
-#if CYGMULTIWINDOW_DEBUG
+#if ENABLE_DEBUG
     ErrorF("-winMultiWindowWMProc ()\n");
 #endif
     return NULL;
@@ -1441,7 +1441,7 @@ winInitWM(void **ppWMInfo,
         return FALSE;
     }
 
-#if CYGDEBUG || YES
+#if ENABLE_DEBUG || YES
     winDebug("winInitWM - Returning.\n");
 #endif
 
@@ -1631,7 +1631,7 @@ winSendMessageToWM(void *pWMInfo, winWMMessagePtr pMsg)
 {
     WMMsgNodePtr pNode;
 
-#if CYGMULTIWINDOW_DEBUG
+#if ENABLE_DEBUG
     ErrorF("winSendMessageToWM %s\n", MessageName(pMsg));
 #endif
 

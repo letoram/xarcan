@@ -47,7 +47,7 @@ winAllocatePrivates(ScreenPtr pScreen)
 {
     winPrivScreenPtr pScreenPriv;
 
-#if CYGDEBUG
+#if ENABLE_DEBUG
     winDebug("winAllocateScreenPrivates - g_ulServerGeneration: %lu "
              "serverGeneration: %lu\n", g_ulServerGeneration, serverGeneration);
 #endif
@@ -102,7 +102,7 @@ winAllocatePrivates(ScreenPtr pScreen)
 Bool
 winInitCmapPrivates(ColormapPtr pcmap, int i)
 {
-#if CYGDEBUG
+#if ENABLE_DEBUG
     winDebug("winInitCmapPrivates\n");
 #endif
 
@@ -129,7 +129,7 @@ winAllocateCmapPrivates(ColormapPtr pCmap)
     winPrivCmapPtr pCmapPriv;
     static unsigned long s_ulPrivateGeneration = 0;
 
-#if CYGDEBUG
+#if ENABLE_DEBUG
     winDebug("winAllocateCmapPrivates\n");
 #endif
 
@@ -155,7 +155,7 @@ winAllocateCmapPrivates(ColormapPtr pCmap)
     /* Save the cmap private pointer */
     winSetCmapPriv(pCmap, pCmapPriv);
 
-#if CYGDEBUG
+#if ENABLE_DEBUG
     winDebug("winAllocateCmapPrivates - Returning\n");
 #endif
 

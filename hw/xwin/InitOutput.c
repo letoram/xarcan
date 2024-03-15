@@ -193,7 +193,7 @@ ddxGiveUp(enum ExitCode error)
 {
     int i;
 
-#if CYGDEBUG
+#if ENABLE_DEBUG
     winDebug("ddxGiveUp\n");
 #endif
 
@@ -906,7 +906,7 @@ InitOutput(ScreenInfo * pScreenInfo, int argc, char *argv[])
     /* Log the command line */
     winLogCommandLine(argc, argv);
 
-#if CYGDEBUG
+#if ENABLE_DEBUG
     winDebug("InitOutput\n");
 #endif
 
@@ -1024,7 +1024,7 @@ InitOutput(ScreenInfo * pScreenInfo, int argc, char *argv[])
         winGenerateAuthorization();
 
 
-#if CYGDEBUG || YES
+#if ENABLE_DEBUG || YES
     winDebug("InitOutput - Returning.\n");
 #endif
 }

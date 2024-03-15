@@ -198,7 +198,7 @@ winAllocateFBShadowDDNL(ScreenPtr pScreen)
         .dwSize = sizeof(DDPIXELFORMAT)
     };
 
-#if CYGDEBUG
+#if ENABLE_DEBUG
     winDebug("winAllocateFBShadowDDNL - w %u h %u d %u\n",
              (unsigned int)pScreenInfo->dwWidth,
              (unsigned int)pScreenInfo->dwHeight,
@@ -225,7 +225,7 @@ winAllocateFBShadowDDNL(ScreenPtr pScreen)
         return FALSE;
     }
 
-#if CYGDEBUG
+#if ENABLE_DEBUG
     winDebug("winAllocateFBShadowDDNL - Created a clipper\n");
 #endif
 
@@ -238,7 +238,7 @@ winAllocateFBShadowDDNL(ScreenPtr pScreen)
         return FALSE;
     }
 
-#if CYGDEBUG
+#if ENABLE_DEBUG
     winDebug("winAllocateFBShadowDDNL - Attached clipper to window\n");
 #endif
 
@@ -252,7 +252,7 @@ winAllocateFBShadowDDNL(ScreenPtr pScreen)
         return FALSE;
     }
 
-#if CYGDEBUG
+#if ENABLE_DEBUG
     winDebug("winAllocateFBShadowDDNL - Created and initialized DD\n");
 #endif
 
@@ -391,7 +391,7 @@ winAllocateFBShadowDDNL(ScreenPtr pScreen)
         return FALSE;
     }
 
-#if CYGDEBUG
+#if ENABLE_DEBUG
     winDebug("winAllocateFBShadowDDNL - Primary masks: %08x %08x %08x "
              "dwRGBBitCount: %u\n",
              (unsigned int)ddpfPrimary.u2.dwRBitMask,
@@ -434,7 +434,7 @@ winAllocateFBShadowDDNL(ScreenPtr pScreen)
         return FALSE;
     }
 
-#if CYGDEBUG || YES
+#if ENABLE_DEBUG || YES
     winDebug("winAllocateFBShadowDDNL - Created shadow pitch: %d\n",
              (int) ddsdShadow.u1.lPitch);
 #endif
@@ -443,7 +443,7 @@ winAllocateFBShadowDDNL(ScreenPtr pScreen)
     pScreenInfo->dwStride = (ddsdShadow.u1.lPitch * 8)
         / pScreenInfo->dwBPP;
 
-#if CYGDEBUG || YES
+#if ENABLE_DEBUG || YES
     winDebug("winAllocateFBShadowDDNL - Created shadow stride: %d\n",
              (int) pScreenInfo->dwStride);
 #endif
@@ -456,7 +456,7 @@ winAllocateFBShadowDDNL(ScreenPtr pScreen)
     pScreenPriv->dwGreenMask = ddsdShadow.u4.ddpfPixelFormat.u3.dwGBitMask;
     pScreenPriv->dwBlueMask = ddsdShadow.u4.ddpfPixelFormat.u4.dwBBitMask;
 
-#if CYGDEBUG
+#if ENABLE_DEBUG
     winDebug("winAllocateFBShadowDDNL - Returning\n");
 #endif
 
@@ -599,7 +599,7 @@ winShadowUpdateDDNL(ScreenPtr pScreen, shadowBufPtr pBuf)
         DeleteObject(hrgnCombined);
         hrgnCombined = NULL;
 
-#if CYGDEBUG
+#if ENABLE_DEBUG
         winDebug("winShadowUpdateDDNL - be x1 %d y1 %d x2 %d y2 %d\n",
                  pBoxExtents->x1, pBoxExtents->y1,
                  pBoxExtents->x2, pBoxExtents->y2);
@@ -652,7 +652,7 @@ winCloseScreenShadowDDNL(ScreenPtr pScreen)
     winScreenInfo *pScreenInfo = pScreenPriv->pScreenInfo;
     Bool fReturn = TRUE;
 
-#if CYGDEBUG
+#if ENABLE_DEBUG
     winDebug("winCloseScreenShadowDDNL - Freeing screen resources\n");
 #endif
 
@@ -791,7 +791,7 @@ winInitVisualsShadowDDNL(ScreenPtr pScreen)
         return FALSE;
     }
 
-#if CYGDEBUG
+#if ENABLE_DEBUG
     winDebug("winInitVisualsShadowDDNL - Returning\n");
 #endif
 
@@ -1136,7 +1136,7 @@ winDestroyColormapShadowDDNL(ColormapPtr pColormap)
      * we need to handle the default colormap in a special way.
      */
     if (pColormap->flags & IsDefault) {
-#if CYGDEBUG
+#if ENABLE_DEBUG
         winDebug
             ("winDestroyColormapShadowDDNL - Destroying default colormap\n");
 #endif

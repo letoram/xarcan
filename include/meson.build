@@ -411,10 +411,7 @@ xwin_data.set('HAS_DEVWINDOWS', host_machine.system() == 'cygwin' ? '1' : false,
               description: 'Has /dev/windows for signaling new win32 messages')
 xwin_data.set('RELOCATE_PROJECTROOT', host_machine.system() == 'windows' ? '1' : false,
               description: 'Make paths relative to the xserver installation location')
-# XXX: these three are all the same as DEBUG so we should just change to that
-xwin_data.set10('CYGDEBUG', enable_debugging)
-xwin_data.set10('CYGWINDOWING_DEBUG',enable_debugging)
-xwin_data.set10('CYGMULTIWINDOW_DEBUG', enable_debugging)
+xwin_data.set10('ENABLE_DEBUG', enable_debugging)
 
 configure_file(output : 'xwin-config.h',
                input : 'xwin-config.h.meson.in',
