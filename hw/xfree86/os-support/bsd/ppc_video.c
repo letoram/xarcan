@@ -40,10 +40,6 @@
 /* Video Memory Mapping section                                            */
 /***************************************************************************/
 
-#ifdef __OpenBSD__
-#define DEV_MEM "/dev/xf86"
-#endif
-
 Bool xf86EnableIO(void);
 void xf86DisableIO(void);
 
