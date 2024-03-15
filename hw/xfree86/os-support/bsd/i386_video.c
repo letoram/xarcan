@@ -27,13 +27,12 @@
 #include <xorg-config.h>
 #endif
 
-#include <X11/X.h>
-#include "xf86.h"
-#include "xf86Priv.h"
-
 #include <errno.h>
 #include <sys/mman.h>
+#include <X11/X.h>
 
+#include "xf86.h"
+#include "xf86Priv.h"
 #include "xf86_OSlib.h"
 #include "xf86OSpriv.h"
 

@@ -27,7 +27,9 @@
 #include <xorg-config.h>
 #endif
 
+#include <sys/mman.h>
 #include <X11/X.h>
+
 #include "xf86.h"
 #include "xf86Priv.h"
 

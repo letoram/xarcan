@@ -128,7 +128,6 @@ extern _X_HIDDEN char xf86SolarisFbDev[PATH_MAX];
 #endif                          /* !VT_ACKACQ */
 
 #if defined(SVR4)
-#include <sys/mman.h>
 #if !(defined(__sun) && defined (SVR4))
 #define DEV_MEM "/dev/pmem"
 #endif
@@ -154,7 +153,6 @@ extern _X_HIDDEN char xf86SolarisFbDev[PATH_MAX];
 
 #include <errno.h>
 
-#include <sys/mman.h>
 #ifdef __linux__
 #define HAS_USL_VTS
 #include <sys/kd.h>
@@ -181,7 +179,6 @@ extern _X_HIDDEN char xf86SolarisFbDev[PATH_MAX];
 #include <errno.h>
 
 #include <sys/types.h>
-#include <sys/mman.h>
 
 #endif                          /* CSRG_BASED */
 

@@ -35,9 +35,7 @@ in this Software without prior written authorization from The Open Group.
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
-#ifdef HAVE_MEMFD_CREATE
 #include <sys/mman.h>
-#endif
 #include <unistd.h>
 #include <sys/stat.h>
 #include <fcntl.h>
