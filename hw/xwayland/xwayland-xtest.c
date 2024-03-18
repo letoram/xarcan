@@ -29,6 +29,7 @@
 #include <inpututils.h>
 #include <libgen.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include <libei.h>
 
