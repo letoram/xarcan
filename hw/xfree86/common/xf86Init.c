@@ -36,6 +36,7 @@
 
 #include <stdlib.h>
 #include <errno.h>
+#include <sys/stat.h>
 
 #undef HAS_UTSNAME
 #if !defined(WIN32)

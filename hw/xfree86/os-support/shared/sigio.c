@@ -57,6 +57,7 @@
 #endif
 
 #include <errno.h>
+#include <sys/stat.h>
 #include <X11/X.h>
 
 #include "os/osdep.h"

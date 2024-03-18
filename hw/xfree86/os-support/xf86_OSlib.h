@@ -88,7 +88,6 @@
 #include <sys/ioctl.h>
 #include <signal.h>
 #include <termio.h>
-#include <sys/stat.h>
 #include <sys/types.h>
 
 #include <errno.h>
@@ -155,8 +154,6 @@ extern _X_HIDDEN char xf86SolarisFbDev[PATH_MAX];
 
 #include <errno.h>
 
-#include <sys/stat.h>
-
 #include <sys/mman.h>
 #ifdef __linux__
 #define HAS_USL_VTS
@@ -185,7 +182,6 @@ extern _X_HIDDEN char xf86SolarisFbDev[PATH_MAX];
 
 #include <sys/types.h>
 #include <sys/mman.h>
-#include <sys/stat.h>
 
 #endif                          /* CSRG_BASED */
 

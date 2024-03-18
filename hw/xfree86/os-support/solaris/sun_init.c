@@ -27,6 +27,7 @@
 #endif
 
 #include <errno.h>
+#include <sys/stat.h>
 
 #include "../../../../os/cmdline.h"
 
