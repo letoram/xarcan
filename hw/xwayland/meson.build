@@ -197,6 +197,7 @@ install_man(xwayland_manpage)
 
 desktop_data = configuration_data()
 desktop_data.set('XWAYLAND', xwayland_server.full_path())
+desktop_data.set('DECORATE', have_libdecor ? '-decorate' : '')
 desktop_file = configure_file(
     input: 'desktop/org.freedesktop.Xwayland.desktop.in',
     output: 'org.freedesktop.Xwayland.desktop',
