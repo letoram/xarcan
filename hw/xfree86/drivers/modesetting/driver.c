@@ -36,8 +36,10 @@
 #include "dix-config.h"
 #endif
 
+#include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
+
 #include "xf86.h"
 #include "xf86Priv.h"
 #include "xf86_OSproc.h"

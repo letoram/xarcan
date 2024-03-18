@@ -36,7 +36,9 @@
 #include "dix-config.h"
 #endif
 
+#include <errno.h>
 #include <time.h>
+
 #include "list.h"
 #include "xf86.h"
 #include "driver.h"
