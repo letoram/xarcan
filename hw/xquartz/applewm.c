@@ -34,6 +34,8 @@
 #include <dix-config.h>
 #endif
 
+#include <errno.h>
+
 #include "quartz.h"
 
 #include "misc.h"

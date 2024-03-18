@@ -24,6 +24,7 @@
 #include <xorg-config.h>
 #endif
 
+#include <errno.h>
 #include <sys/audio.h>
 #include <sys/uio.h>
 #include <limits.h>

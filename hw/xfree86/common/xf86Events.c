@@ -53,9 +53,11 @@
 #include <xorg-config.h>
 #endif
 
+#include <errno.h>
 #include <X11/X.h>
 #include <X11/Xproto.h>
 #include <X11/Xatom.h>
+
 #include "misc.h"
 #include "xf86.h"
 #include "xf86Priv.h"

@@ -91,8 +91,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include <errno.h>
-
 #if defined(_NEED_SYSI86)
 #if !(defined (__sun) && defined (SVR4))
 #include <sys/immu.h>
@@ -188,8 +186,6 @@ extern _X_HIDDEN char xf86SolarisFbDev[PATH_MAX];
 #include <sys/param.h>
 #endif
 
-#include <errno.h>
-
 #include <sys/stat.h>
 
 #include <sys/mman.h>
@@ -218,8 +214,6 @@ extern _X_HIDDEN char xf86SolarisFbDev[PATH_MAX];
 #include <termios.h>
 #define termio termios
 #define POSIX_TTY
-
-#include <errno.h>
 
 #include <sys/types.h>
 #include <sys/mman.h>

@@ -7,6 +7,7 @@
 #include <xorg-config.h>
 #endif
 
+#include <errno.h>
 #include <string.h>
 #include <unistd.h>
 
