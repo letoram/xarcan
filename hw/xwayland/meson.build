@@ -195,9 +195,16 @@ xwayland_manpage = configure_file(
 )
 install_man(xwayland_manpage)
 
+desktop_data = configuration_data()
+desktop_data.set('XWAYLAND', xwayland_server.full_path())
+desktop_file = configure_file(
+    input: 'desktop/org.freedesktop.Xwayland.desktop.in',
+    output: 'org.freedesktop.Xwayland.desktop',
+    configuration: desktop_data,
+)
 datadir = join_paths(get_option('prefix'), get_option('datadir'))
 desktopdir = join_paths(datadir, 'applications')
-install_data('desktop/org.freedesktop.Xwayland.desktop', install_dir : desktopdir)
+install_data(desktop_file, install_dir : desktopdir)
 
 meson.override_find_program('Xwayland', xwayland_server)
 meson.override_dependency('xwayland', declare_dependency(
