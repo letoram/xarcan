@@ -93,22 +93,6 @@
 
 #include <errno.h>
 
-#if defined(_NEED_SYSI86)
-#if !(defined (__sun) && defined (SVR4))
-#include <sys/immu.h>
-#include <sys/region.h>
-#include <sys/proc.h>
-#endif
-#include <sys/tss.h>
-#include <sys/sysi86.h>
-#if defined(SVR4) && !defined(__sun)
-#include <sys/seg.h>
-#endif                          /* SVR4 && !__sun */
-#if defined(__sun) && (defined (__i386__) || defined(__i386) || defined(__x86))  && defined (SVR4)
-#include <sys/psw.h>
-#endif
-#endif                          /* _NEED_SYSI86 */
-
 #if !defined(__sun) || defined(HAVE_SYS_VT_H)
 #define HAS_USL_VTS
 #endif

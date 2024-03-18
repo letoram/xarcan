@@ -51,8 +51,11 @@
 #include <sys/types.h>          /* get __x86 definition if not set by compiler */
 
 #if defined(__i386__) || defined(__i386) || defined(__x86)
-#define _NEED_SYSI86
-#endif
+#include <sys/tss.h>
+#include <sys/sysi86.h>
+#include <sys/psw.h>
+#endif /* defined(__i386__) || defined(__i386) || defined(__x86) */
+
 #include "xf86.h"
 #include "xf86Priv.h"
 #include "xf86_OSlib.h"
