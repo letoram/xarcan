@@ -1007,6 +1007,12 @@ xwl_present_pixmap(WindowPtr window,
                    RRCrtcPtr target_crtc,
                    SyncFence *wait_fence,
                    SyncFence *idle_fence,
+#ifdef DRI3
+                   struct dri3_syncobj *acquire_syncobj,
+                   struct dri3_syncobj *release_syncobj,
+                   uint64_t acquire_point,
+                   uint64_t release_point,
+#endif /* DRI3 */
                    uint32_t options,
                    uint64_t target_window_msc,
                    uint64_t divisor,
@@ -1027,6 +1033,11 @@ xwl_present_pixmap(WindowPtr window,
 
     if (!window_priv)
         return BadAlloc;
+
+#ifdef DRI3
+    if (acquire_syncobj || release_syncobj)
+        return BadValue;
+#endif /* DRI3 */
 
     target_crtc = xwl_present_get_crtc(screen_priv, window);
 
@@ -1077,8 +1088,11 @@ xwl_present_pixmap(WindowPtr window,
 
     vblank = &event->vblank;
     if (!present_vblank_init(vblank, window, pixmap, serial, valid, update, x_off, y_off,
-                             target_crtc, wait_fence, idle_fence, options, XWL_PRESENT_CAPS,
-                             notifies, num_notifies, target_msc, crtc_msc)) {
+                             target_crtc, wait_fence, idle_fence,
+#ifdef DRI3
+                             acquire_syncobj, release_syncobj, acquire_point, release_point,
+#endif /* DRI3 */
+                             options, XWL_PRESENT_CAPS, notifies, num_notifies, target_msc, crtc_msc)) {
         present_vblank_destroy(vblank);
         return BadAlloc;
     }
