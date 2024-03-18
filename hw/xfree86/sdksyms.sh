@@ -208,12 +208,6 @@ cat > sdksyms.c << EOF
 #include "rrtransform.h"
 
 
-/* dbe/Makefile.am -- module */
-#ifdef DBE
-#include "dbestruct.h"
-#endif
-
-
 /* exa/Makefile.am -- module */
 /*
 #include "exa.h"
