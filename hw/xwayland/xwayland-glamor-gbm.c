@@ -66,6 +66,7 @@ struct xwl_gbm_private {
     Bool dmabuf_capable;
     Bool glamor_gles;
     Bool implicit_sync;
+    Bool supports_syncobjs;
 
     /* Set if wl_drm is available */
     struct wl_drm *drm;
@@ -960,7 +961,192 @@ xwl_glamor_dmabuf_import_sync_file(PixmapPtr pixmap, int sync_file)
     close(sync_file);
 }
 
-static const dri3_screen_info_rec xwl_dri3_info = {
+struct xwl_dri3_syncobj
+{
+    struct dri3_syncobj base;
+    uint32_t handle;
+};
+
+static Bool
+xwl_dri3_check_syncobj(struct dri3_syncobj *syncobj, uint64_t point, Bool check_avail)
+{
+    struct xwl_dri3_syncobj *xwl_syncobj = (struct xwl_dri3_syncobj *)syncobj;
+    struct xwl_screen *xwl_screen = xwl_screen_get(syncobj->screen);
+    struct xwl_gbm_private *xwl_gbm = xwl_gbm_get(xwl_screen);
+
+    return !drmSyncobjTimelineWait(xwl_gbm->drm_fd,
+                                   &xwl_syncobj->handle, &point, 1,
+                                   0 /* timeout */,
+                                   check_avail ?
+                                   DRM_SYNCOBJ_WAIT_FLAGS_WAIT_AVAILABLE :
+                                   DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT,
+                                   NULL /* first_signaled */);
+}
+
+static Bool
+xwl_dri3_syncobj_has_fence(struct dri3_syncobj *syncobj, uint64_t point)
+{
+    return xwl_dri3_check_syncobj(syncobj, point, TRUE /* check_avail */);
+}
+
+static Bool
+xwl_dri3_syncobj_is_signaled(struct dri3_syncobj *syncobj, uint64_t point)
+{
+    return xwl_dri3_check_syncobj(syncobj, point, FALSE /* check_avail */);
+}
+
+static int
+xwl_dri3_syncobj_export_fence(struct dri3_syncobj *syncobj, uint64_t point)
+{
+    struct xwl_dri3_syncobj *xwl_syncobj = (struct xwl_dri3_syncobj *)syncobj;
+    struct xwl_screen *xwl_screen = xwl_screen_get(syncobj->screen);
+    struct xwl_gbm_private *xwl_gbm = xwl_gbm_get(xwl_screen);
+    uint32_t temp_syncobj;
+    int fd = -1;
+
+    drmSyncobjCreate(xwl_gbm->drm_fd, 0, &temp_syncobj);
+    drmSyncobjTransfer(xwl_gbm->drm_fd, temp_syncobj, 0,
+                       xwl_syncobj->handle, point, 0);
+    drmSyncobjExportSyncFile(xwl_gbm->drm_fd, temp_syncobj, &fd);
+    drmSyncobjDestroy(xwl_gbm->drm_fd, temp_syncobj);
+    return fd;
+}
+
+static void
+xwl_dri3_syncobj_import_fence(struct dri3_syncobj *syncobj,
+                              uint64_t point, int fd)
+{
+    struct xwl_dri3_syncobj *xwl_syncobj = (struct xwl_dri3_syncobj *)syncobj;
+    struct xwl_screen *xwl_screen = xwl_screen_get(syncobj->screen);
+    struct xwl_gbm_private *xwl_gbm = xwl_gbm_get(xwl_screen);
+    uint32_t temp_syncobj;
+
+    drmSyncobjCreate(xwl_gbm->drm_fd, 0, &temp_syncobj);
+    drmSyncobjImportSyncFile(xwl_gbm->drm_fd, temp_syncobj, fd);
+    drmSyncobjTransfer(xwl_gbm->drm_fd, xwl_syncobj->handle, point,
+                       temp_syncobj, 0, 0);
+    drmSyncobjDestroy(xwl_gbm->drm_fd, temp_syncobj);
+    close(fd);
+}
+
+static void
+xwl_dri3_signal_syncobj(struct dri3_syncobj *syncobj, uint64_t point)
+{
+    struct xwl_dri3_syncobj *xwl_syncobj = (struct xwl_dri3_syncobj *)syncobj;
+    struct xwl_screen *xwl_screen = xwl_screen_get(syncobj->screen);
+    struct xwl_gbm_private *xwl_gbm = xwl_gbm_get(xwl_screen);
+
+    drmSyncobjTimelineSignal(xwl_gbm->drm_fd, &xwl_syncobj->handle, &point, 1);
+}
+
+static void
+xwl_dri3_free_syncobj(struct dri3_syncobj *syncobj)
+{
+    struct xwl_dri3_syncobj *xwl_syncobj = (struct xwl_dri3_syncobj *)syncobj;
+    struct xwl_screen *xwl_screen = xwl_screen_get(syncobj->screen);
+    struct xwl_gbm_private *xwl_gbm = xwl_gbm_get(xwl_screen);
+
+    if (xwl_syncobj->handle)
+        drmSyncobjDestroy(xwl_gbm->drm_fd, xwl_syncobj->handle);
+
+    free(xwl_syncobj);
+}
+
+static void
+xwl_dri3_syncobj_eventfd(struct dri3_syncobj *syncobj, uint64_t point,
+                         int efd, Bool wait_avail)
+{
+    struct xwl_dri3_syncobj *xwl_syncobj = (struct xwl_dri3_syncobj *)syncobj;
+    struct xwl_screen *xwl_screen = xwl_screen_get(syncobj->screen);
+    struct xwl_gbm_private *xwl_gbm = xwl_gbm_get(xwl_screen);
+
+    drmSyncobjEventfd(xwl_gbm->drm_fd, xwl_syncobj->handle, point, efd,
+                      wait_avail ? DRM_SYNCOBJ_WAIT_FLAGS_WAIT_AVAILABLE : 0);
+}
+
+static void
+xwl_dri3_syncobj_submitted_eventfd(struct dri3_syncobj *syncobj,
+                                   uint64_t point, int efd)
+{
+    xwl_dri3_syncobj_eventfd(syncobj, point, efd, TRUE /* wait_avail */);
+}
+
+static void
+xwl_dri3_syncobj_signaled_eventfd(struct dri3_syncobj *syncobj,
+                                  uint64_t point, int efd)
+{
+    xwl_dri3_syncobj_eventfd(syncobj, point, efd, FALSE /* wait_avail */);
+}
+
+static struct dri3_syncobj *
+xwl_dri3_create_syncobj(struct xwl_screen *xwl_screen, uint32_t handle)
+{
+    struct xwl_dri3_syncobj *syncobj = calloc(1, sizeof (*syncobj));
+
+    if (!syncobj)
+        return NULL;
+
+    syncobj->handle = handle;
+    syncobj->base.screen = xwl_screen->screen;
+    syncobj->base.refcount = 1;
+
+    syncobj->base.free = xwl_dri3_free_syncobj;
+    syncobj->base.has_fence = xwl_dri3_syncobj_has_fence;
+    syncobj->base.is_signaled = xwl_dri3_syncobj_is_signaled;
+    syncobj->base.export_fence = xwl_dri3_syncobj_export_fence;
+    syncobj->base.import_fence = xwl_dri3_syncobj_import_fence;
+    syncobj->base.signal = xwl_dri3_signal_syncobj;
+    syncobj->base.signaled_eventfd = xwl_dri3_syncobj_signaled_eventfd;
+    syncobj->base.submitted_eventfd = xwl_dri3_syncobj_submitted_eventfd;
+    return &syncobj->base;
+}
+
+static struct dri3_syncobj *
+xwl_dri3_import_syncobj(ClientPtr client, ScreenPtr screen, XID id, int fd)
+{
+    struct xwl_screen *xwl_screen = xwl_screen_get(screen);
+    struct xwl_gbm_private *xwl_gbm = xwl_gbm_get(xwl_screen);
+    struct xwl_dri3_syncobj *syncobj = NULL;
+    uint32_t handle;
+
+    if (drmSyncobjFDToHandle(xwl_gbm->drm_fd, fd, &handle))
+        return NULL;
+
+    syncobj = (struct xwl_dri3_syncobj *)xwl_dri3_create_syncobj(xwl_screen, handle);
+    if (!syncobj) {
+        drmSyncobjDestroy(xwl_gbm->drm_fd, handle);
+        return NULL;
+    }
+
+    syncobj->base.id = id;
+
+    return &syncobj->base;
+}
+
+static Bool
+xwl_gbm_supports_syncobjs(struct xwl_screen *xwl_screen)
+{
+    struct xwl_gbm_private *xwl_gbm = xwl_gbm_get(xwl_screen);
+    uint64_t syncobj_cap = 0;
+
+    if (drmGetCap(xwl_gbm->drm_fd, DRM_CAP_SYNCOBJ_TIMELINE,
+                  &syncobj_cap) || !syncobj_cap)
+        return FALSE;
+
+    /* Check if syncobj eventfd is supported. */
+    drmSyncobjEventfd(xwl_gbm->drm_fd, 0, 0, -1, 0);
+    if (errno != ENOENT)
+        return FALSE;
+
+#if !defined(DMA_BUF_IOCTL_EXPORT_SYNC_FILE) || \
+    !defined(DMA_BUF_IOCTL_IMPORT_SYNC_FILE)
+    return FALSE;
+#else
+    return TRUE;
+#endif
+}
+
+static dri3_screen_info_rec xwl_dri3_info = {
     .version = 2,
     .open = NULL,
     .pixmap_from_fds = glamor_pixmap_from_fds,
@@ -969,6 +1155,7 @@ static const dri3_screen_info_rec xwl_dri3_info = {
     .get_formats = xwl_glamor_get_formats,
     .get_modifiers = xwl_glamor_get_modifiers,
     .get_drawable_modifiers = xwl_glamor_get_drawable_modifiers,
+    .import_syncobj = NULL, /* need to check for kernel support */
 };
 
 static const char *
@@ -1127,6 +1314,13 @@ xwl_glamor_supports_implicit_sync(struct xwl_screen *xwl_screen)
     /* absent glamor, implicit sync is irrelevant so just return TRUE */
     return !xwl_screen->glamor ||
         xwl_gbm_get(xwl_screen)->implicit_sync;
+}
+
+Bool
+xwl_glamor_supports_syncobjs(struct xwl_screen *xwl_screen)
+{
+    return xwl_screen->glamor &&
+        xwl_gbm_get(xwl_screen)->supports_syncobjs;
 }
 
 static Bool
@@ -1346,6 +1540,11 @@ xwl_glamor_gbm_init_egl(struct xwl_screen *xwl_screen)
     /* NVIDIA driver does not support implicit sync */
     xwl_gbm->implicit_sync = !strstr(egl_vendor, "NVIDIA");
 
+    if (xwl_gbm_supports_syncobjs(xwl_screen) &&
+        epoxy_has_egl_extension(xwl_screen->egl_display,
+                                "ANDROID_native_fence_sync"))
+        xwl_gbm->supports_syncobjs = TRUE;
+
     return TRUE;
 error:
     if (xwl_screen->egl_display != EGL_NO_DISPLAY) {
@@ -1362,6 +1561,11 @@ Bool
 xwl_glamor_gbm_init_screen(struct xwl_screen *xwl_screen)
 {
     struct xwl_gbm_private *xwl_gbm = xwl_gbm_get(xwl_screen);
+
+    if (xwl_gbm->supports_syncobjs) {
+        xwl_dri3_info.version = 4;
+        xwl_dri3_info.import_syncobj = xwl_dri3_import_syncobj;
+    }
 
     if (!dri3_screen_init(xwl_screen->screen, &xwl_dri3_info)) {
         ErrorF("Failed to initialize dri3\n");

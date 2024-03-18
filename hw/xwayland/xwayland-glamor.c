@@ -269,6 +269,30 @@ glamor_egl_fd_name_from_pixmap(ScreenPtr screen,
     return 0;
 }
 
+int
+xwl_glamor_get_fence(struct xwl_screen *xwl_screen)
+{
+    EGLint attribs[3];
+    EGLSyncKHR sync;
+    int fence_fd = -1;
+
+    if (!xwl_screen->glamor)
+        return -1;
+
+    xwl_glamor_egl_make_current(xwl_screen);
+
+    attribs[0] = EGL_SYNC_NATIVE_FENCE_FD_ANDROID;
+    attribs[1] = EGL_NO_NATIVE_FENCE_FD_ANDROID;
+    attribs[2] = EGL_NONE;
+    sync = eglCreateSyncKHR(xwl_screen->egl_display, EGL_SYNC_NATIVE_FENCE_ANDROID, attribs);
+    if (sync != EGL_NO_SYNC_KHR) {
+        fence_fd = eglDupNativeFenceFDANDROID(xwl_screen->egl_display, sync);
+        eglDestroySyncKHR(xwl_screen->egl_display, sync);
+    }
+
+    return fence_fd;
+}
+
 Bool
 xwl_glamor_init(struct xwl_screen *xwl_screen)
 {

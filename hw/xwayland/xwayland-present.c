@@ -30,6 +30,7 @@
 #endif
 #include <windowstr.h>
 #include <present.h>
+#include <sys/eventfd.h>
 
 #include "xwayland-present.h"
 #include "xwayland-screen.h"
@@ -225,7 +226,8 @@ xwl_present_queue_vblank(ScreenPtr screen,
 static uint32_t
 xwl_present_query_capabilities(present_screen_priv_ptr screen_priv)
 {
-    return XWL_PRESENT_CAPS;
+    struct xwl_screen *xwl_screen = xwl_screen_get(screen_priv->pScreen);
+    return xwl_screen->present_capabilities;
 }
 
 static int
@@ -322,7 +324,17 @@ xwl_present_free_event(struct xwl_present_event *event)
 static void
 xwl_present_free_idle_vblank(present_vblank_ptr vblank)
 {
-    present_pixmap_idle(vblank->pixmap, vblank->window, vblank->serial, vblank->idle_fence);
+#ifdef XWL_HAS_GLAMOR
+    if (vblank->release_syncobj) {
+        /* transfer implicit fence to release syncobj */
+        int fence_fd = xwl_glamor_dmabuf_export_sync_file(vblank->pixmap);
+        vblank->release_syncobj->import_fence(vblank->release_syncobj,
+                                              vblank->release_point,
+                                              fence_fd);
+    } else
+#endif /* XWL_HAS_GLAMOR */
+        present_pixmap_idle(vblank->pixmap, vblank->window,
+                            vblank->serial, vblank->idle_fence);
     xwl_present_free_event(xwl_present_event_from_vblank(vblank));
 }
 
@@ -483,7 +495,17 @@ xwl_present_buffer_release(void *data)
         return;
 
     vblank = &event->vblank;
-    present_pixmap_idle(vblank->pixmap, vblank->window, vblank->serial, vblank->idle_fence);
+
+#ifdef XWL_HAS_GLAMOR
+    if (vblank->release_syncobj) {
+        /* transfer implicit fence to release syncobj */
+        int fence_fd = xwl_glamor_dmabuf_export_sync_file(vblank->pixmap);
+        vblank->release_syncobj->import_fence(vblank->release_syncobj,
+                                              vblank->release_point,
+                                              fence_fd);
+    } else
+#endif /* XWL_HAS_GLAMOR */
+        present_pixmap_idle(vblank->pixmap, vblank->window, vblank->serial, vblank->idle_fence);
 
     xwl_present_window = xwl_present_window_priv(vblank->window);
     if (xwl_present_window->flip_active == vblank ||
@@ -677,6 +699,18 @@ xwl_present_maybe_set_reason(struct xwl_window *xwl_window, PresentFlipReason *r
 
         *reason = PRESENT_FLIP_REASON_BUFFER_FORMAT;
     }
+}
+
+static int
+xwl_present_flush_fenced(WindowPtr window)
+{
+    int fence = -1;
+#ifdef XWL_HAS_GLAMOR
+    struct xwl_screen *xwl_screen = xwl_screen_get(window->drawable.pScreen);
+    fence = xwl_glamor_get_fence(xwl_screen);
+#endif /* XWL_HAS_GLAMOR */
+    xwl_present_flush(window);
+    return fence;
 }
 
 static Bool
@@ -896,6 +930,7 @@ xwl_present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
 
     xorg_list_del(&vblank->event_queue);
 
+retry:
     if (present_execute_wait(vblank, crtc_msc))
         return;
 
@@ -972,6 +1007,8 @@ xwl_present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
             }
 
             vblank->flip = FALSE;
+            /* re-execute, falling through to copy */
+            goto retry;
         }
         DebugPresent(("\tc %p %" PRIu64 ": %08" PRIx32 " -> %08" PRIx32 "\n",
                       vblank, crtc_msc, vblank->pixmap->drawable.id, vblank->window->drawable.id));
@@ -1029,13 +1066,16 @@ xwl_present_pixmap(WindowPtr window,
     ScreenPtr                   screen = window->drawable.pScreen;
     present_window_priv_ptr     window_priv = present_get_window_priv(window, TRUE);
     present_screen_priv_ptr     screen_priv = present_screen_priv(screen);
+    struct xwl_screen          *xwl_screen = xwl_screen_get(screen_priv->pScreen);
+    uint32_t                    caps = xwl_screen->present_capabilities;
     struct xwl_present_event *event;
 
     if (!window_priv)
         return BadAlloc;
 
 #ifdef DRI3
-    if (acquire_syncobj || release_syncobj)
+    if (!(caps & PresentCapabilitySyncobj) &&
+        (acquire_syncobj || release_syncobj))
         return BadValue;
 #endif /* DRI3 */
 
@@ -1076,6 +1116,10 @@ xwl_present_pixmap(WindowPtr window,
             if (xwl_present_event_from_vblank(vblank)->copy_executed)
                 continue;
 
+            if (vblank->release_syncobj)
+                vblank->release_syncobj->signal(vblank->release_syncobj,
+                                                vblank->release_point);
+
             present_vblank_scrap(vblank);
             if (vblank->flip_ready)
                 xwl_present_re_execute(vblank);
@@ -1092,7 +1136,7 @@ xwl_present_pixmap(WindowPtr window,
 #ifdef DRI3
                              acquire_syncobj, release_syncobj, acquire_point, release_point,
 #endif /* DRI3 */
-                             options, XWL_PRESENT_CAPS, notifies, num_notifies, target_msc, crtc_msc)) {
+                             options, caps, notifies, num_notifies, target_msc, crtc_msc)) {
         present_vblank_destroy(vblank);
         return BadAlloc;
     }
@@ -1131,6 +1175,7 @@ xwl_present_unrealize_window(struct xwl_present_window *xwl_present_window)
 Bool
 xwl_present_init(ScreenPtr screen)
 {
+    struct xwl_screen *xwl_screen = xwl_screen_get(screen);
     present_screen_priv_ptr screen_priv;
 
     if (!present_screen_register_priv_keys())
@@ -1146,6 +1191,13 @@ xwl_present_init(ScreenPtr screen)
     if (!dixRegisterPrivateKey(&xwl_present_window_private_key, PRIVATE_WINDOW, 0))
         return FALSE;
 
+    xwl_screen->present_capabilities = XWL_PRESENT_CAPS;
+#ifdef XWL_HAS_GLAMOR
+    if (xwl_glamor_supports_syncobjs(xwl_screen))
+        xwl_screen->present_capabilities |=
+            PresentCapabilitySyncobj;
+#endif /* XWL_HAS_GLAMOR */
+
     screen_priv->query_capabilities = xwl_present_query_capabilities;
     screen_priv->get_crtc = xwl_present_get_crtc;
 
@@ -1156,6 +1208,7 @@ xwl_present_init(ScreenPtr screen)
     screen_priv->present_pixmap = xwl_present_pixmap;
     screen_priv->queue_vblank = xwl_present_queue_vblank;
     screen_priv->flush = xwl_present_flush;
+    screen_priv->flush_fenced = xwl_present_flush_fenced;
     screen_priv->re_execute = xwl_present_re_execute;
 
     screen_priv->abort_vblank = xwl_present_abort_vblank;

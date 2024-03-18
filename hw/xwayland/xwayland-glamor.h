@@ -60,6 +60,8 @@ PixmapPtr xwl_glamor_create_pixmap_for_window (struct xwl_window *xwl_window);
 Bool xwl_glamor_supports_implicit_sync(struct xwl_screen *xwl_screen);
 void xwl_glamor_dmabuf_import_sync_file(PixmapPtr pixmap, int sync_file);
 int xwl_glamor_dmabuf_export_sync_file(PixmapPtr pixmap);
+Bool xwl_glamor_supports_syncobjs(struct xwl_screen *xwl_screen);
+int xwl_glamor_get_fence(struct xwl_screen *screen);
 
 #ifdef XV
 /* glamor Xv Adaptor */
