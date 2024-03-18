@@ -44,6 +44,10 @@ else
     conf_data.set('X_BYTE_ORDER', 'X_BIG_ENDIAN')
 endif
 
+# Defining _XSERVER64 on 64bit builds is VITAL, since otherwise Xlib headers
+# would define lots X types (eg. Atom, XID, etc) as 64 bit, but inside the
+# Xserver we really need them to be 32 bit (CARD32). When _SERVER64 is defined
+# the xlib headers will typedef them exactly to CARD32.
 glx_align64 = []
 if cc.sizeof('unsigned long') == 8
    conf_data.set('_XSERVER64', '1')
