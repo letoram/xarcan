@@ -29,9 +29,8 @@
 #include <device/device.h>
 #include <mach/machine/mach_i386.h>
 #include <hurd.h>
-#include <errno.h>
-#include <X11/X.h>
 
+#include <X11/X.h>
 #include "input.h"
 #include "scrnintstr.h"
 

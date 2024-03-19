@@ -26,7 +26,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <dix-config.h>
 #endif
 
-#include <errno.h>
 #include <sys/socket.h>
 #include <stdio.h>
 #include <stdarg.h>

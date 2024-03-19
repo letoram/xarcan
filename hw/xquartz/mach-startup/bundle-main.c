@@ -34,7 +34,6 @@
 #include <dix-config.h>
 #endif
 
-#include <errno.h>
 #include <X11/Xlib.h>
 #include <assert.h>
 #include <unistd.h>

@@ -29,9 +29,7 @@
 #include "dix-config.h"
 #endif
 
-#include <errno.h>
 #include <unistd.h>
-
 #include <xf86.h>
 #include <xf86Crtc.h>
 #include "driver.h"
