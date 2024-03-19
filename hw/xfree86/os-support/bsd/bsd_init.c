@@ -536,8 +536,12 @@ xf86OpenPcvt()
                     vtname);
 #endif
 #else
+# ifdef __NetBSD__
             xf86Msg(X_PROBED, "Using pcvt driver (version %d.%d)\n",
                     pcvt_version.rmajor, pcvt_version.rminor);
+# else
+            xf86Msg(X_PROBED, "Using pcvt driver\n");
+# endif
 #endif
 #ifdef __NetBSD__
         }
