@@ -2,6 +2,7 @@ simple_xinit = executable(
     'simple-xinit',
     'simple-xinit.c',
     include_directories: inc,
+    dependencies: [ xproto_dep ],
 )
 
 piglit_env = environment()
