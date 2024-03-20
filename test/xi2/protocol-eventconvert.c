@@ -273,7 +273,7 @@ test_convert_XIRawEvent(void)
 static void
 test_values_XIDeviceEvent(DeviceEvent *in, xXIDeviceEvent * out, BOOL swap)
 {
-    int buttons, valuators;
+    int valuators;
     int i;
     unsigned char *ptr;
     uint32_t flagmask = 0;
@@ -347,11 +347,9 @@ test_values_XIDeviceEvent(DeviceEvent *in, xXIDeviceEvent * out, BOOL swap)
     assert(out->root_x == double_to_fp1616(in->root_x + in->root_x_frac));
     assert(out->root_y == double_to_fp1616(in->root_y + in->root_y_frac));
 
-    buttons = 0;
     for (i = 0; i < bits_to_bytes(sizeof(in->buttons)); i++) {
         if (XIMaskIsSet(in->buttons, i)) {
             assert(out->buttons_len >= bytes_to_int32(bits_to_bytes(i)));
-            buttons++;
         }
     }
 
