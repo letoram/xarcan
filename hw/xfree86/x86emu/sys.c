@@ -65,14 +65,6 @@ struct __una_u16 {
 
 /* Elemental unaligned loads */
 
-static __inline__ u64
-ldq_u(u64 * p)
-{
-    const struct __una_u64 *ptr = (const struct __una_u64 *) p;
-
-    return ptr->x;
-}
-
 static __inline__ u32
 ldl_u(u32 * p)
 {
@@ -115,15 +107,6 @@ stw_u(u16 val, u16 * p)
     ptr->x = val;
 }
 #else                           /* !__GNUC__ */
-
-static __inline__ u64
-ldq_u(u64 * p)
-{
-    u64 ret;
-
-    memmove(&ret, p, sizeof(*p));
-    return ret;
-}
 
 static __inline__ u32
 ldl_u(u32 * p)
