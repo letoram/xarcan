@@ -156,7 +156,7 @@ SecureRPCCheck(unsigned short data_length, const char *data,
 _X_HIDDEN void
 SecureRPCInit(void)
 {
-    if (rpc_id == ~0L)
+    if (rpc_id == (XID) ~0L)
         AddAuthorization(9, "SUN-DES-1", 0, (char *) 0);
 }
 
