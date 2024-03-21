@@ -11,11 +11,6 @@ dri_dep = dependency('dri', required: build_glx)
 conf_data = configuration_data()
 conf_data.set('_DIX_CONFIG_H_', '1')
 
-conf_data.set('HAVE_TYPEOF', cc.compiles('''
-    int foo(int bar) { typeof(bar) baz = 1; return baz; }
-''',
-    name: 'typeof()') ? '1' : false)
-
 # For feature macros we're using either false (boolean) or '1', which correspond to the macro being
 # not defined at all and defined to 1. This is to match autotools behavior and thus preserve
 # backwards  compatibility with all the existing code that uses #ifdef to check if feature is
