@@ -14,6 +14,7 @@
 #define Xplus 90
 #define Xtarget 128
 #define Xtcross 130
+#define Xcrosshair 30
 #define Xquestion_arrow 92
 #define Xhand1 58
 #define Xhand2 60
@@ -115,6 +116,13 @@ mouseSpriteSet(DeviceIntPtr dev, ScreenPtr scr, CursorPtr cursor, int cx, int cy
     if (!ccon || !ccon->addr)
         return;
 
+#define send_cursor(name) do {\
+        trace("send_cursor(%s)", name);\
+        arcan_shmif_enqueue(ccon, &(arcan_event){\
+            .ext.kind = ARCAN_EVENT(CURSORHINT),\
+            .ext.message.data = name \
+        }); } while (0);
+
 /* Some clients will flip-flop cursors on and off between frames as a means of
  * implementing 'saveUnders' or flicker-free cursors. This means that we can't
  * blindly just forward cursor state. Instead check if the [cx, cy] from the
@@ -122,17 +130,17 @@ mouseSpriteSet(DeviceIntPtr dev, ScreenPtr scr, CursorPtr cursor, int cx, int cy
  * be enough (i.e. autohide after a time), consider also having a frame-
  * counter as the reference state */
     if (!cursor){
-        trace("SpriteSet(NULL):disable_cursor");
-        if (!scrpriv->cursor_event.ext.viewport.invisible){
-            if (cx == scrpriv->cursor_event.ext.viewport.x &&
-                cy == scrpriv->cursor_event.ext.viewport.y){
-                return;
-            }
+        if (cx == scrpriv->cursor_event.ext.viewport.x &&
+            cy == scrpriv->cursor_event.ext.viewport.y){
+            return;
+        }
 
+        if (!scrpriv->cursor_event.ext.viewport.invisible){
             scrpriv->cursor_event.ext.viewport.invisible = true;
             arcan_shmif_enqueue(ccon, &scrpriv->cursor_event);
         }
 
+        trace("SpriteSet(NULL):disable_cursor");
         scrpriv->cursorRealized = false;
         arcan_shmif_enqueue(ccon, &(arcan_event){
             .ext.kind = ARCAN_EVENT(CURSORHINT),
@@ -145,78 +153,36 @@ mouseSpriteSet(DeviceIntPtr dev, ScreenPtr scr, CursorPtr cursor, int cx, int cy
 /* if there is a matching glyph, prefer sending that instead */
     bool got_cursor = false;
     if (cursor->fromChar){
-         got_cursor = true;
+        got_cursor = true;
 
-         switch (cursor->sourceChar){
-         case Xcursor:
-         case Xleft_ptr:
-         arcan_shmif_enqueue(ccon, &(arcan_event){
-             .ext.kind = ARCAN_EVENT(CURSORHINT),
-             .ext.message.data = "default"
-         });
-         break;
-         case Xwatch:
-         arcan_shmif_enqueue(ccon, &(arcan_event){
-             .ext.kind = ARCAN_EVENT(CURSORHINT),
-             .ext.message.data = "wait"
-         });
-         break;
-         case Xpirate:
-         arcan_shmif_enqueue(ccon, &(arcan_event){
-             .ext.kind = ARCAN_EVENT(CURSORHINT),
-             .ext.message.data = "forbidden"
-         });
-         break;
-         case Xquestion_arrow:
-         arcan_shmif_enqueue(ccon, &(arcan_event){
-             .ext.kind = ARCAN_EVENT(CURSORHINT),
-             .ext.message.data = "help"
-         });
-         case Xhand1:
-         case Xhand2:
-         arcan_shmif_enqueue(ccon, &(arcan_event){
-             .ext.kind = ARCAN_EVENT(CURSORHINT),
-             .ext.message.data = "hand"
-         });
-         break;
-         case Xcircle:
-         arcan_shmif_enqueue(ccon, &(arcan_event){
-            .ext.kind = ARCAN_EVENT(CURSORHINT),
-            .ext.message.data = "forbidden"
-         });
-         break;
-         case Xplus:
-         arcan_shmif_enqueue(ccon, &(arcan_event){
-            .ext.kind = ARCAN_EVENT(CURSORHINT),
-            .ext.message.data = "cell"
-         });
-        break;
-        case Xtarget:
-        arcan_shmif_enqueue(ccon, &(arcan_event){
-            .ext.kind = ARCAN_EVENT(CURSORHINT),
-            .ext.message.data = "alias"
-        });
-        break;
-        case Xsb_h_double_arrow:
-        arcan_shmif_enqueue(ccon, &(arcan_event){
-            .ext.kind = ARCAN_EVENT(CURSORHINT),
-            .ext.message.data = "col-resize"
-        });
-        break;
-        case Xfleur:
-        arcan_shmif_enqueue(ccon, &(arcan_event){
-            .ext.kind = ARCAN_EVENT(CURSORHINT),
-            .ext.message.data = "sizeall"
-        });
-        break;
-        case Xterm:
-        arcan_shmif_enqueue(ccon, &(arcan_event){
-            .ext.kind = ARCAN_EVENT(CURSORHINT),
-            .ext.message.data = "typefield"
-        });
-        break;
-
+        switch (cursor->sourceChar){
+/* generic */
+        case Xtcross:
+        case Xcrosshair: send_cursor("crosshair");    break;
+        case Xcursor:
+        case Xleft_ptr: send_cursor("default");       break;
+        case Xwatch:    send_cursor("wait");          break;
+        case Xpirate:   send_cursor("forbidden");     break;
+        case Xquestion_arrow: send_cursor("help");    break;
+        case Xhand1:
+        case Xhand2:    send_cursor("hand");          break;
+        case Xcircle:   send_cursor("forbidden");     break;
+/* data */
+        case Xterm:      send_cursor("typefield");    break;
+        case Xtarget:   send_cursor("alias");         break;
+        case Xplus:     send_cursor("cell");          break;
+/* resize */
+        case Xright_side:  send_cursor("east");       break;
+        case Xtop_side:    send_cursor("north");      break;
+        case Xbottom_side: send_cursor("south");      break;
+        case Xleft_side:   send_cursor("west");       break;
+        case Xtop_left_corner:
+        case Xbottom_right_corner: send_cursor("north-west-south-east"); break;
+        case Xsb_h_double_arrow:   send_cursor("east-west");             break;
+        case Xsb_v_double_arrow:   send_cursor("north-south");           break;
+        case Xfleur:               send_cursor("sizeall");               break;
         default:
+        trace("unknown-glyph-id: %d", cursor->sourceChar);
         got_cursor = false;
         break;
         }
@@ -225,7 +191,6 @@ mouseSpriteSet(DeviceIntPtr dev, ScreenPtr scr, CursorPtr cursor, int cx, int cy
 /* we found a matching cursorfont entry, use that */
     if (got_cursor){
         if (!scrpriv->cursor_event.ext.viewport.invisible){
-            trace("cursor-set-builtin");
             scrpriv->cursor_event.ext.viewport.invisible = true;
             arcan_shmif_enqueue(ccon, &scrpriv->cursor_event);
         }
@@ -251,10 +216,12 @@ mouseSpriteSet(DeviceIntPtr dev, ScreenPtr scr, CursorPtr cursor, int cx, int cy
                 ccon->vidp[y * ccon->pitch + x] = cc;
             }
         }
+        arcan_shmif_signal(ccon, SHMIF_SIGVID | SHMIF_SIGBLK_NONE);
     }
     else {
 /* more annoying: cursor->foreRed, foreGreen, foreBlue into one color, same for bg */
-      shmif_pixel fg =
+        trace("rgb-cursor (%d, %d)", cursor->bits->width, cursor->bits->height);
+        shmif_pixel fg =
           SHMIF_RGBA(
                      cursor->foreRed,
                      cursor->foreGreen,
