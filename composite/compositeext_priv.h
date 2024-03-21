@@ -8,7 +8,7 @@
 
 #include <X11/X.h>
 
-typedef struct _Screen *ScreenPtr;
+#include "screenint.h"
 
 Bool CompositeIsImplicitRedirectException(ScreenPtr pScreen,
                                           XID parentVisual,
