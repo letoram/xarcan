@@ -2319,6 +2319,7 @@ SProcSyncCreateFence(ClientPtr client)
     REQUEST(xSyncCreateFenceReq);
     swaps(&stuff->length);
     REQUEST_SIZE_MATCH(xSyncCreateFenceReq);
+    swapl(&stuff->d);
     swapl(&stuff->fid);
 
     return ProcSyncCreateFence(client);
