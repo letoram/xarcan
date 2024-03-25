@@ -104,10 +104,6 @@
 #if defined(SVR4) && !defined(__sun)
 #include <sys/seg.h>
 #endif                          /* SVR4 && !__sun */
-/* V86SC_IOPL was moved to <sys/sysi86.h> on Solaris 7 and later */
-#if !defined(V86SC_IOPL)        /* Solaris 7 or later? */
-#include <sys/v86.h>            /* Nope */
-#endif
 #if defined(__sun) && (defined (__i386__) || defined(__i386) || defined(__x86))  && defined (SVR4)
 #include <sys/psw.h>
 #endif
