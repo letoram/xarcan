@@ -590,19 +590,30 @@ xa_present_flip(present_vblank_ptr vblank, RegionPtr damage)
         return FALSE;
     }
 
+		struct arcan_shmif_cont* C = NULL;
+		if (!awnd->shmif){
+		    if (!arcanConfigPriv.redirect){
+            C = arcan_shmif_primary(SHMIF_INPUT);
+		    }
+		}
+		else {
+		    C = awnd->shmif;
+		}
+
 /* means we can skip the signalling from the other part of the chain */
     awnd->usePresent = true;
+
     if (apmap->texture){
-        arcan_shmifext_setup(awnd->shmif,
+        arcan_shmifext_setup(C,
                              (struct arcan_shmifext_setup){
                                                            .no_context = 1,
                                                            .shared_context = 0
                              });
 
-    awnd->shmif->dirty.x1 = 0;
-    awnd->shmif->dirty.y1 = 0;
-    awnd->shmif->dirty.x2 = awnd->shmif->w;
-    awnd->shmif->dirty.y2 = awnd->shmif->h;
+    C->dirty.x1 = 0;
+    C->dirty.y1 = 0;
+    C->dirty.x2 = C->w;
+    C->dirty.y2 = C->h;
 
 #if ASHMIF_VERSION_MINOR > 16
         /* arcan_shmifext_export_image(
@@ -615,8 +626,8 @@ xa_present_flip(present_vblank_ptr vblank, RegionPtr damage)
 				 */
 #endif
         uintptr_t adisp, actx;
-        arcan_shmifext_egl_meta(awnd->shmif, &adisp, NULL, &actx);
-        arcan_shmifext_signal(awnd->shmif,
+        arcan_shmifext_egl_meta(C, &adisp, NULL, &actx);
+        arcan_shmifext_signal(C,
                               adisp,
                               SHMIF_SIGVID | SHMIF_SIGBLK_NONE,
                               apmap->texture);

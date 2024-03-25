@@ -155,6 +155,7 @@ static void resolveAtoms(void)
     wm_atoms._NET_WM_WINDOW_TYPE_TOOLTIP = make("_NET_WM_WINDOW_TYPE_TOOLTIP");
     wm_atoms._NET_WM_WINDOW_TYPE_NOTIFICATION = make("_NET_WM_WINDOW_TYPE_NOTIFICATION");
     wm_atoms._NET_WM_WINDOW_TYPE_NORMAL = make("_NET_WM_WINDOW_TYPE_NORMAL");
+    wm_atoms._NET_WM_WINDOW_TYPE_DND = make("_NET_WM_WINDOW_TYPE_DND");
     wm_atoms._NET_ACTIVE_WINDOW = make("_NET_ACTIVE_WINDOW");
     wm_atoms._NET_WM_NAME = make("_NET_WM_NAME");
     wm_atoms.UTF8_STRING = make("UTF8_STRING");
@@ -499,6 +500,8 @@ static void sendWndData(WindowPtr wnd, int depth, int max_depth, bool redir, voi
         }
     }
 
+/* _NET_WM_TYPE_DND + XDndAware */
+
 /* translate relative to anchor parent
  * this was removed as maintaining the stacking order didn't provide much utility
  * and can be reconstructed from stacking information anyhow
@@ -730,6 +733,7 @@ static Bool arcanRealizeWindow(WindowPtr wnd)
     Bool rv = true;
     arcanScrPriv *ascr = getArcanScreen(wnd);
     trace("realizeWindow(%d)", (int) wnd->drawable.id);
+/*  dumpWindowProperties(wnd); */
 
 /* For -exec mode, remember the number of clients when the first actual window
  * gets presented and use that as a bound to determine when to timeout and
@@ -1333,7 +1337,7 @@ static
 void
 cmdCreateProxyWindow(
                        struct arcan_shmif_cont *con,
-                       int x, int y, int w, int h, unsigned long vid)
+                       int x, int y, int w, int h, unsigned long vid, bool out)
 {
     int pair[2];
     socketpair(AF_UNIX, SOCK_STREAM, AF_UNIX, pair);
@@ -1355,7 +1359,12 @@ cmdCreateProxyWindow(
 
     AddClientOnOpenFD(pair[0]);
     pthread_t pth;
-    pthread_create(&pth, &pthattr, (void*)(void*)arcanProxyWindowDispatch, proxy);
+
+    pthread_create(&pth, &pthattr,
+                  out ?
+                  (void*)(void*)arcanProxyContentWindowDispatch :
+                  (void*)(void*)arcanProxyWindowDispatch,
+                  proxy);
 }
 
 void arcanForkExec(void)
@@ -1718,7 +1727,7 @@ decodeMessage(struct arcan_shmif_cont* con, const char* msg)
             goto cleanup;
 
         if (newwnd)
-            cmdCreateProxyWindow(con, x, y, w, h, id);
+            cmdCreateProxyWindow(con, x, y, w, h, id, false);
         else
             cmdReconfigureWindow(x, y, w, h, id, got_xy);
     }
@@ -1764,14 +1773,14 @@ pixmapFromShmif(ScreenPtr pScreen, struct arcan_shmif_cont *C, unsigned usage)
 static void
 handleNewSegment(struct arcan_shmif_cont *C, arcanScrPriv *S, int kind, bool out, unsigned id)
 {
+/* Create a window where we map our contents into the PIXMAP, this is done as a
+ * separate thread and a discrete X client. If there is a specific ID provided,
+ * we should instead substitute read/draw requests by merely marking it as the
+ * proxy pixmap for that window. */
     if (out){
-/* This should be bound to a pixmap and replace the one in ID if it matches a
- * specific drawable. The pixmap itself should never be resized. If the ID is unset,
- * a new proxy window should be created with this as its X local backing.
- *
- * If the ID matches (-1) it should instead be used to substitute the root when
- * someone is trying to read or copy from it.
- */
+        struct arcan_shmif_cont *con = malloc(sizeof(struct arcan_shmif_cont));
+        *con = arcan_shmif_acquire(C, NULL, SEGID_ENCODER, SHMIF_DISABLE_GUARD);
+        cmdCreateProxyWindow(con, 0, 0, con->w, con->h, id, out);
     }
     else if (kind == SEGID_CLIPBOARD || kind == SEGID_CLIPBOARD_PASTE){
         struct arcan_shmif_cont *clip = malloc(sizeof(struct arcan_shmif_cont));
@@ -1864,22 +1873,6 @@ static int64_t requestIntoPool(arcanScrPriv* ascr, XID id, int w, int h)
     }
 
     return -1;
-}
-
-static void resetRecoverPool(arcanScrPriv* ascr)
-{
-/*    struct arcan_shmif_cont *acon = ascr->acon; */
-    uint64_t bmap = ascr->redirectBitmap;
-    while (bmap){
-        uint64_t i = __builtin_ffsll(bmap) - 1;
-        bmap &= ~((uint64_t)1 << i);
-
-/* unset from redirectBitmap so sparse allocation work with requestInotuPool */
-/* int64_t state = requestIntoPool(ascr, i->xid */
-/* copy old into new, drop old, swap pixmap unless GBM, signal transfer asynch */
-    }
-
-/* need to re-request clipboard and mouse cursor */
 }
 
 static Bool arcanDestroyPixmap(PixmapPtr pixmap)
@@ -2098,6 +2091,54 @@ static PixmapPtr arcanCompNewPixmap(WindowPtr pWin, int x, int y, int w, int h)
  * then p->data
  */
 
+static void resetRecover(struct arcan_shmif_cont *con, arcanScrPriv *ascr)
+{
+/* Hide root if we are in redirected mode */
+    trace("resetRecover");
+    if (arcanConfigPriv.redirect){
+        trace("resetRecoverRedirect");
+        ARCAN_ENQUEUE(ascr->acon, &(struct arcan_event){
+                      .category = EVENT_EXTERNAL,
+                      .ext.kind = ARCAN_EVENT(VIEWPORT),
+                      .ext.viewport.invisible = true
+        });
+    }
+
+    input_unlock();
+        InputThreadUnregisterDev(con->epipe);
+        InputThreadRegisterDev(con->epipe, arcanFlushEvents, con);
+
+/* Take a copy of the redirect bitmap as is, remove each entry, repeat the
+ * initial blocking requestIntoPool (which will fill the previously occupied
+ * slot). */
+        uint64_t bmap = ascr->redirectBitmap;
+        while (bmap){
+            uint64_t i = __builtin_ffsll(bmap) - 1;
+            bmap &= ~((uint64_t)1 << i);
+            ascr->redirectBitmap &= ~((uint64_t)1 << i);
+
+            struct arcan_shmif_cont *C = ascr->pool[i];
+            arcanShmifPriv *P = C->user;
+            P->window->unsynched = 1;
+
+/* PRESENT-note: For surfaces with a DMA buffer backing store we would need to
+ * force an update via exposures and drop pending PRESENT state as those
+ * callbacks won't fire on the segment.
+ * arcanWindowPriv *awnd = dixLookupPrivate(&P->window->devPrivates, &windowPriv);
+ */
+
+/* Complex dance now is to swap out the backing of the Pixmap into the new
+ * shmif context. */
+/*            int64_t state = requestIntoPool( */
+/* copy old into new, drop old, swap pixmap unless GBM, signal transfer asynch */
+        }
+
+        announceRequestBuiltins(con);
+    input_lock();
+
+    ascr->dirty = 1;
+}
+
 /*
  * Process the primary segment event loop. This can be called from the normal
  * multiplexed event handler that Xorg has, OR as a way of waiting for a
@@ -2107,7 +2148,10 @@ static PixmapPtr arcanCompNewPixmap(WindowPtr pWin, int x, int y, int w, int h)
  * is used.
  */
 int
-arcanEventDispatch(struct arcan_shmif_cont* con, arcanScrPriv* ascr, arcan_event* aev, int64_t uid)
+arcanEventDispatch(
+                   struct arcan_shmif_cont *con,
+                   arcanScrPriv *ascr,
+                   arcan_event *aev, int64_t uid)
 {
     struct arcan_event ev = *aev;
     if (ev.category == EVENT_IO){
@@ -2133,16 +2177,11 @@ arcanEventDispatch(struct arcan_shmif_cont* con, arcanScrPriv* ascr, arcan_event
         case 0:
         case 1:
         case 2:
-        break;
+            resetRecover(con, ascr);
+            if (0)
 /* swap-out monitored FD */
         case 3:
             trace("parent_crash_recover");
-            input_unlock();
-               InputThreadUnregisterDev(con->epipe);
-               InputThreadRegisterDev(con->epipe, arcanFlushEvents, con);
-            input_lock();
-            resetRecoverPool(ascr);
-            ascr->dirty = 1;
             return 1;
         break;
         }

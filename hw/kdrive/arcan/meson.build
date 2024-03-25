@@ -18,7 +18,8 @@ arcan_dep = [
     dependency('xcb'),
     dependency('xcb-icccm'),
     dependency('xcb-xfixes'),
-    dependency('xcb-util')
+    dependency('xcb-util'),
+    dependency('xcb-shm')
 ]
 
 arcan_server = executable(
