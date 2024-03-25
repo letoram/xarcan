@@ -113,15 +113,6 @@
 #endif
 #endif                          /* _NEED_SYSI86 */
 
-#if defined(HAS_SVR3_MMAPDRV)
-#include <sys/sysmacros.h>
-#if !defined(_NEED_SYSI86)
-#include <sys/immu.h>
-#include <sys/region.h>
-#endif
-#include <sys/mmap.h>           /* MMAP driver header */
-#endif
-
 #if !defined(__sun) || defined(HAVE_SYS_VT_H)
 #define HAS_USL_VTS
 #endif
