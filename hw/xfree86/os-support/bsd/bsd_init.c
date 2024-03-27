@@ -90,7 +90,7 @@ static int initialVT = -1;
 #define CHECK_DRIVER_MSG \
   "Check your kernel's console driver configuration and /dev entries"
 
-static char *supported_drivers[] = {
+static const char *supported_drivers[] = {
 #ifdef PCCONS_SUPPORT
     "pccons (with X support)",
 #endif
@@ -457,7 +457,8 @@ xf86OpenPcvt(void)
     /* This looks much like syscons, since pcvt is API compatible */
     int fd = -1;
     vtmode_t vtmode;
-    char vtname[12], *vtprefix;
+    char vtname[12];
+    const char *vtprefix;
 #ifdef __NetBSD__
     struct pcvtid pcvt_version;
 #endif
