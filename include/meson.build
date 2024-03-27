@@ -131,7 +131,6 @@ conf_data.set_quoted('COMPILEDDEFAULTFONTPATH', default_font_path)
 conf_data.set('XORG_VERSION_CURRENT', release)
 
 conf_data.set('HASXDMAUTH', has_xdm_auth ? '1' : false)
-conf_data.set('SECURE_RPC', get_option('secure-rpc') ? '1' : false)
 
 conf_data.set('HAVE_DLFCN_H', cc.has_header('dlfcn.h') ? '1' : false)
 conf_data.set('HAVE_EXECINFO_H', cc.has_header('execinfo.h') ? '1' : false)

@@ -56,6 +56,9 @@ if get_option('xdmcp')
     srcs_os += 'xdmcp.c'
 endif
 
+os_dep = []
+os_c_args = []
+
 rpc_dep = []
 if get_option('secure-rpc')
     # prefer libtirpc (if available), otherwise ensure RPC functions are
@@ -66,10 +69,10 @@ if get_option('secure-rpc')
     endif
     # XXX: also check if RPC library provides xdr_opaque_auth, authdes_(sec)create ???
     srcs_os += 'rpcauth.c'
+
+    os_c_args += '-DSECURE_RPC'
 endif
 
-os_dep = []
-os_c_args = []
 if get_option('xres')
     # Only the XRes extension cares about the client ID.
     os_c_args += '-DCLIENTIDS'
