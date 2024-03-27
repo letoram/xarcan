@@ -53,7 +53,7 @@
 
 struct nameint {
     int val;
-    char *name;
+    const char *name;
 } kbdenc[] = {
     KB_OVRENC,
     KB_ENCTAB
