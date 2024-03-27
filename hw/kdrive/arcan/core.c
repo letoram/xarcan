@@ -60,7 +60,10 @@
 arcanInput arcanInputPriv;
 arcanConfig arcanConfigPriv;
 static int mouseButtonBitmap;
-
+static void
+cmdCreateProxyWindow(
+                       struct arcan_shmif_cont *con,
+                       int x, int y, int w, int h, unsigned long vid, bool out);
 #ifdef __OpenBSD__
 #include "../../dmx/input/atKeynames.h"
 #include "bsd_KbdMap.c"
