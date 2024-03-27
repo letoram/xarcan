@@ -69,6 +69,7 @@ gbm_req = '>= 10.2'
 xf86dgaproto_req = '>= 2.0.99.1'
 xshmfence_req = '>= 1.1'
 
+x11_dep = dependency('x11')
 xproto_dep = dependency('xproto', version: '>= 7.0.31', fallback: ['xorgproto', 'ext_xorgproto'])
 randrproto_dep = dependency('randrproto', version: '>= 1.6.0', fallback: ['xorgproto', 'ext_xorgproto'])
 renderproto_dep = dependency('renderproto', version: '>= 0.11', fallback: ['xorgproto', 'ext_xorgproto'])
