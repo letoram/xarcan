@@ -53,7 +53,7 @@ xf86VTRequest(int sig)
 }
 
 Bool
-xf86VTSwitchPending()
+xf86VTSwitchPending(void)
 {
 #if defined (SYSCONS_SUPPORT) || defined (PCVT_SUPPORT)
     if (xf86Info.consType == SYSCONS || xf86Info.consType == PCVT) {
@@ -64,7 +64,7 @@ xf86VTSwitchPending()
 }
 
 Bool
-xf86VTSwitchAway()
+xf86VTSwitchAway(void)
 {
 #if defined (SYSCONS_SUPPORT) || defined (PCVT_SUPPORT)
     if (xf86Info.consType == SYSCONS || xf86Info.consType == PCVT) {
@@ -79,7 +79,7 @@ xf86VTSwitchAway()
 }
 
 Bool
-xf86VTSwitchTo()
+xf86VTSwitchTo(void)
 {
 #if defined (SYSCONS_SUPPORT) || defined (PCVT_SUPPORT)
     if (xf86Info.consType == SYSCONS || xf86Info.consType == PCVT) {

@@ -150,7 +150,7 @@ static xf86ConsOpen_t xf86ConsTab[] = {
 };
 
 void
-xf86OpenConsole()
+xf86OpenConsole(void)
 {
     int i, fd = -1;
     xf86ConsOpen_t *driver;
@@ -317,7 +317,7 @@ xf86OpenConsole()
 #ifdef PCCONS_SUPPORT
 
 static int
-xf86OpenPccons()
+xf86OpenPccons(void)
 {
     int fd = -1;
 
@@ -342,7 +342,7 @@ xf86OpenPccons()
 #ifdef SYSCONS_SUPPORT
 
 static int
-xf86OpenSyscons()
+xf86OpenSyscons(void)
 {
     int fd = -1;
     vtmode_t vtmode;
@@ -448,7 +448,7 @@ xf86OpenSyscons()
 #ifdef PCVT_SUPPORT
 
 static int
-xf86OpenPcvt()
+xf86OpenPcvt(void)
 {
     /* This looks much like syscons, since pcvt is API compatible */
     int fd = -1;
@@ -560,7 +560,7 @@ xf86OpenPcvt()
 #ifdef WSCONS_SUPPORT
 
 static int
-xf86OpenWScons()
+xf86OpenWScons(void)
 {
     int fd = -1;
     int mode = WSDISPLAYIO_MODE_MAPPED;
@@ -591,7 +591,7 @@ xf86OpenWScons()
 #endif                          /* WSCONS_SUPPORT */
 
 void
-xf86CloseConsole()
+xf86CloseConsole(void)
 {
 #if defined(SYSCONS_SUPPORT) || defined(PCVT_SUPPORT)
     struct vt_mode VT;
@@ -668,7 +668,7 @@ xf86ProcessArgument(int argc, char *argv[], int i)
 }
 
 void
-xf86UseMsg()
+xf86UseMsg(void)
 {
 #if defined (SYSCONS_SUPPORT) || defined (PCVT_SUPPORT)
     ErrorF("vtXX                   use the specified VT number (1-12)\n");
