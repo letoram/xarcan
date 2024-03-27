@@ -255,7 +255,9 @@ xf86OpenConsole(void)
                 sleep(1);
             }
 #endif
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
  acquire_vt:
+#endif
             if (!xf86Info.ShareVTs) {
                 /*
                  * now get the VT
