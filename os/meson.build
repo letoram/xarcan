@@ -60,23 +60,38 @@ os_dep = []
 os_c_args = []
 
 rpc_dep = []
-if get_option('secure-rpc')
+opt_secure_rpc = get_option('secure-rpc')
+if opt_secure_rpc != 'false'
+    build_secure_rpc = true
+
     # prefer libtirpc (if available), otherwise ensure RPC functions are
     # provided by libc.
     rpc_dep = dependency('libtirpc', required: false, include_type: 'system')
     if not (rpc_dep.found() or cc.has_header('rpc/rpc.h'))
-        error('secure-rpc requested, but neither libtirpc or libc RPC support were found')
+        if opt_secure_rpc == 'true'
+            error('secure-rpc requested, but neither libtirpc or libc RPC support were found')
+        else
+            message('secure-rpc disabled since neither libtirpc or libc RPC support were found')
+            build_secure_rpc = false
+        endif
     endif
     # XXX: also check if RPC library provides xdr_opaque_auth, authdes_(sec)create ???
-    srcs_os += 'rpcauth.c'
 
     if not (cc.has_member('struct authdes_cred', 'adc_fullname',
                           prefix : '#include <rpc/rpc.h>',
                           dependencies: rpc_dep))
-        error('secure-rpc requested, but RPC implementation lacking struct authdes_cred')
+        if opt_secure_rpc == 'true'
+            error('secure-rpc requested, but RPC implementation lacking struct authdes_cred')
+        else
+            message('secure-rpc disable since RPC implementation lacking struct authdes_cred')
+            build_secure_rpc = false
+        endif
     endif
 
-    os_c_args += '-DSECURE_RPC'
+    if build_secure_rpc
+        os_c_args += '-DSECURE_RPC'
+        srcs_os += 'rpcauth.c'
+    endif
 endif
 
 if get_option('xres')
