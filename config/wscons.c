@@ -126,8 +126,7 @@ wscons_add_keyboard(void)
     input_options = input_option_new(input_options, "name", WSCONS_KBD_DEVICE);
     input_options = input_option_new(input_options, "driver", "kbd");
 
-    config_info = Xprintf("wscons:%s", WSCONS_KBD_DEVICE);
-    if (!config_info)
+    if (asprintf(&config_info, "wscons:%s", WSCONS_KBD_DEVICE) == -1)
         goto unwind;
     if (KB_ENCODING(wsenc) == KB_USER) {
         /* Ignore wscons "user" layout */
@@ -190,8 +189,7 @@ wscons_add_pointer(const char *path, const char *driver, int flags)
     char *config_info = NULL;
     int rc;
 
-    config_info = Xprintf("wscons:%s", path);
-    if (!config_info)
+    if (asprintf(&config_info, "wscons:%s", path) == -1)
         return;
 
     input_options = input_option_new(input_options, "_source", "server/wscons");
