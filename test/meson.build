@@ -92,7 +92,7 @@ if get_option('xvfb')
                  # Use full_path so people can copy and paste the
                  # command line from testlog.txt easily.
                  args: [
-                     rendercheck.path(),
+                     rendercheck.full_path(),
                      rctest[1].split(' '),
                      '--',
                      xvfb_args,
@@ -128,7 +128,7 @@ if get_option('xvfb')
                     test(rctest[0],
                         simple_xinit,
                         args: [simple_xinit.full_path(),
-                                rendercheck.path(),
+                                rendercheck.full_path(),
                                 rctest[1].split(' '),
                                 '----',
                                 xephyr_server.full_path(),
