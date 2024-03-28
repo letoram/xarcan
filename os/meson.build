@@ -70,6 +70,12 @@ if get_option('secure-rpc')
     # XXX: also check if RPC library provides xdr_opaque_auth, authdes_(sec)create ???
     srcs_os += 'rpcauth.c'
 
+    if not (cc.has_member('struct authdes_cred', 'adc_fullname',
+                          prefix : '#include <rpc/rpc.h>',
+                          dependencies: rpc_dep))
+        error('secure-rpc requested, but RPC implementation lacking struct authdes_cred')
+    endif
+
     os_c_args += '-DSECURE_RPC'
 endif
 
