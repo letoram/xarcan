@@ -58,6 +58,8 @@ void xwl_glamor_egl_make_current(struct xwl_screen *xwl_screen);
 Bool xwl_glamor_check_flip(WindowPtr present_window, PixmapPtr pixmap);
 PixmapPtr xwl_glamor_create_pixmap_for_window (struct xwl_window *xwl_window);
 Bool xwl_glamor_supports_implicit_sync(struct xwl_screen *xwl_screen);
+void xwl_glamor_dmabuf_import_sync_file(PixmapPtr pixmap, int sync_file);
+int xwl_glamor_dmabuf_export_sync_file(PixmapPtr pixmap);
 
 #ifdef XV
 /* glamor Xv Adaptor */

@@ -35,6 +35,9 @@
 #include <sys/stat.h>
 #include <xf86drm.h>
 #include <drm_fourcc.h>
+#include <linux/dma-buf.h>
+#include <linux/sync_file.h>
+#include <sys/ioctl.h>
 
 #define MESA_EGL_NO_X11_HEADERS
 #define EGL_NO_X11
@@ -858,6 +861,103 @@ glamor_egl_fd_from_pixmap(ScreenPtr screen, PixmapPtr pixmap,
                           CARD16 *stride, CARD32 *size)
 {
     return -1;
+}
+
+int
+xwl_glamor_dmabuf_export_sync_file(PixmapPtr pixmap)
+{
+    struct xwl_screen *xwl_screen = xwl_screen_get(pixmap->drawable.pScreen);
+    struct xwl_pixmap *xwl_pixmap;
+    int num_planes;
+    int sync_file = -1;
+    int p;
+#ifndef GBM_BO_FD_FOR_PLANE
+    int32_t first_handle;
+#endif
+
+    if (!xwl_screen->glamor)
+        return -1;
+
+#ifdef DMA_BUF_IOCTL_EXPORT_SYNC_FILE
+    xwl_pixmap = xwl_pixmap_get(pixmap);
+    num_planes = gbm_bo_get_plane_count(xwl_pixmap->bo);
+
+    for (p = 0; p < num_planes; ++p) {
+        int plane_fd;
+#ifdef GBM_BO_FD_FOR_PLANE
+        plane_fd = gbm_bo_get_fd_for_plane(xwl_pixmap->bo, p);
+#else
+        union gbm_bo_handle plane_handle =
+            gbm_bo_get_handle_for_plane(xwl_pixmap->bo, p);
+        if (p == 0)
+            first_handle = plane_handle.s32;
+
+        if (plane_handle.s32 == first_handle)
+            plane_fd = gbm_bo_get_fd(xwl_pixmap->bo);
+        else
+            continue;
+#endif /* GBM_BO_FD_FOR_PLANE */
+        struct dma_buf_export_sync_file export_args = { 0 };
+        export_args.fd = -1;
+        export_args.flags = DMA_BUF_SYNC_READ;
+        drmIoctl(plane_fd, DMA_BUF_IOCTL_EXPORT_SYNC_FILE, &export_args);
+        close(plane_fd);
+        if (sync_file == -1) {
+            sync_file = export_args.fd;
+        } else {
+            struct sync_merge_data merge_args = { 0 };
+            merge_args.fd2 = export_args.fd;
+            ioctl(sync_file, SYNC_IOC_MERGE, &merge_args);
+            close(export_args.fd);
+            close(sync_file);
+            sync_file = merge_args.fence;
+        }
+    }
+#endif /* DMA_BUF_IOCTL_EXPORT_SYNC_FILE */
+    return sync_file;
+}
+
+void
+xwl_glamor_dmabuf_import_sync_file(PixmapPtr pixmap, int sync_file)
+{
+    struct xwl_screen *xwl_screen = xwl_screen_get(pixmap->drawable.pScreen);
+    struct xwl_pixmap *xwl_pixmap;
+    int num_planes;
+    int p;
+#ifndef GBM_BO_FD_FOR_PLANE
+    int32_t first_handle;
+#endif
+
+    if (!xwl_screen->glamor)
+        return;
+
+#ifdef DMA_BUF_IOCTL_IMPORT_SYNC_FILE
+    xwl_pixmap = xwl_pixmap_get(pixmap);
+    num_planes = gbm_bo_get_plane_count(xwl_pixmap->bo);
+
+    for (p = 0; p < num_planes; ++p) {
+        int plane_fd;
+#ifdef GBM_BO_FD_FOR_PLANE
+        plane_fd = gbm_bo_get_fd_for_plane(xwl_pixmap->bo, p);
+#else
+        union gbm_bo_handle plane_handle =
+            gbm_bo_get_handle_for_plane(xwl_pixmap->bo, p);
+        if (p == 0)
+            first_handle = plane_handle.s32;
+
+        if (plane_handle.s32 == first_handle)
+            plane_fd = gbm_bo_get_fd(xwl_pixmap->bo);
+        else
+            continue;
+#endif /* GBM_BO_FD_FOR_PLANE */
+        struct dma_buf_import_sync_file import_args = { 0 };
+        import_args.fd = sync_file;
+        import_args.flags = DMA_BUF_SYNC_READ;
+        drmIoctl(plane_fd, DMA_BUF_IOCTL_IMPORT_SYNC_FILE, &import_args);
+        close(plane_fd);
+    }
+#endif /* DMA_BUF_IOCTL_IMPORT_SYNC_FILE */
+    close(sync_file);
 }
 
 static const dri3_screen_info_rec xwl_dri3_info = {
