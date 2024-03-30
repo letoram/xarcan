@@ -215,6 +215,13 @@ xwl_present_reset_timer(struct xwl_present_window *xwl_present_window)
 static void
 xwl_present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc);
 
+static int
+xwl_present_queue_vblank(ScreenPtr screen,
+                         WindowPtr present_window,
+                         RRCrtcPtr crtc,
+                         uint64_t event_id,
+                         uint64_t msc);
+
 static uint32_t
 xwl_present_query_capabilities(present_screen_priv_ptr screen_priv)
 {
@@ -237,6 +244,18 @@ xwl_present_get_ust_msc(ScreenPtr screen,
     return Success;
 }
 
+static uint64_t
+xwl_present_get_exec_msc(uint32_t options, uint64_t target_msc)
+{
+    /* Synchronous Xwayland presentations always complete (at least) one frame after they
+     * are executed
+     */
+    if (options & PresentOptionAsyncMayTear)
+        return target_msc;
+
+    return target_msc - 1;
+}
+
 /*
  * When the wait fence or previous flip is completed, it's time
  * to re-try the request
@@ -244,9 +263,27 @@ xwl_present_get_ust_msc(ScreenPtr screen,
 static void
 xwl_present_re_execute(present_vblank_ptr vblank)
 {
+    struct xwl_present_event *event = xwl_present_event_from_vblank(vblank);
     uint64_t ust = 0, crtc_msc = 0;
 
     (void) xwl_present_get_ust_msc(vblank->screen, vblank->window, &ust, &crtc_msc);
+    /* re-compute target / exec msc */
+    vblank->target_msc = present_get_target_msc(0, crtc_msc,
+                                                event->divisor,
+                                                event->remainder,
+                                                event->options);
+    vblank->exec_msc = xwl_present_get_exec_msc(event->options,
+                                                vblank->target_msc);
+
+    vblank->queued = TRUE;
+    if (msc_is_after(vblank->exec_msc, crtc_msc) &&
+        xwl_present_queue_vblank(vblank->screen, vblank->window,
+                                 vblank->crtc,
+                                 vblank->event_id,
+                                 vblank->exec_msc) == Success) {
+        return;
+    }
+
     xwl_present_execute(vblank, ust, crtc_msc);
 }
 
@@ -818,7 +855,7 @@ xwl_present_flip(present_vblank_ptr vblank, RegionPtr damage)
 
     if (xwl_window->tearing_control) {
         uint32_t hint;
-        if (event->async_may_tear)
+        if (event->options & PresentOptionAsyncMayTear)
             hint = WP_TEARING_CONTROL_V1_PRESENTATION_HINT_ASYNC;
         else
             hint = WP_TEARING_CONTROL_V1_PRESENTATION_HINT_VSYNC;
@@ -1047,15 +1084,10 @@ xwl_present_pixmap(WindowPtr window,
     }
 
     vblank->event_id = ++xwl_present_event_id;
-    event->async_may_tear = options & PresentOptionAsyncMayTear;
-
-    /* Synchronous Xwayland presentations always complete (at least) one frame after they
-     * are executed
-     */
-    if (event->async_may_tear)
-        vblank->exec_msc = vblank->target_msc;
-    else
-        vblank->exec_msc = vblank->target_msc - 1;
+    event->options = options;
+    event->divisor = divisor;
+    event->remainder = remainder;
+    vblank->exec_msc = xwl_present_get_exec_msc(options, vblank->target_msc);
 
     vblank->queued = TRUE;
     if (crtc_msc < vblank->exec_msc) {
