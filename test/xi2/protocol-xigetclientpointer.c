@@ -57,19 +57,22 @@ static ClientRec client_request;
 static void
 reply_XIGetClientPointer(ClientPtr client, int len, void *data)
 {
-    xXIGetClientPointerReply *rep = (xXIGetClientPointerReply *) data;
+    xXIGetClientPointerReply *reply = (xXIGetClientPointerReply *) data;
+    xXIGetClientPointerReply rep = *reply; /* copy so swapping doesn't touch the real reply */
+
+    assert(len < 0xffff); /* suspicious size, swapping bug */
 
     if (client->swapped) {
-        swapl(&rep->length);
-        swaps(&rep->sequenceNumber);
-        swaps(&rep->deviceid);
+        swapl(&rep.length);
+        swaps(&rep.sequenceNumber);
+        swaps(&rep.deviceid);
     }
 
-    reply_check_defaults(rep, len, XIGetClientPointer);
+    reply_check_defaults(&rep, len, XIGetClientPointer);
 
-    assert(rep->set == test_data.cp_is_set);
-    if (rep->set)
-        assert(rep->deviceid == test_data.dev->id);
+    assert(rep.set == test_data.cp_is_set);
+    if (rep.set)
+        assert(rep.deviceid == test_data.dev->id);
 }
 
 static void

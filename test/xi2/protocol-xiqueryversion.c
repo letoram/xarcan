@@ -69,23 +69,27 @@ extern ClientRec client_window;
 static void
 reply_XIQueryVersion(ClientPtr client, int len, void *data)
 {
-    xXIQueryVersionReply *rep = (xXIQueryVersionReply *) data;
+    xXIQueryVersionReply *reply = (xXIQueryVersionReply *) data;
+    xXIQueryVersionReply rep = *reply; /* copy so swapping doesn't touch the real reply */
+
     unsigned int sver, cver, ver;
 
+    assert(len < 0xffff); /* suspicious size, swapping bug */
+
     if (client->swapped) {
-        swapl(&rep->length);
-        swaps(&rep->sequenceNumber);
-        swaps(&rep->major_version);
-        swaps(&rep->minor_version);
+        swapl(&rep.length);
+        swaps(&rep.sequenceNumber);
+        swaps(&rep.major_version);
+        swaps(&rep.minor_version);
     }
 
-    reply_check_defaults(rep, len, XIQueryVersion);
+    reply_check_defaults(&rep, len, XIQueryVersion);
 
-    assert(rep->length == 0);
+    assert(rep.length == 0);
 
     sver = versions.major_server * 1000 + versions.minor_server;
     cver = versions.major_client * 1000 + versions.minor_client;
-    ver = rep->major_version * 1000 + rep->minor_version;
+    ver = rep.major_version * 1000 + rep.minor_version;
 
     assert(ver >= 2000);
     assert((sver > cver) ? ver == cver : ver == sver);
@@ -94,13 +98,14 @@ reply_XIQueryVersion(ClientPtr client, int len, void *data)
 static void
 reply_XIQueryVersion_multiple(ClientPtr client, int len, void *data)
 {
-    xXIQueryVersionReply *rep = (xXIQueryVersionReply *) data;
+    xXIQueryVersionReply *reply = (xXIQueryVersionReply *) data;
+    xXIQueryVersionReply rep = *reply; /* copy so swapping doesn't touch the real reply */
 
-    reply_check_defaults(rep, len, XIQueryVersion);
-    assert(rep->length == 0);
+    reply_check_defaults(&rep, len, XIQueryVersion);
+    assert(rep.length == 0);
 
-    assert(versions.major_expected == rep->major_version);
-    assert(versions.minor_expected == rep->minor_version);
+    assert(versions.major_expected == rep.major_version);
+    assert(versions.minor_expected == rep.minor_version);
 }
 
 /**
