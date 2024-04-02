@@ -151,7 +151,7 @@ mingw-cross-build:
     script:
         - .gitlab-ci/meson-build.sh --run-install
     variables:
-      MESON_ARGS: --cross-file=.gitlab-ci/cross-i686-w64-mingw32.txt -Dglx=false -Dsecure-rpc=false -Dlisten_tcp=true
+      MESON_ARGS: --cross-file=.gitlab-ci/cross-i686-w64-mingw32.txt -Dglx=false -Dlisten_tcp=true
 
 meson-dist:
     extends: .common-build-and-test

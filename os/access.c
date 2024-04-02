@@ -193,7 +193,6 @@ SOFTWARE.
 #include "osdep.h"
 
 #include "xace.h"
-#include "rpcauth.h"
 #include "xdmcp.h"
 
 Bool defeatAccessControl = FALSE;
@@ -1003,12 +1002,6 @@ ResetHosts(const char *display)
             }
 #endif
 #endif
-#ifdef SECURE_RPC
-            else if (!strncmp("nis:", lhostname, 4)) {
-                family = FamilyNetname;
-                hostname = ohostname + 4;
-            }
-#endif
             else if (!strncmp("si:", lhostname, 3)) {
                 family = FamilyServerInterpreted;
                 hostname = ohostname + 3;
@@ -1022,14 +1015,6 @@ ResetHosts(const char *display)
                 }
             }
             else
-#ifdef SECURE_RPC
-            if ((family == FamilyNetname) || (strchr(hostname, '@'))) {
-                SecureRPCInit();
-                (void) NewHost(FamilyNetname, hostname, strlen(hostname),
-                               FALSE);
-            }
-            else
-#endif                          /* SECURE_RPC */
 #if defined(TCPCONN)
             {
 #if defined(IPv6) && defined(AF_INET6)
@@ -1342,12 +1327,6 @@ AddHost(ClientPtr client, int family, unsigned length,  /* of bytes in pAddr */
         len = length;
         LocalHostEnabled = TRUE;
         break;
-#ifdef SECURE_RPC
-    case FamilyNetname:
-        len = length;
-        SecureRPCInit();
-        break;
-#endif
     case FamilyInternet:
 #if defined(IPv6) && defined(AF_INET6)
     case FamilyInternet6:
@@ -1431,11 +1410,6 @@ RemoveHost(ClientPtr client, int family, unsigned length,       /* of bytes in p
         len = length;
         LocalHostEnabled = FALSE;
         break;
-#ifdef SECURE_RPC
-    case FamilyNetname:
-        len = length;
-        break;
-#endif
     case FamilyInternet:
 #if defined(IPv6) && defined(AF_INET6)
     case FamilyInternet6:
