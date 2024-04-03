@@ -72,14 +72,12 @@ struct xwl_screen {
     CreateScreenResourcesProcPtr CreateScreenResources;
     CloseScreenProcPtr CloseScreen;
     ConfigNotifyProcPtr ConfigNotify;
-    CreateWindowProcPtr CreateWindow;
     RealizeWindowProcPtr RealizeWindow;
     UnrealizeWindowProcPtr UnrealizeWindow;
     DestroyWindowProcPtr DestroyWindow;
     XYToWindowProcPtr XYToWindow;
     SetWindowPixmapProcPtr SetWindowPixmap;
     ChangeWindowAttributesProcPtr ChangeWindowAttributes;
-    ReparentWindowProcPtr ReparentWindow;
     MoveWindowProcPtr MoveWindow;
     SourceValidateProcPtr SourceValidate;
 
