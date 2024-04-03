@@ -460,13 +460,6 @@ extern _X_EXPORT XkbAction *XkbResizeKeyActions(XkbDescPtr /* xkb */ ,
                                                 int     /* needed */
     );
 
-extern _X_EXPORT void XkbUpdateKeyTypesFromCore(DeviceIntPtr /* pXDev */ ,
-                                                KeySymsPtr /* syms */ ,
-                                                KeyCode /* first */ ,
-                                                CARD8 /* num */ ,
-                                                XkbChangesPtr   /* pChanges */
-    );
-
 extern _X_EXPORT void XkbUpdateDescActions(XkbDescPtr /* xkb */ ,
                                            KeyCode /* first */ ,
                                            CARD8 /* num */ ,

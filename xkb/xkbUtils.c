@@ -211,7 +211,7 @@ XkbMaskForVMask(XkbDescPtr xkb, unsigned vmask)
 
 /***====================================================================***/
 
-void
+static void
 XkbUpdateKeyTypesFromCore(DeviceIntPtr pXDev,
                           KeySymsPtr pCore,
                           KeyCode first, CARD8 num, XkbChangesPtr changes)
