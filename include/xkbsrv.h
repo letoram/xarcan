@@ -104,12 +104,6 @@ typedef struct _XkbEventCause {
 #define	XkbSetCauseXkbReq(c,e,cl)  XkbSetCauseReq(c,XkbReqCode,e,cl)
 #define	XkbSetCauseUnknown(c)	   XkbSetCauseKey(c,0,0)
 
-#define	_OFF_TIMER		0
-#define	_KRG_WARN_TIMER		1
-#define	_KRG_TIMER		2
-#define	_SK_TIMEOUT_TIMER	3
-#define	_ALL_TIMEOUT_TIMER	4
-
 #define	_BEEP_NONE		0
 #define	_BEEP_FEATURE_ON	1
 #define	_BEEP_FEATURE_OFF	2
