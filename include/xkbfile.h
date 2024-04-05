@@ -29,13 +29,6 @@
 
 #include "xkbstr.h"
 
-/***====================================================================***/
-
-#define	XkbXKMFile	0
-#define	XkbCFile	1
-#define	XkbXKBFile	2
-#define	XkbMessage	3
-
 typedef void (*XkbFileAddOnFunc) (FILE * /* file */ ,
                                   XkbDescPtr /* result */ ,
                                   Bool /* topLevel */ ,

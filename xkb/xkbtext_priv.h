@@ -9,6 +9,11 @@
 
 #include "xkbstr.h"
 
+#define XkbXKMFile      0
+#define XkbCFile        1
+#define XkbXKBFile      2
+#define XkbMessage      3
+
 char *XkbIndentText(unsigned size);
 char *XkbAtomText(Atom atm, unsigned format);
 char *XkbKeysymText(KeySym sym, unsigned format);
