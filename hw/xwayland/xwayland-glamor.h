@@ -67,7 +67,7 @@ Bool xwl_glamor_supports_syncobjs(struct xwl_screen *xwl_screen);
 int xwl_glamor_get_fence(struct xwl_screen *screen);
 void xwl_glamor_wait_fence(struct xwl_screen *xwl_screen, int fence);
 struct dri3_syncobj *xwl_glamor_dri3_syncobj_create(struct xwl_screen *xwl_screen);
-void xwl_glamor_dri3_syncobj_passthrough(WindowPtr window,
+void xwl_glamor_dri3_syncobj_passthrough(struct xwl_window *xwl_window,
                                          struct dri3_syncobj *acquire_syncobj,
                                          struct dri3_syncobj *release_syncobj,
                                          uint64_t acquire_point,

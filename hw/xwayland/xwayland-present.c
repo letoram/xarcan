@@ -882,7 +882,7 @@ xwl_present_flip(present_vblank_ptr vblank, RegionPtr damage)
 #ifdef XWL_HAS_GLAMOR
     if (vblank->acquire_syncobj && vblank->release_syncobj) {
         if (xwl_window->xwl_screen->explicit_sync) {
-            xwl_glamor_dri3_syncobj_passthrough(present_window,
+            xwl_glamor_dri3_syncobj_passthrough(xwl_window,
                                                 vblank->acquire_syncobj,
                                                 vblank->release_syncobj,
                                                 vblank->acquire_point,

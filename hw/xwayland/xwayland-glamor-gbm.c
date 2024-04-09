@@ -972,13 +972,12 @@ struct xwl_dri3_syncobj
 };
 
 void
-xwl_glamor_dri3_syncobj_passthrough(WindowPtr window,
+xwl_glamor_dri3_syncobj_passthrough(struct xwl_window *xwl_window,
                                     struct dri3_syncobj *acquire_syncobj,
                                     struct dri3_syncobj *release_syncobj,
                                     uint64_t acquire_point,
                                     uint64_t release_point)
 {
-    struct xwl_window *xwl_window = xwl_window_from_window(window);
     struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
     struct xwl_dri3_syncobj *xwl_acquire_syncobj = (struct xwl_dri3_syncobj *)acquire_syncobj;
     struct xwl_dri3_syncobj *xwl_release_syncobj = (struct xwl_dri3_syncobj *)release_syncobj;

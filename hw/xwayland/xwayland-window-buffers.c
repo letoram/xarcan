@@ -393,7 +393,7 @@ xwl_window_buffers_set_syncpts(struct xwl_window_buffer *xwl_window_buffer)
     else
         goto fail;
 
-    xwl_glamor_dri3_syncobj_passthrough(xwl_window->toplevel,
+    xwl_glamor_dri3_syncobj_passthrough(xwl_window,
                                         xwl_window_buffer->syncobj,
                                         xwl_window_buffer->syncobj,
                                         acquire_point,
