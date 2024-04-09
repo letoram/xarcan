@@ -35,9 +35,11 @@
 #include <sys/stat.h>
 #include <xf86drm.h>
 #include <drm_fourcc.h>
+#if defined(__linux__)
 #include <linux/dma-buf.h>
 #include <linux/sync_file.h>
 #include <sys/ioctl.h>
+#endif
 
 #define MESA_EGL_NO_X11_HEADERS
 #define EGL_NO_X11
