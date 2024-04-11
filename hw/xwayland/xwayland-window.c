@@ -270,6 +270,7 @@ xwl_source_validate(DrawablePtr drawable, int x, int y, int width, int height,
                                           pbox->x1, pbox->y1,
                                           pbox->x2 - pbox->x1, pbox->y2 - pbox->y1,
                                           pbox->x1, pbox->y1);
+            pbox++;
         }
         FreeScratchGC(pGC);
     }
