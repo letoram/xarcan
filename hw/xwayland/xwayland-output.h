@@ -43,6 +43,8 @@
                        RR_Reflect_X  | \
                        RR_Reflect_Y)
 
+#define MAX_OUTPUT_NAME 256
+
 struct xwl_output {
     struct xorg_list link;
     struct xwl_screen *xwl_screen;

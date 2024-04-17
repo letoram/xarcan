@@ -39,8 +39,6 @@
 
 #include "xdg-output-unstable-v1-client-protocol.h"
 
-#define MAX_OUTPUT_NAME 256
-
 static void xwl_output_get_xdg_output(struct xwl_output *xwl_output);
 
 static Rotation
