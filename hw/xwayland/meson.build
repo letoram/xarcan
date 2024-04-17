@@ -52,6 +52,24 @@ tearing_xml = join_paths(protodir, 'staging', 'tearing-control', 'tearing-contro
 fractional_scale_xml = join_paths(protodir, 'staging', 'fractional-scale', 'fractional-scale-v1.xml')
 syncobj_xml = join_paths(protodir, 'staging', 'linux-drm-syncobj', 'linux-drm-syncobj-v1.xml')
 
+proto_xml = [
+    relative_xml,
+    pointer_xml,
+    gestures_xml,
+    tablet_xml,
+    kbgrab_xml,
+    xdg_output_xml,
+    dmabuf_xml,
+    viewporter_xml,
+    xdg_shell_xml,
+    drm_lease_xml,
+    shortcuts_inhibit_xml,
+    xwayland_shell_xml,
+    tearing_xml,
+    fractional_scale_xml,
+    syncobj_xml,
+]
+
 client_header = generator(scanner,
     output : '@BASENAME@-client-protocol.h',
     arguments : ['client-header', '@INPUT@', '@OUTPUT@']
@@ -67,36 +85,11 @@ code = generator(scanner,
     output : '@BASENAME@-protocol.c',
     arguments : [scanner_argument, '@INPUT@', '@OUTPUT@']
 )
-srcs += client_header.process(relative_xml)
-srcs += client_header.process(pointer_xml)
-srcs += client_header.process(gestures_xml)
-srcs += client_header.process(tablet_xml)
-srcs += client_header.process(kbgrab_xml)
-srcs += client_header.process(xdg_output_xml)
-srcs += client_header.process(dmabuf_xml)
-srcs += client_header.process(viewporter_xml)
-srcs += client_header.process(xdg_shell_xml)
-srcs += client_header.process(drm_lease_xml)
-srcs += client_header.process(shortcuts_inhibit_xml)
-srcs += client_header.process(xwayland_shell_xml)
-srcs += client_header.process(tearing_xml)
-srcs += client_header.process(fractional_scale_xml)
-srcs += client_header.process(syncobj_xml)
-srcs += code.process(relative_xml)
-srcs += code.process(pointer_xml)
-srcs += code.process(gestures_xml)
-srcs += code.process(tablet_xml)
-srcs += code.process(kbgrab_xml)
-srcs += code.process(xdg_output_xml)
-srcs += code.process(dmabuf_xml)
-srcs += code.process(viewporter_xml)
-srcs += code.process(xdg_shell_xml)
-srcs += code.process(drm_lease_xml)
-srcs += code.process(shortcuts_inhibit_xml)
-srcs += code.process(xwayland_shell_xml)
-srcs += code.process(tearing_xml)
-srcs += code.process(fractional_scale_xml)
-srcs += code.process(syncobj_xml)
+
+foreach xml : proto_xml
+    srcs += client_header.process(xml)
+    srcs += code.process(xml)
+endforeach
 
 if build_ei
     xwayland_dep += libei_dep
