@@ -683,7 +683,7 @@ apply_output_change(struct xwl_output *xwl_output)
     maybe_update_fullscreen_state(xwl_output);
 }
 
-static void
+void
 xwl_output_set_name(struct xwl_output *xwl_output, const char *name)
 {
     struct xwl_screen *xwl_screen = xwl_output->xwl_screen;
