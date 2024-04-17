@@ -184,7 +184,7 @@ pkgconfig.generate(
     description: 'X Server for Wayland',
     variables: [
         'exec_prefix=${prefix}',
-        'xwayland=' + xwayland_path + '/Xwayland',
+        'xwayland=' + xwayland_path / xwayland_server.name(),
     ] + xwayland_vars,
 )
 
@@ -196,7 +196,7 @@ xwayland_manpage = configure_file(
 install_man(xwayland_manpage)
 
 desktop_data = configuration_data()
-desktop_data.set('XWAYLAND', xwayland_path + '/Xwayland'))
+desktop_data.set('XWAYLAND', xwayland_path / xwayland_server.name())
 desktop_data.set('DECORATE', have_libdecor ? '-decorate' : '')
 desktop_file = configure_file(
     input: 'desktop/org.freedesktop.Xwayland.desktop.in',
