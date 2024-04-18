@@ -20,6 +20,8 @@ is" without express or implied warranty.
 #include <X11/Xdefs.h>
 #include <X11/Xproto.h>
 
+#include "mi/mi_priv.h"
+
 #include "scrnintstr.h"
 #include "dix.h"
 #include "mi.h"
@@ -257,7 +259,6 @@ xnestOpenScreen(ScreenPtr pScreen, int argc, char *argv[])
     pScreen->blackPixel = xnestBlackPixel;
     /* GCperDepth */
     /* defaultStipple */
-    pScreen->devPrivate = NULL;
     /* WindowPrivateLen */
     /* WindowPrivateSizes */
     /* totalWindowSize */
@@ -419,7 +420,7 @@ xnestCloseScreen(ScreenPtr pScreen)
         free(pScreen->allowedDepths[i].vids);
     free(pScreen->allowedDepths);
     free(pScreen->visuals);
-    free(pScreen->devPrivate);
+    miScreenClose(pScreen);
 
     /*
        If xnestDoFullGeneration all x resources will be destroyed upon closing

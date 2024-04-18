@@ -31,6 +31,9 @@ from The Open Group.
 #endif
 
 #include <X11/X.h>
+
+#include "mi/mi_priv.h"
+
 #include "servermd.h"
 #include "misc.h"
 #include "mi.h"
@@ -308,4 +311,12 @@ miSetZeroLineBias(ScreenPtr pScreen, unsigned int bias)
 
     dixSetPrivate(&pScreen->devPrivates, miZeroLineScreenKey,
                   (unsigned long *) (unsigned long) bias);
+}
+
+void miScreenClose(ScreenPtr pScreen)
+{
+    if (pScreen->devPrivate) {
+        free(pScreen->devPrivate);
+        pScreen->devPrivate = NULL;
+    }
 }
