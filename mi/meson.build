@@ -8,7 +8,6 @@ srcs_mi = [
     'mieq.c',
     'miexpose.c',
     'mifillarc.c',
-    'mifillrct.c',
     'migc.c',
     'miglblt.c',
     'mioverlay.c',

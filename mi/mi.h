@@ -256,14 +256,6 @@ extern _X_EXPORT void miClearDrawable(DrawablePtr /*pDraw */ ,
                                       GCPtr     /*pGC */
     );
 
-/* mifillrct.c */
-
-extern _X_EXPORT void miPolyFillRect(DrawablePtr /*pDrawable */ ,
-                                     GCPtr /*pGC */ ,
-                                     int /*nrectFill */ ,
-                                     xRectangle *       /*prectInit */
-    );
-
 /* miglblt.c */
 
 extern _X_EXPORT void miPolyGlyphBlt(DrawablePtr pDrawable,
