@@ -109,9 +109,6 @@ extern _X_EXPORT void miSetZeroLineBias(ScreenPtr /* pScreen */ ,
 #define SWAPINT(i, j) \
 {  int _t = i;  i = j;  j = _t; }
 
-#define SWAPPT(i, j) \
-{  DDXPointRec _t; _t = i;  i = j; j = _t; }
-
 #define SWAPINT_PAIR(x1, y1, x2, y2)\
 {   int t = x1;  x1 = x2;  x2 = t;\
         t = y1;  y1 = y2;  y2 = t;\
