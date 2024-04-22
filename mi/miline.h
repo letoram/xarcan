@@ -49,8 +49,6 @@ in this Software without prior written authorization from The Open Group.
 #define OCTANT7		(1 << (YMAJOR))
 #define OCTANT8		(1 << (0))
 
-#define XMAJOROCTANTS		(OCTANT1 | OCTANT4 | OCTANT5 | OCTANT8)
-
 #define DEFAULTZEROLINEBIAS	(OCTANT2 | OCTANT3 | OCTANT4 | OCTANT5)
 
 /*
