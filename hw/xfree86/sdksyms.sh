@@ -199,7 +199,6 @@ cat > sdksyms.c << EOF
 #include "mipointrst.h"
 #include "mizerarc.h"
 #include "micoord.h"
-#include "mifillarc.h"
 #include "mistruct.h"
 #include "mioverlay.h"
 
