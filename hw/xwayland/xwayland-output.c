@@ -687,6 +687,9 @@ void
 xwl_output_set_name(struct xwl_output *xwl_output, const char *name)
 {
     struct xwl_screen *xwl_screen = xwl_output->xwl_screen;
+    rrScrPrivPtr pScrPriv;
+    RRLeasePtr lease;
+    int i;
 
     if (xwl_output->randr_output == NULL)
         return; /* rootful */
@@ -695,6 +698,24 @@ xwl_output_set_name(struct xwl_output *xwl_output, const char *name)
     if (!name || !strlen(name)) {
         ErrorF("Not using the provided output name, invalid");
         return;
+    }
+
+    /* Check for duplicate names to be safe */
+    pScrPriv = rrGetScrPriv(xwl_screen->screen);
+    for (i = 0; i < pScrPriv->numOutputs; i++) {
+        if (!strcmp(name, pScrPriv->outputs[i]->name)) {
+            ErrorF("An output named '%s' already exists", name);
+            return;
+        }
+    }
+    /* And leases' names as well */
+    xorg_list_for_each_entry(lease, &pScrPriv->leases, list) {
+        for (i = 0; i < lease->numOutputs; i++) {
+            if (!strcmp(name, pScrPriv->outputs[i]->name)) {
+                ErrorF("A lease output named '%s' already exists", name);
+                return;
+            }
+        }
     }
 
     snprintf(xwl_output->randr_output->name, MAX_OUTPUT_NAME, "%s", name);
