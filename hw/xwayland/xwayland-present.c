@@ -1075,7 +1075,6 @@ retry:
         DebugPresent(("\tr %" PRIu64 " %p (pending %p)\n",
                       vblank->event_id, vblank, flip_pending));
         xorg_list_append(&vblank->event_queue, &xwl_present_window->flip_queue);
-        vblank->flip_ready = TRUE;
         return;
     }
 
