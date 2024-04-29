@@ -115,7 +115,7 @@ InitInput(int argc, char **argv)
         if (!kdHasPointer){
             pi = KdNewPointer();
             if (!pi)
-                FatalError("Couldn't create Xarcan keyboard\n");
+                FatalError("Couldn't create Xarcan pointer input\n");
             pi->driver = &arcanPointerDriver;
             KdAddPointer(pi);
         }
@@ -123,7 +123,7 @@ InitInput(int argc, char **argv)
         if (!kdHasKbd){
             ki = KdNewKeyboard();
             if (!ki)
-                FatalError("Couldn't create Xarcan keyboard\n");
+                FatalError("Couldn't create Xarcan keyboard input\n");
             ki->driver = &arcanKeyboardDriver;
             KdAddKeyboard(ki);
           }
