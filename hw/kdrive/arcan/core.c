@@ -1158,6 +1158,9 @@ void
 arcanDisplayHint(struct arcan_shmif_cont* con,
                  int w, int h, int fl, int rgb, float ppcm)
 {
+    if (!arcanInputPriv.pi)
+        return;
+
     arcanScrPriv* apriv = con->user;
 
 /* release on focus loss, open point, does this actually cover mods? */
@@ -3361,6 +3364,9 @@ static
 void
 updateWindowFocus(WindowPtr wnd, bool focus)
 {
+    if (!arcanInputPriv.pi)
+        return;
+
     struct XWMHints *hints = getHintsForWindow(wnd);
 
     DeviceIntPtr kdev = arcanInputPriv.ki->dixdev;
