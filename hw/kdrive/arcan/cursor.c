@@ -330,6 +330,9 @@ void arcanSynchCursor(arcanScrPriv *scr, Bool softUpdate)
 {
     int x, y;
 
+    if (!arcanInputPriv.pi)
+        return;
+
     if (!arcanInputPriv.pi->dixdev)
         return;
 

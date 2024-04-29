@@ -1058,6 +1058,9 @@ static void
 TranslateInput(
     struct arcan_shmif_cont* con, arcan_event* oev, arcanShmifPriv *P)
 {
+    if (!arcanInputPriv.pi)
+        return;
+
     int x = 0, y = 0;
     arcan_ioevent *ev = &oev->io;
 
