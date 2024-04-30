@@ -35,4 +35,7 @@ void XvFreeAdaptor(XvAdaptorPtr pAdaptor);
 
 void XvFillColorKey(DrawablePtr pDraw, CARD32 key, RegionPtr region);
 
+int XvdiSelectVideoNotify(ClientPtr client, DrawablePtr pDraw, BOOL onoff);
+int XvdiSelectPortNotify(ClientPtr client, XvPortPtr pPort, BOOL onoff);
+
 #endif /* _XORG_XVDIX_PRIV_H */
