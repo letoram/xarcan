@@ -32,10 +32,11 @@
 
 #include <xwayland-config.h>
 
-#include "glamor_priv.h"
-
 #include <X11/extensions/Xv.h>
 
+#include "Xext/xvdix_priv.h"
+
+#include "glamor_priv.h"
 #include "xwayland-glamor.h"
 
 #define NUM_FORMATS    3

@@ -29,4 +29,6 @@ extern RESTYPE XvRTPort;
 int ProcXvDispatch(ClientPtr);
 int SProcXvDispatch(ClientPtr);
 
+void XvFreeAdaptor(XvAdaptorPtr pAdaptor);
+
 #endif /* _XORG_XVDIX_PRIV_H */

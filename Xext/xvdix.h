@@ -185,7 +185,6 @@ typedef struct {
 extern _X_EXPORT int XvScreenInit(ScreenPtr);
 extern _X_EXPORT DevPrivateKey XvGetScreenKey(void);
 extern _X_EXPORT unsigned long XvGetRTPort(void);
-extern _X_EXPORT void XvFreeAdaptor(XvAdaptorPtr pAdaptor);
 extern void _X_EXPORT XvFillColorKey(DrawablePtr pDraw, CARD32 key,
                                      RegionPtr region);
 extern _X_EXPORT int XvdiSendPortNotify(XvPortPtr, Atom, INT32);
