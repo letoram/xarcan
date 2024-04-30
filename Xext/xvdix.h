@@ -85,13 +85,6 @@ typedef struct {
     ClientPtr client;
 } XvGrabRec, *XvGrabPtr;
 
-typedef struct _XvVideoNotifyRec {
-    struct _XvVideoNotifyRec *next;
-    ClientPtr client;
-    unsigned long id;
-    unsigned long mask;
-} XvVideoNotifyRec, *XvVideoNotifyPtr;
-
 typedef struct _XvPortNotifyRec {
     struct _XvPortNotifyRec *next;
     ClientPtr client;

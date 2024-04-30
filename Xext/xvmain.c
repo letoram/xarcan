@@ -110,6 +110,13 @@ SOFTWARE.
 #define SCREEN_EPILOGUE(pScreen, field, wrapper)\
     ((pScreen)->field = wrapper)
 
+typedef struct _XvVideoNotifyRec {
+    struct _XvVideoNotifyRec *next;
+    ClientPtr client;
+    unsigned long id;
+    unsigned long mask;
+} XvVideoNotifyRec, *XvVideoNotifyPtr;
+
 static DevPrivateKeyRec XvScreenKeyRec;
 
 Bool noXvExtension = FALSE;
