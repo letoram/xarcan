@@ -122,20 +122,20 @@ static DevPrivateKeyRec XvScreenKeyRec;
 Bool noXvExtension = FALSE;
 
 #define XvScreenKey (&XvScreenKeyRec)
-unsigned long XvExtensionGeneration = 0;
-unsigned long XvScreenGeneration = 0;
-unsigned long XvResourceGeneration = 0;
+static unsigned long XvExtensionGeneration = 0;
+static unsigned long XvScreenGeneration = 0;
+static unsigned long XvResourceGeneration = 0;
 
 int XvReqCode;
-int XvEventBase;
+static int XvEventBase;
 int XvErrorBase;
 
 RESTYPE XvRTPort;
-RESTYPE XvRTEncoding;
-RESTYPE XvRTGrab;
-RESTYPE XvRTVideoNotify;
-RESTYPE XvRTVideoNotifyList;
-RESTYPE XvRTPortNotify;
+static RESTYPE XvRTEncoding;
+static RESTYPE XvRTGrab;
+static RESTYPE XvRTVideoNotify;
+static RESTYPE XvRTVideoNotifyList;
+static RESTYPE XvRTPortNotify;
 
 /* EXTERNAL */
 

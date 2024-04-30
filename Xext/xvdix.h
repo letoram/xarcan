@@ -55,20 +55,10 @@ SOFTWARE.
 #include "scrnintstr.h"
 #include <X11/extensions/Xvproto.h>
 
-extern _X_EXPORT unsigned long XvExtensionGeneration;
-extern _X_EXPORT unsigned long XvScreenGeneration;
-extern _X_EXPORT unsigned long XvResourceGeneration;
-
 extern _X_EXPORT int XvReqCode;
-extern _X_EXPORT int XvEventBase;
 extern _X_EXPORT int XvErrorBase;
 
 extern _X_EXPORT RESTYPE XvRTPort;
-extern _X_EXPORT RESTYPE XvRTEncoding;
-extern _X_EXPORT RESTYPE XvRTGrab;
-extern _X_EXPORT RESTYPE XvRTVideoNotify;
-extern _X_EXPORT RESTYPE XvRTVideoNotifyList;
-extern _X_EXPORT RESTYPE XvRTPortNotify;
 
 typedef struct {
     int numerator;
