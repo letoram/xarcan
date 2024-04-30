@@ -104,6 +104,12 @@ SOFTWARE.
 #endif
 #include "xvdisp.h"
 
+#define SCREEN_PROLOGUE(pScreen, field) ((pScreen)->field = ((XvScreenPtr) \
+    dixLookupPrivate(&(pScreen)->devPrivates, XvScreenKey))->field)
+
+#define SCREEN_EPILOGUE(pScreen, field, wrapper)\
+    ((pScreen)->field = wrapper)
+
 static DevPrivateKeyRec XvScreenKeyRec;
 
 Bool noXvExtension = FALSE;
