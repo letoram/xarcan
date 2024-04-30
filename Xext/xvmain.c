@@ -108,6 +108,8 @@ SOFTWARE.
 
 static DevPrivateKeyRec XvScreenKeyRec;
 
+Bool noXvExtension = FALSE;
+
 #define XvScreenKey (&XvScreenKeyRec)
 unsigned long XvExtensionGeneration = 0;
 unsigned long XvScreenGeneration = 0;
