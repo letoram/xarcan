@@ -221,7 +221,6 @@ typedef struct {
 /* Errors */
 
 #define _XvBadPort (XvBadPort+XvErrorBase)
-#define _XvBadEncoding (XvBadEncoding+XvErrorBase)
 
 extern _X_EXPORT int ProcXvDispatch(ClientPtr);
 extern _X_EXPORT int SProcXvDispatch(ClientPtr);
