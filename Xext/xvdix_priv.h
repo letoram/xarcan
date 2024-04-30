@@ -22,6 +22,15 @@
 
 #define _XvBadPort (XvBadPort+XvErrorBase)
 
+typedef struct {
+    int version, revision;
+    int nAdaptors;
+    XvAdaptorPtr pAdaptors;
+    DestroyWindowProcPtr DestroyWindow;
+    DestroyPixmapProcPtr DestroyPixmap;
+    CloseScreenProcPtr CloseScreen;
+} XvScreenRec, *XvScreenPtr;
+
 extern int XvReqCode;
 extern int XvErrorBase;
 
