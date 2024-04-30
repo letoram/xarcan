@@ -66,4 +66,6 @@ int XvdiSetPortAttribute(ClientPtr client, XvPortPtr pPort, Atom attribute,
 int XvdiGetPortAttribute(ClientPtr client, XvPortPtr pPort, Atom attribute,
                          INT32 *p_value);
 
+int XvdiStopVideo(ClientPtr client, XvPortPtr pPort, DrawablePtr pDraw);
+
 #endif /* _XORG_XVDIX_PRIV_H */
