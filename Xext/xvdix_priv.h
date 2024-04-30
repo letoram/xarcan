@@ -52,4 +52,13 @@ int XvdiPutImage(ClientPtr client, DrawablePtr pDraw, XvPortPtr pPort,
                  CARD16 drw_h, XvImagePtr image, unsigned char *data,
                  Bool sync, CARD16 width, CARD16 height);
 
+int XvdiGetVideo(ClientPtr client, DrawablePtr pDraw, XvPortPtr pPort,
+                 GCPtr pGC, INT16 vid_x, INT16 vid_y, CARD16 vid_w,
+                 CARD16 vid_h, INT16 drw_x, INT16 drw_y, CARD16 drw_w,
+                 CARD16 drw_h);
+int XvdiGetStill(ClientPtr client, DrawablePtr pDraw, XvPortPtr pPort,
+                 GCPtr pGC, INT16 vid_x, INT16 vid_y, CARD16 vid_w,
+                 CARD16 vid_h, INT16 drw_x, INT16 drw_y, CARD16 drw_w,
+                 CARD16 drw_h);
+
 #endif /* _XORG_XVDIX_PRIV_H */

@@ -186,12 +186,6 @@ extern _X_EXPORT int XvScreenInit(ScreenPtr);
 extern _X_EXPORT DevPrivateKey XvGetScreenKey(void);
 extern _X_EXPORT unsigned long XvGetRTPort(void);
 
-extern _X_EXPORT int XvdiGetVideo(ClientPtr, DrawablePtr, XvPortPtr, GCPtr,
-                                  INT16, INT16, CARD16, CARD16,
-                                  INT16, INT16, CARD16, CARD16);
-extern _X_EXPORT int XvdiGetStill(ClientPtr, DrawablePtr, XvPortPtr, GCPtr,
-                                  INT16, INT16, CARD16, CARD16,
-                                  INT16, INT16, CARD16, CARD16);
 extern _X_EXPORT int XvdiSetPortAttribute(ClientPtr, XvPortPtr, Atom, INT32);
 extern _X_EXPORT int XvdiGetPortAttribute(ClientPtr, XvPortPtr, Atom, INT32 *);
 extern _X_EXPORT int XvdiStopVideo(ClientPtr, XvPortPtr, DrawablePtr);
