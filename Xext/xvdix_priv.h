@@ -20,4 +20,9 @@
 
 #define _XvBadPort (XvBadPort+XvErrorBase)
 
+extern int XvReqCode;
+extern int XvErrorBase;
+
+extern RESTYPE XvRTPort;
+
 #endif /* _XORG_XVDIX_PRIV_H */

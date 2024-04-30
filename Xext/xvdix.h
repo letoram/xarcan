@@ -55,11 +55,6 @@ SOFTWARE.
 #include "scrnintstr.h"
 #include <X11/extensions/Xvproto.h>
 
-extern _X_EXPORT int XvReqCode;
-extern _X_EXPORT int XvErrorBase;
-
-extern _X_EXPORT RESTYPE XvRTPort;
-
 typedef struct {
     int numerator;
     int denominator;
