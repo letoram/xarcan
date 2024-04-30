@@ -186,6 +186,4 @@ extern _X_EXPORT int XvScreenInit(ScreenPtr);
 extern _X_EXPORT DevPrivateKey XvGetScreenKey(void);
 extern _X_EXPORT unsigned long XvGetRTPort(void);
 
-extern _X_EXPORT int XvdiGrabPort(ClientPtr, XvPortPtr, Time, int *);
-extern _X_EXPORT int XvdiUngrabPort(ClientPtr, XvPortPtr, Time);
 #endif                          /* XVDIX_H */

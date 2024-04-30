@@ -70,4 +70,7 @@ int XvdiStopVideo(ClientPtr client, XvPortPtr pPort, DrawablePtr pDraw);
 
 int XvdiMatchPort(XvPortPtr pPort, DrawablePtr pDraw);
 
+int XvdiGrabPort(ClientPtr client, XvPortPtr pPort, Time ctime, int *p_result);
+int XvdiUngrabPort(ClientPtr client, XvPortPtr pPort, Time ctime);
+
 #endif /* _XORG_XVDIX_PRIV_H */
