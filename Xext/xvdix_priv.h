@@ -25,4 +25,8 @@ extern int XvErrorBase;
 
 extern RESTYPE XvRTPort;
 
+/* dispatch functions */
+int ProcXvDispatch(ClientPtr);
+int SProcXvDispatch(ClientPtr);
+
 #endif /* _XORG_XVDIX_PRIV_H */
