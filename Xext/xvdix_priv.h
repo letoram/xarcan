@@ -61,4 +61,9 @@ int XvdiGetStill(ClientPtr client, DrawablePtr pDraw, XvPortPtr pPort,
                  CARD16 vid_h, INT16 drw_x, INT16 drw_y, CARD16 drw_w,
                  CARD16 drw_h);
 
+int XvdiSetPortAttribute(ClientPtr client, XvPortPtr pPort, Atom attribute,
+                         INT32 value);
+int XvdiGetPortAttribute(ClientPtr client, XvPortPtr pPort, Atom attribute,
+                         INT32 *p_value);
+
 #endif /* _XORG_XVDIX_PRIV_H */
