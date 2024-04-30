@@ -482,7 +482,7 @@ XvdiSendVideoNotify(XvPortPtr pPort, DrawablePtr pDraw, int reason)
 
 }
 
-int
+static int
 XvdiSendPortNotify(XvPortPtr pPort, Atom attribute, INT32 value)
 {
     XvPortNotifyPtr pn;
