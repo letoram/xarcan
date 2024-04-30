@@ -38,4 +38,18 @@ void XvFillColorKey(DrawablePtr pDraw, CARD32 key, RegionPtr region);
 int XvdiSelectVideoNotify(ClientPtr client, DrawablePtr pDraw, BOOL onoff);
 int XvdiSelectPortNotify(ClientPtr client, XvPortPtr pPort, BOOL onoff);
 
+int XvdiPutVideo(ClientPtr client, DrawablePtr pDraw, XvPortPtr pPort,
+                 GCPtr pGC, INT16 vid_x, INT16 vid_y, CARD16 vid_w,
+                 CARD16 wid_h, INT16 drw_x, INT16 drw_y, CARD16 drw_w,
+                 CARD16 drw_h);
+int XvdiPutStill(ClientPtr client, DrawablePtr pDraw, XvPortPtr pPort,
+                 GCPtr pGC, INT16 vid_x, INT16 vid_y, CARD16 vid_w,
+                 CARD16 vid_h, INT16 drw_x, INT16 drw_y, CARD16 drw_w,
+                 CARD16 drw_h);
+int XvdiPutImage(ClientPtr client, DrawablePtr pDraw, XvPortPtr pPort,
+                 GCPtr pGC, INT16 src_x, INT16 src_y, CARD16 src_w,
+                 CARD16 src_h, INT16 drw_x, INT16 drw_y, CARD16 drw_w,
+                 CARD16 drw_h, XvImagePtr image, unsigned char *data,
+                 Bool sync, CARD16 width, CARD16 height);
+
 #endif /* _XORG_XVDIX_PRIV_H */
