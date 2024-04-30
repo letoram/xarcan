@@ -70,11 +70,7 @@ typedef struct {
     ClientPtr client;
 } XvGrabRec, *XvGrabPtr;
 
-typedef struct _XvPortNotifyRec {
-    struct _XvPortNotifyRec *next;
-    ClientPtr client;
-    unsigned long id;
-} XvPortNotifyRec, *XvPortNotifyPtr;
+typedef struct _XvPortNotifyRec *XvPortNotifyPtr;
 
 typedef struct {
     int id;

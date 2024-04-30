@@ -31,6 +31,12 @@ typedef struct {
     CloseScreenProcPtr CloseScreen;
 } XvScreenRec, *XvScreenPtr;
 
+typedef struct _XvPortNotifyRec {
+    struct _XvPortNotifyRec *next;
+    ClientPtr client;
+    unsigned long id;
+} XvPortNotifyRec, *XvPortNotifyPtr;
+
 extern int XvReqCode;
 extern int XvErrorBase;
 
