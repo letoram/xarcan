@@ -94,8 +94,6 @@ SOFTWARE.
 #include "opaque.h"
 #include "input.h"
 
-#define GLOBAL
-
 #include <X11/extensions/Xv.h>
 #include <X11/extensions/Xvproto.h>
 #include "xvdix.h"
