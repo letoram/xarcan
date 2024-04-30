@@ -33,6 +33,7 @@ SOFTWARE.
 #include <X11/extensions/Xvproto.h>
 
 #include "dix/dix_priv.h"
+#include "Xext/xvdix_priv.h"
 
 #include "misc.h"
 #include "scrnintstr.h"
@@ -42,7 +43,6 @@ SOFTWARE.
 #include "dixstruct.h"
 #include "resource.h"
 #include "opaque.h"
-#include "xvdix.h"
 #ifdef MITSHM
 #include <X11/extensions/shmproto.h>
 #include "shmint.h"

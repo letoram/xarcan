@@ -78,9 +78,13 @@ SOFTWARE.
 #endif
 
 #include <string.h>
-
 #include <X11/X.h>
 #include <X11/Xproto.h>
+#include <X11/extensions/Xv.h>
+#include <X11/extensions/Xvproto.h>
+
+#include "Xext/xvdix_priv.h"
+
 #include "misc.h"
 #include "os.h"
 #include "scrnintstr.h"
@@ -93,10 +97,6 @@ SOFTWARE.
 #include "resource.h"
 #include "opaque.h"
 #include "input.h"
-
-#include <X11/extensions/Xv.h>
-#include <X11/extensions/Xvproto.h>
-#include "xvdix.h"
 
 #ifdef PANORAMIX
 #include "panoramiX.h"

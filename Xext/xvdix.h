@@ -178,14 +178,6 @@ typedef struct _XvPortRec {
     DevUnion devPriv;
 } XvPortRec, *XvPortPtr;
 
-#define VALIDATE_XV_PORT(portID, pPort, mode)\
-    {\
-	int rc = dixLookupResourceByType((void **)&(pPort), portID,\
-	                                 XvRTPort, client, mode);\
-	if (rc != Success)\
-	    return rc;\
-    }
-
 typedef struct {
     int version, revision;
     int nAdaptors;
@@ -194,10 +186,6 @@ typedef struct {
     DestroyPixmapProcPtr DestroyPixmap;
     CloseScreenProcPtr CloseScreen;
 } XvScreenRec, *XvScreenPtr;
-
-/* Errors */
-
-#define _XvBadPort (XvBadPort+XvErrorBase)
 
 extern _X_EXPORT int ProcXvDispatch(ClientPtr);
 extern _X_EXPORT int SProcXvDispatch(ClientPtr);
