@@ -1814,17 +1814,6 @@ xwl_config_notify(WindowPtr window,
     if (size_changed && xwl_window) {
         if (xwl_window_get(window) || xwl_window_is_toplevel(window))
             xwl_window_check_resolution_change_emulation(xwl_window);
-        if (window == screen->root) {
-#ifdef XWL_HAS_LIBDECOR
-            unsigned int decor_width, decor_height;
-
-            decor_width = width / xwl_screen->global_surface_scale;
-            decor_height = height / xwl_screen->global_surface_scale;
-            xwl_window_update_libdecor_size(xwl_window, NULL,
-                                            decor_width, decor_height);
-#endif
-            xwl_window_check_fractional_scale_viewport(xwl_window, width, height);
-        }
     }
 
     return ret;
@@ -1838,13 +1827,29 @@ xwl_resize_window(WindowPtr window,
 {
     ScreenPtr screen = window->drawable.pScreen;
     struct xwl_screen *xwl_screen;
+    struct xwl_window *xwl_window;
 
     xwl_screen = xwl_screen_get(screen);
+    xwl_window = xwl_window_from_window(window);
 
     screen->ResizeWindow = xwl_screen->ResizeWindow;
     screen->ResizeWindow(window, x, y, width, height, sib);
     xwl_screen->ResizeWindow = screen->ResizeWindow;
     screen->ResizeWindow = xwl_resize_window;
+
+    if (xwl_window) {
+        if (window == screen->root) {
+#ifdef XWL_HAS_LIBDECOR
+            unsigned int decor_width, decor_height;
+
+            decor_width = width / xwl_screen->global_surface_scale;
+            decor_height = height / xwl_screen->global_surface_scale;
+            xwl_window_update_libdecor_size(xwl_window, NULL,
+                                            decor_width, decor_height);
+#endif
+            xwl_window_check_fractional_scale_viewport(xwl_window, width, height);
+        }
+    }
 }
 
 void
