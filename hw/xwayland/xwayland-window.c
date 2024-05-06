@@ -1811,11 +1811,6 @@ xwl_config_notify(WindowPtr window,
     xwl_screen->ConfigNotify = screen->ConfigNotify;
     screen->ConfigNotify = xwl_config_notify;
 
-    if (size_changed && xwl_window) {
-        if (xwl_window_get(window) || xwl_window_is_toplevel(window))
-            xwl_window_check_resolution_change_emulation(xwl_window);
-    }
-
     return ret;
 }
 
@@ -1838,6 +1833,8 @@ xwl_resize_window(WindowPtr window,
     screen->ResizeWindow = xwl_resize_window;
 
     if (xwl_window) {
+        if (xwl_window_get(window) || xwl_window_is_toplevel(window))
+            xwl_window_check_resolution_change_emulation(xwl_window);
         if (window == screen->root) {
 #ifdef XWL_HAS_LIBDECOR
             unsigned int decor_width, decor_height;
