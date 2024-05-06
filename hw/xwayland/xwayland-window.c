@@ -1831,6 +1831,23 @@ xwl_config_notify(WindowPtr window,
 }
 
 void
+xwl_resize_window(WindowPtr window,
+                  int x, int y,
+                  unsigned int width, unsigned int height,
+                  WindowPtr sib)
+{
+    ScreenPtr screen = window->drawable.pScreen;
+    struct xwl_screen *xwl_screen;
+
+    xwl_screen = xwl_screen_get(screen);
+
+    screen->ResizeWindow = xwl_screen->ResizeWindow;
+    screen->ResizeWindow(window, x, y, width, height, sib);
+    xwl_screen->ResizeWindow = screen->ResizeWindow;
+    screen->ResizeWindow = xwl_resize_window;
+}
+
+void
 xwl_move_window(WindowPtr window,
                 int x, int y,
                 WindowPtr next_sib,
