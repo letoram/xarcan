@@ -568,7 +568,7 @@ configFiles(XF86ConfFilesPtr fileconf)
         temp_path++;
     }
 
-    log_buf = xnfalloc(strlen(defaultFontPath) + (2 * countDirs) + 1);
+    log_buf = XNFalloc(strlen(defaultFontPath) + (2 * countDirs) + 1);
     temp_path = log_buf;
     start = (char *) defaultFontPath;
     while ((end = index(start, ',')) != NULL) {
@@ -1643,7 +1643,7 @@ configImpliedLayout(serverLayoutPtr servlayoutp, XF86ConfScreenPtr conf_screen,
     }
     else {
         /* Set up an empty input device list, then look for some core devices. */
-        indp = xnfalloc(sizeof(InputInfoPtr));
+        indp = XNFalloc(sizeof(InputInfoPtr));
         *indp = NULL;
         servlayoutp->inputs = indp;
     }
