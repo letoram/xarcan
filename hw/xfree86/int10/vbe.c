@@ -886,7 +886,7 @@ VBEBuildVbeModeList(vbeInfoPtr pVbe, VbeInfoBlock * vbe)
 
         bpp = mode->BitsPerPixel;
 
-        m = xnfcalloc(1, sizeof(vbeModeInfoRec));
+        m = XNFcallocarray(1, sizeof(vbeModeInfoRec));
         m->width = mode->XResolution;
         m->height = mode->YResolution;
         m->bpp = bpp;

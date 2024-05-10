@@ -184,7 +184,7 @@ xf86ValidateFontPath(char *path)
     while (next != NULL) {
         path_elem = xf86GetPathElem(&next);
         if (*path_elem == '/') {
-            dir_elem = xnfcalloc(1, strlen(path_elem) + 1);
+            dir_elem = XNFcallocarray(1, strlen(path_elem) + 1);
             if ((p1 = strchr(path_elem, ':')) != 0)
                 dirlen = p1 - path_elem;
             else
@@ -334,7 +334,7 @@ xf86ModulelistFromConfig(void ***optlist)
         }
     }
     else {
-        xf86configptr->conf_modules = xnfcalloc(1, sizeof(XF86ConfModuleRec));
+        xf86configptr->conf_modules = XNFcallocarray(1, sizeof(XF86ConfModuleRec));
         for (i = 0; ModuleDefaults[i].name != NULL; i++) {
             if (ModuleDefaults[i].toLoad == TRUE) {
                 XF86LoadPtr ptr = (XF86LoadPtr) xf86configptr->conf_modules;
@@ -1346,7 +1346,7 @@ configInputDevices(XF86ConfLayoutPtr layout, serverLayoutPtr servlayoutp)
     }
     DebugF("Found %d input devices in the layout section %s\n",
            count, layout->lay_identifier);
-    indp = xnfcalloc((count + 1), sizeof(InputInfoPtr));
+    indp = XNFcallocarray((count + 1), sizeof(InputInfoPtr));
     indp[count] = NULL;
     irp = layout->lay_input_lst;
     count = 0;
@@ -1430,7 +1430,7 @@ configLayout(serverLayoutPtr servlayoutp, XF86ConfLayoutPtr conf_layout,
     if (!count)                 /* alloc enough storage even if no screen is specified */
         count = 1;
 
-    slp = xnfcalloc((count + 1), sizeof(screenLayoutRec));
+    slp = XNFcallocarray((count + 1), sizeof(screenLayoutRec));
     slp[count].screen = NULL;
     /*
      * now that we have storage, loop over the list again and fill in our
@@ -1440,7 +1440,7 @@ configLayout(serverLayoutPtr servlayoutp, XF86ConfLayoutPtr conf_layout,
     adjp = conf_layout->lay_adjacency_lst;
     count = 0;
     while (adjp) {
-        slp[count].screen = xnfcalloc(1, sizeof(confScreenRec));
+        slp[count].screen = XNFcallocarray(1, sizeof(confScreenRec));
         if (adjp->adj_scrnum < 0)
             scrnum = count;
         else
@@ -1494,7 +1494,7 @@ configLayout(serverLayoutPtr servlayoutp, XF86ConfLayoutPtr conf_layout,
         XF86ConfScreenPtr screen;
 
         FIND_SUITABLE (XF86ConfScreenPtr, xf86configptr->conf_screen_lst, screen);
-        slp[0].screen = xnfcalloc(1, sizeof(confScreenRec));
+        slp[0].screen = XNFcallocarray(1, sizeof(confScreenRec));
         if (!configScreen(slp[0].screen, screen,
                           0, X_CONFIG, TRUE)) {
             free(slp[0].screen);
@@ -1622,8 +1622,8 @@ configImpliedLayout(serverLayoutPtr servlayoutp, XF86ConfScreenPtr conf_screen,
 
     /* We have exactly one screen */
 
-    slp = xnfcalloc(1, 2 * sizeof(screenLayoutRec));
-    slp[0].screen = xnfcalloc(1, sizeof(confScreenRec));
+    slp = XNFcallocarray(1, 2 * sizeof(screenLayoutRec));
+    slp[0].screen = XNFcallocarray(1, sizeof(confScreenRec));
     slp[1].screen = NULL;
     if (!configScreen(slp[0].screen, conf_screen, 0, from, TRUE)) {
         free(slp);
@@ -1631,7 +1631,7 @@ configImpliedLayout(serverLayoutPtr servlayoutp, XF86ConfScreenPtr conf_screen,
     }
     servlayoutp->id = "(implicit)";
     servlayoutp->screens = slp;
-    servlayoutp->inactives = xnfcalloc(1, sizeof(GDevRec));
+    servlayoutp->inactives = XNFcallocarray(1, sizeof(GDevRec));
     servlayoutp->options = NULL;
 
     memset(&layout, 0, sizeof(layout));
@@ -1716,7 +1716,7 @@ configScreen(confScreenPtr screenp, XF86ConfScreenPtr conf_screen, int scrnum,
     screenp->defaultdepth = conf_screen->scrn_defaultdepth;
     screenp->defaultbpp = conf_screen->scrn_defaultbpp;
     screenp->defaultfbbpp = conf_screen->scrn_defaultfbbpp;
-    screenp->monitor = xnfcalloc(1, sizeof(MonRec));
+    screenp->monitor = XNFcallocarray(1, sizeof(MonRec));
     /* If no monitor is specified, create a default one. */
     if (!conf_screen->scrn_monitor) {
         XF86ConfMonitorRec defMon;
@@ -1734,7 +1734,7 @@ configScreen(confScreenPtr screenp, XF86ConfScreenPtr conf_screen, int scrnum,
     /* Configure the device. If there isn't one configured, attach to the
      * first inactive one that we can configure. If there's none that work,
      * set it to NULL so that the section can be autoconfigured later */
-    screenp->device = xnfcalloc(1, sizeof(GDevRec));
+    screenp->device = XNFcallocarray(1, sizeof(GDevRec));
     if ((!conf_screen->scrn_device) && (xf86configptr->conf_device_lst)) {
         FIND_SUITABLE (XF86ConfDevicePtr, xf86configptr->conf_device_lst, conf_screen->scrn_device);
         xf86Msg(X_DEFAULT, "No device specified for screen \"%s\".\n"
@@ -1777,7 +1777,7 @@ configScreen(confScreenPtr screenp, XF86ConfScreenPtr conf_screen, int scrnum,
                 continue;
             }
 
-            screenp->gpu_devices[i] = xnfcalloc(1, sizeof(GDevRec));
+            screenp->gpu_devices[i] = XNFcallocarray(1, sizeof(GDevRec));
             if (configDevice(screenp->gpu_devices[i], conf_screen->scrn_gpu_devices[i], TRUE, TRUE)) {
                 screenp->gpu_devices[i]->myScreenSection = screenp;
             }
@@ -1787,7 +1787,7 @@ configScreen(confScreenPtr screenp, XF86ConfScreenPtr conf_screen, int scrnum,
 
     } else {
         for (i = 0; i < conf_screen->num_gpu_devices; i++) {
-            screenp->gpu_devices[i] = xnfcalloc(1, sizeof(GDevRec));
+            screenp->gpu_devices[i] = XNFcallocarray(1, sizeof(GDevRec));
             if (configDevice(screenp->gpu_devices[i], conf_screen->scrn_gpu_devices[i], TRUE, TRUE)) {
                 screenp->gpu_devices[i]->myScreenSection = screenp;
             }
@@ -1813,7 +1813,7 @@ configScreen(confScreenPtr screenp, XF86ConfScreenPtr conf_screen, int scrnum,
          dispptr = (XF86ConfDisplayPtr) dispptr->list.next, count++) {
 
         /* Allocate individual Display records */
-        screenp->displays[count] = xnfcalloc(1, sizeof(DispRec));
+        screenp->displays[count] = XNFcallocarray(1, sizeof(DispRec));
 
         /* Fill in the default Virtual size, if any */
         if (conf_screen->scrn_virtualX && conf_screen->scrn_virtualY) {
@@ -1936,7 +1936,7 @@ configMonitor(MonPtr monitorp, XF86ConfMonitorPtr conf_monitor)
      */
     cmodep = conf_monitor->mon_modeline_lst;
     while (cmodep) {
-        mode = xnfcalloc(1, sizeof(DisplayModeRec));
+        mode = XNFcallocarray(1, sizeof(DisplayModeRec));
         mode->type = 0;
         mode->Clock = cmodep->ml_clock;
         mode->HDisplay = cmodep->ml_hdisplay;

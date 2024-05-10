@@ -172,7 +172,7 @@ xf86AllocateScreen(DriverPtr drv, int flags)
         i = xf86NumGPUScreens++;
         xf86GPUScreens = XNFreallocarray(xf86GPUScreens, xf86NumGPUScreens,
                                          sizeof(ScrnInfoPtr));
-        xf86GPUScreens[i] = xnfcalloc(1, sizeof(ScrnInfoRec));
+        xf86GPUScreens[i] = XNFcallocarray(1, sizeof(ScrnInfoRec));
         pScrn = xf86GPUScreens[i];
         pScrn->scrnIndex = i + GPU_SCREEN_OFFSET;      /* Changes when a screen is removed */
         pScrn->is_gpu = TRUE;
@@ -183,14 +183,14 @@ xf86AllocateScreen(DriverPtr drv, int flags)
         i = xf86NumScreens++;
         xf86Screens = XNFreallocarray(xf86Screens, xf86NumScreens,
                                       sizeof(ScrnInfoPtr));
-        xf86Screens[i] = xnfcalloc(1, sizeof(ScrnInfoRec));
+        xf86Screens[i] = XNFcallocarray(1, sizeof(ScrnInfoRec));
         pScrn = xf86Screens[i];
 
         pScrn->scrnIndex = i;      /* Changes when a screen is removed */
     }
 
     pScrn->origIndex = pScrn->scrnIndex;      /* This never changes */
-    pScrn->privates = xnfcalloc(xf86ScrnInfoPrivateCount, sizeof(DevUnion));
+    pScrn->privates = XNFcallocarray(xf86ScrnInfoPrivateCount, sizeof(DevUnion));
     /*
      * EnableDisableFBAccess now gets initialized in InitOutput()
      * pScrn->EnableDisableFBAccess = xf86EnableDisableFBAccess;
@@ -566,7 +566,7 @@ xf86SetDepthBpp(ScrnInfoPtr scrp, int depth, int dummy, int fbbpp,
                    "Creating default Display subsection in Screen section\n"
                    "\t\"%s\" for depth/fbbpp %d/%d\n",
                    scrp->confScreen->id, scrp->depth, scrp->bitsPerPixel);
-        scrp->confScreen->displays[i] = xnfcalloc(1, sizeof(DispRec));
+        scrp->confScreen->displays[i] = XNFcallocarray(1, sizeof(DispRec));
         memset(scrp->confScreen->displays[i], 0, sizeof(DispRec));
         scrp->confScreen->displays[i]->blackColour.red = -1;
         scrp->confScreen->displays[i]->blackColour.green = -1;

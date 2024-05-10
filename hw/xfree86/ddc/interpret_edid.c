@@ -171,7 +171,7 @@ xf86InterpretEDID(int scrnIndex, Uchar * block)
 
     if (!block)
         return NULL;
-    if (!(m = xnfcalloc(1, sizeof(xf86Monitor))))
+    if (!(m = XNFcallocarray(1, sizeof(xf86Monitor))))
         return NULL;
     m->scrnIndex = scrnIndex;
     m->rawData = block;
