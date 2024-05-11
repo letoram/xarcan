@@ -109,25 +109,22 @@ InitInput(int argc, char **argv)
     struct arcan_shmif_cont* con;
     KdPointerInfo* pi;
     KdKeyboardInfo* ki;
-    if (!SeatId) {
-        trace("ArcanInit:InitInput");
-        KdAddPointerDriver(&arcanPointerDriver);
-        if (!kdHasPointer){
-            pi = KdNewPointer();
-            if (!pi)
-                FatalError("Couldn't create Xarcan keyboard\n");
-            pi->driver = &arcanPointerDriver;
-            KdAddPointer(pi);
-        }
+    KdAddPointerDriver(&arcanPointerDriver);
+    if (!kdHasPointer){
+        pi = KdNewPointer();
+        if (!pi)
+            FatalError("Couldn't create Xarcan keyboard\n");
+        pi->driver = &arcanPointerDriver;
+        KdAddPointer(pi);
+    }
 
-        if (!kdHasKbd){
-            ki = KdNewKeyboard();
-            if (!ki)
-                FatalError("Couldn't create Xarcan keyboard\n");
-            ki->driver = &arcanKeyboardDriver;
-            KdAddKeyboard(ki);
-          }
-        }
+    if (!kdHasKbd){
+        ki = KdNewKeyboard();
+        if (!ki)
+            FatalError("Couldn't create Xarcan keyboard\n");
+        ki->driver = &arcanKeyboardDriver;
+        KdAddKeyboard(ki);
+    }
 
     KdInitInput();
 
