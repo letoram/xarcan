@@ -33,9 +33,8 @@ CallbackListPtr XaceHooks[XACE_NUM_HOOKS] = { 0 };
 
 /* Special-cased hook functions.  Called by Xserver.
  */
-#undef XaceHookDispatch
 int
-XaceHookDispatch(ClientPtr client, int major)
+XaceHookDispatch0(ClientPtr client, int major)
 {
     /* Call the extension dispatch hook */
     ExtensionEntry *ext = GetExtensionEntry(major);

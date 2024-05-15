@@ -68,10 +68,10 @@ int XaceHookIsSet(int hook);
 
 /* Special-cased hook functions
  */
-int XaceHookDispatch(ClientPtr ptr, int major);
+int XaceHookDispatch0(ClientPtr ptr, int major);
 #define XaceHookDispatch(c, m) \
     ((XaceHooks[XACE_EXT_DISPATCH] && (m) >= EXTENSION_BASE) ? \
-    XaceHookDispatch((c), (m)) : \
+    XaceHookDispatch0((c), (m)) : \
     Success)
 
 int XaceHookPropertyAccess(ClientPtr ptr, WindowPtr pWin, PropertyPtr *ppProp,
