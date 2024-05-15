@@ -183,7 +183,6 @@ pkgconfig.generate(
     name: 'Xwayland',
     description: 'X Server for Wayland',
     dataonly: true,
-    install_dir: join_paths(get_option('libdir'), 'pkgconfig'),
     variables: [
         'exec_prefix=${prefix}',
         'xwayland=' + xwayland_path / xwayland_server.name(),
