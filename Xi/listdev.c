@@ -309,7 +309,7 @@ ShouldSkipDevice(ClientPtr client, DeviceIntPtr d)
 {
     /* don't send master devices other than VCP/VCK */
     if (!IsMaster(d) || d == inputInfo.pointer ||d == inputInfo.keyboard) {
-        int rc = XaceHook(XACE_DEVICE_ACCESS, client, d, DixGetAttrAccess);
+        int rc = XaceHookDeviceAccess(client, d, DixGetAttrAccess);
 
         if (rc == Success)
             return FALSE;

@@ -3626,7 +3626,7 @@ ProcWarpPointer(ClientPtr client)
 
     for (tmp = inputInfo.devices; tmp; tmp = tmp->next) {
         if (GetMaster(tmp, MASTER_ATTACHED) == dev) {
-            rc = XaceHook(XACE_DEVICE_ACCESS, client, dev, DixWriteAccess);
+            rc = XaceHookDeviceAccess(client, dev, DixWriteAccess);
             if (rc != Success)
                 return rc;
         }
@@ -4705,7 +4705,7 @@ CoreEnterLeaveEvent(DeviceIntPtr mouse,
         ClientPtr client = grab ? rClient(grab) : wClient(pWin);
         int rc;
 
-        rc = XaceHook(XACE_DEVICE_ACCESS, client, keybd, DixReadAccess);
+        rc = XaceHookDeviceAccess(client, keybd, DixReadAccess);
         if (rc == Success)
             memcpy((char *) &ke.map[0], (char *) &keybd->key->down[1], 31);
 
@@ -4816,7 +4816,7 @@ CoreFocusEvent(DeviceIntPtr dev, int type, int mode, int detail, WindowPtr pWin)
         ClientPtr client = wClient(pWin);
         int rc;
 
-        rc = XaceHook(XACE_DEVICE_ACCESS, client, dev, DixReadAccess);
+        rc = XaceHookDeviceAccess(client, dev, DixReadAccess);
         if (rc == Success)
             memcpy((char *) &ke.map[0], (char *) &dev->key->down[1], 31);
 
@@ -4879,7 +4879,7 @@ SetInputFocus(ClientPtr client,
         if (!focusWin->realized)
             return BadMatch;
     }
-    rc = XaceHook(XACE_DEVICE_ACCESS, client, dev, DixSetFocusAccess);
+    rc = XaceHookDeviceAccess(client, dev, DixSetFocusAccess);
     if (rc != Success)
         return Success;
 
@@ -4957,7 +4957,7 @@ ProcGetInputFocus(ClientPtr client)
     /* REQUEST(xReq); */
     REQUEST_SIZE_MATCH(xReq);
 
-    rc = XaceHook(XACE_DEVICE_ACCESS, client, kbd, DixGetFocusAccess);
+    rc = XaceHookDeviceAccess(client, kbd, DixGetFocusAccess);
     if (rc != Success)
         return rc;
 
@@ -5191,7 +5191,7 @@ GrabDevice(ClientPtr client, DeviceIntPtr dev,
 
     if (keyboard_mode == GrabModeSync || pointer_mode == GrabModeSync)
         access_mode |= DixFreezeAccess;
-    rc = XaceHook(XACE_DEVICE_ACCESS, client, dev, access_mode);
+    rc = XaceHookDeviceAccess(client, dev, access_mode);
     if (rc != Success)
         return rc;
 
@@ -5330,7 +5330,7 @@ ProcQueryPointer(ClientPtr client)
     rc = dixLookupWindow(&pWin, stuff->id, client, DixGetAttrAccess);
     if (rc != Success)
         return rc;
-    rc = XaceHook(XACE_DEVICE_ACCESS, client, mouse, DixReadAccess);
+    rc = XaceHookDeviceAccess(client, mouse, DixReadAccess);
     if (rc != Success && rc != BadAccess)
         return rc;
 
@@ -5730,7 +5730,7 @@ ProcGrabButton(ClientPtr client)
     if (stuff->pointerMode == GrabModeSync ||
         stuff->keyboardMode == GrabModeSync)
         access_mode |= DixFreezeAccess;
-    rc = XaceHook(XACE_DEVICE_ACCESS, client, ptr, access_mode);
+    rc = XaceHookDeviceAccess(client, ptr, access_mode);
     if (rc != Success)
         return rc;
 
@@ -6136,7 +6136,7 @@ WriteEventsToClient(ClientPtr pClient, int count, xEvent *events)
 int
 SetClientPointer(ClientPtr client, DeviceIntPtr device)
 {
-    int rc = XaceHook(XACE_DEVICE_ACCESS, client, device, DixUseAccess);
+    int rc = XaceHookDeviceAccess(client, device, DixUseAccess);
 
     if (rc != Success)
         return rc;
