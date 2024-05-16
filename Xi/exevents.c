@@ -2957,7 +2957,7 @@ SendEvent(ClientPtr client, DeviceIntPtr d, Window dest, Bool propagate,
                 break;
         }
     }
-    else if (!XaceHook(XACE_SEND_ACCESS, client, NULL, pWin, ev, count))
+    else if (!XaceHookSendAccess(client, NULL, pWin, ev, count))
         DeliverEventsToWindow(d, pWin, ev, count, mask, NullGrab);
     return Success;
 }

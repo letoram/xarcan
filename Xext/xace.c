@@ -78,13 +78,20 @@ int XaceHookDeviceAccess(ClientPtr client, DeviceIntPtr dev, Mask access_mode)
     return rec.status;
 }
 
+int XaceHookSendAccess(ClientPtr client, DeviceIntPtr dev, WindowPtr win,
+                       xEventPtr ev, int count)
+{
+    XaceSendAccessRec rec = { client, dev, win, ev, count, Success };
+    CallCallbacks(&XaceHooks[XACE_SEND_ACCESS], &rec);
+    return rec.status;
+}
+
 /* Entry point for hook functions.  Called by Xserver.
  */
 int
 XaceHook(int hook, ...)
 {
     union {
-        XaceSendAccessRec send;
         XaceReceiveAccessRec recv;
         XaceClientAccessRec client;
         XaceExtAccessRec ext;
@@ -107,17 +114,6 @@ XaceHook(int hook, ...)
      * sets calldata directly to a single argument (with no return result)
      */
     switch (hook) {
-    case XACE_SEND_ACCESS:
-        u.send.client = va_arg(ap, ClientPtr);
-        u.send.dev = va_arg(ap, DeviceIntPtr);
-        u.send.pWin = va_arg(ap, WindowPtr);
-
-        u.send.events = va_arg(ap, xEventPtr);
-        u.send.count = va_arg(ap, int);
-
-        u.send.status = Success;        /* default allow */
-        prv = &u.send.status;
-        break;
     case XACE_RECEIVE_ACCESS:
         u.recv.client = va_arg(ap, ClientPtr);
         u.recv.pWin = va_arg(ap, WindowPtr);
