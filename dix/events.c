@@ -4531,7 +4531,7 @@ EventSelectForWindow(WindowPtr pWin, ClientPtr client, Mask mask)
     }
     check = (mask & ManagerMask);
     if (check) {
-        rc = XaceHook(XACE_RESOURCE_ACCESS, client, pWin->drawable.id,
+        rc = XaceHookResourceAccess(client, pWin->drawable.id,
                       X11_RESTYPE_WINDOW, pWin, X11_RESTYPE_NONE, NULL, DixManageAccess);
         if (rc != Success)
             return rc;

@@ -62,13 +62,21 @@ XaceHookSelectionAccess(ClientPtr client, Selection ** ppSel, Mask access_mode)
     return rec.status;
 }
 
+int XaceHookResourceAccess(ClientPtr client, XID id, RESTYPE rtype, void *res,
+                           RESTYPE ptype, void *parent, Mask access_mode)
+{
+    XaceResourceAccessRec rec = { client, id, rtype, res, ptype, parent,
+                                  access_mode, Success };
+    CallCallbacks(&XaceHooks[XACE_RESOURCE_ACCESS], &rec);
+    return rec.status;
+}
+
 /* Entry point for hook functions.  Called by Xserver.
  */
 int
 XaceHook(int hook, ...)
 {
     union {
-        XaceResourceAccessRec res;
         XaceDeviceAccessRec dev;
         XaceSendAccessRec send;
         XaceReceiveAccessRec recv;
@@ -93,18 +101,6 @@ XaceHook(int hook, ...)
      * sets calldata directly to a single argument (with no return result)
      */
     switch (hook) {
-    case XACE_RESOURCE_ACCESS:
-        u.res.client = va_arg(ap, ClientPtr);
-        u.res.id = va_arg(ap, XID);
-        u.res.rtype = va_arg(ap, RESTYPE);
-        u.res.res = va_arg(ap, void *);
-        u.res.ptype = va_arg(ap, RESTYPE);
-        u.res.parent = va_arg(ap, void *);
-        u.res.access_mode = va_arg(ap, Mask);
-
-        u.res.status = Success; /* default allow */
-        prv = &u.res.status;
-        break;
     case XACE_DEVICE_ACCESS:
         u.dev.client = va_arg(ap, ClientPtr);
         u.dev.dev = va_arg(ap, DeviceIntPtr);

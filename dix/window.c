@@ -638,7 +638,7 @@ CreateRootWindow(ScreenPtr pScreen)
 
     /*  security creation/labeling check
      */
-    if (XaceHook(XACE_RESOURCE_ACCESS, serverClient, pWin->drawable.id,
+    if (XaceHookResourceAccess(serverClient, pWin->drawable.id,
                  X11_RESTYPE_WINDOW, pWin, X11_RESTYPE_NONE, NULL, DixCreateAccess))
         return FALSE;
 
@@ -867,7 +867,7 @@ CreateWindow(Window wid, WindowPtr pParent, int x, int y, unsigned w,
 
     /*  security creation/labeling check
      */
-    *error = XaceHook(XACE_RESOURCE_ACCESS, client, wid, X11_RESTYPE_WINDOW, pWin,
+    *error = XaceHookResourceAccess(client, wid, X11_RESTYPE_WINDOW, pWin,
                       X11_RESTYPE_WINDOW, pWin->parent,
                       DixCreateAccess | DixSetAttrAccess);
     if (*error != Success) {
@@ -1115,7 +1115,7 @@ DestroySubwindows(WindowPtr pWin, ClientPtr client)
      */
     UnmapSubwindows(pWin);
     while (pWin->lastChild) {
-        int rc = XaceHook(XACE_RESOURCE_ACCESS, client,
+        int rc = XaceHookResourceAccess(client,
                           pWin->lastChild->drawable.id, X11_RESTYPE_WINDOW,
                           pWin->lastChild, X11_RESTYPE_NONE, NULL, DixDestroyAccess);
 
@@ -1397,7 +1397,7 @@ ChangeWindowAttributes(WindowPtr pWin, Mask vmask, XID *vlist, ClientPtr client)
                 goto PatchUp;
             }
             if (val == xTrue) {
-                rc = XaceHook(XACE_RESOURCE_ACCESS, client, pWin->drawable.id,
+                rc = XaceHookResourceAccess(client, pWin->drawable.id,
                               X11_RESTYPE_WINDOW, pWin, X11_RESTYPE_NONE, NULL, DixGrabAccess);
                 if (rc != Success) {
                     error = rc;
@@ -2664,7 +2664,7 @@ MapWindow(WindowPtr pWin, ClientPtr client)
         return Success;
 
     /* general check for permission to map window */
-    if (XaceHook(XACE_RESOURCE_ACCESS, client, pWin->drawable.id, X11_RESTYPE_WINDOW,
+    if (XaceHookResourceAccess(client, pWin->drawable.id, X11_RESTYPE_WINDOW,
                  pWin, X11_RESTYPE_NONE, NULL, DixShowAccess) != Success)
         return Success;
 

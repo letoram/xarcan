@@ -78,6 +78,10 @@ int XaceHookPropertyAccess(ClientPtr ptr, WindowPtr pWin, PropertyPtr *ppProp,
                            Mask access_mode);
 int XaceHookSelectionAccess(ClientPtr ptr, Selection ** ppSel, Mask access_mode);
 
+/* needs to be exported for in-tree modsetting, but not part of public API */
+_X_EXPORT int XaceHookResourceAccess(ClientPtr client, XID id, RESTYPE rtype, void *res,
+                           RESTYPE ptype, void *parent, Mask access_mode);
+
 /* Register a callback for a given hook.
  */
 #define XaceRegisterCallback(hook,callback,data) \

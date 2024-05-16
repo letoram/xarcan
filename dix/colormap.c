@@ -379,7 +379,7 @@ CreateColormap(Colormap mid, ScreenPtr pScreen, VisualPtr pVisual,
     /*
      * Security creation/labeling check
      */
-    i = XaceHook(XACE_RESOURCE_ACCESS, clients[client], mid, X11_RESTYPE_COLORMAP,
+    i = XaceHookResourceAccess(clients[client], mid, X11_RESTYPE_COLORMAP,
                  pmap, X11_RESTYPE_NONE, NULL, DixCreateAccess);
     if (i != Success) {
         FreeResource(mid, X11_RESTYPE_NONE);

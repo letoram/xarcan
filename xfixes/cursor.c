@@ -373,7 +373,7 @@ ProcXFixesGetCursorImage(ClientPtr client)
     pCursor = CursorForClient(client);
     if (!pCursor)
         return BadCursor;
-    rc = XaceHook(XACE_RESOURCE_ACCESS, client, pCursor->id, X11_RESTYPE_CURSOR,
+    rc = XaceHookResourceAccess(client, pCursor->id, X11_RESTYPE_CURSOR,
                   pCursor, X11_RESTYPE_NONE, NULL, DixReadAccess);
     if (rc != Success)
         return rc;
@@ -522,7 +522,7 @@ ProcXFixesGetCursorImageAndName(ClientPtr client)
     pCursor = CursorForClient(client);
     if (!pCursor)
         return BadCursor;
-    rc = XaceHook(XACE_RESOURCE_ACCESS, client, pCursor->id, X11_RESTYPE_CURSOR,
+    rc = XaceHookResourceAccess(client, pCursor->id, X11_RESTYPE_CURSOR,
                   pCursor, X11_RESTYPE_NONE, NULL, DixReadAccess | DixGetAttrAccess);
     if (rc != Success)
         return rc;

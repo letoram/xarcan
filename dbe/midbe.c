@@ -169,9 +169,9 @@ miDbeAllocBackBufferName(WindowPtr pWin, XID bufId, int swapAction)
         }
 
         /* Security creation/labeling check. */
-        rc = XaceHook(XACE_RESOURCE_ACCESS, serverClient, bufId,
-                      dbeDrawableResType, pDbeWindowPriv->pBackBuffer,
-                      X11_RESTYPE_WINDOW, pWin, DixCreateAccess);
+        rc = XaceHookResourceAccess(serverClient, bufId, dbeDrawableResType,
+                                    pDbeWindowPriv->pBackBuffer, X11_RESTYPE_WINDOW,
+                                    pWin, DixCreateAccess);
 
         /* Make the back pixmap a DBE drawable resource. */
         if (rc != Success || !AddResource(bufId, dbeDrawableResType,

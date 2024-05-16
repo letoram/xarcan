@@ -279,7 +279,7 @@ AllocARGBCursor(unsigned char *psrcbits, unsigned char *pmaskbits,
     pCurs->id = cid;
 
     /* security creation/labeling check */
-    rc = XaceHook(XACE_RESOURCE_ACCESS, client, cid, X11_RESTYPE_CURSOR,
+    rc = XaceHookResourceAccess(client, cid, X11_RESTYPE_CURSOR,
                   pCurs, X11_RESTYPE_NONE, NULL, DixCreateAccess);
     if (rc != Success)
         goto error;
@@ -459,7 +459,7 @@ AllocGlyphCursor(Font source, unsigned sourceChar, Font mask, unsigned maskChar,
     pCurs->id = cid;
 
     /* security creation/labeling check */
-    rc = XaceHook(XACE_RESOURCE_ACCESS, client, cid, X11_RESTYPE_CURSOR,
+    rc = XaceHookResourceAccess(client, cid, X11_RESTYPE_CURSOR,
                   pCurs, X11_RESTYPE_NONE, NULL, DixCreateAccess);
     if (rc != Success)
         goto error;
