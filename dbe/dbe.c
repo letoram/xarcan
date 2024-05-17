@@ -614,7 +614,7 @@ ProcDbeGetVisualInfo(ClientPtr client)
             pDrawables[i]->pScreen;
         pDbeScreenPriv = DBE_SCREEN_PRIV(pScreen);
 
-        rc = XaceHook(XACE_SCREEN_ACCESS, client, pScreen, DixGetAttrAccess);
+        rc = XaceHookScreenAccess(client, pScreen, DixGetAttrAccess);
         if (rc != Success)
             goto freeScrVisInfo;
 

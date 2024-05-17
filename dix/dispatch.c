@@ -2523,7 +2523,7 @@ ProcInstallColormap(ClientPtr client)
     if (rc != Success)
         goto out;
 
-    rc = XaceHook(XACE_SCREEN_ACCESS, client, pcmp->pScreen, DixSetAttrAccess);
+    rc = XaceHookScreenAccess(client, pcmp->pScreen, DixSetAttrAccess);
     if (rc != Success) {
         if (rc == BadValue)
             rc = BadColor;
@@ -2552,7 +2552,7 @@ ProcUninstallColormap(ClientPtr client)
     if (rc != Success)
         goto out;
 
-    rc = XaceHook(XACE_SCREEN_ACCESS, client, pcmp->pScreen, DixSetAttrAccess);
+    rc = XaceHookScreenAccess(client, pcmp->pScreen, DixSetAttrAccess);
     if (rc != Success) {
         if (rc == BadValue)
             rc = BadColor;
@@ -2582,8 +2582,7 @@ ProcListInstalledColormaps(ClientPtr client)
     if (rc != Success)
         return rc;
 
-    rc = XaceHook(XACE_SCREEN_ACCESS, client, pWin->drawable.pScreen,
-                  DixGetAttrAccess);
+    rc = XaceHookScreenAccess(client, pWin->drawable.pScreen, DixGetAttrAccess);
     if (rc != Success)
         return rc;
 
@@ -3154,7 +3153,7 @@ ProcQueryBestSize(ClientPtr client)
     if (stuff->class != CursorShape && pDraw->type == UNDRAWABLE_WINDOW)
         return BadMatch;
     pScreen = pDraw->pScreen;
-    rc = XaceHook(XACE_SCREEN_ACCESS, client, pScreen, DixGetAttrAccess);
+    rc = XaceHookScreenAccess(client, pScreen, DixGetAttrAccess);
     if (rc != Success)
         return rc;
     (*pScreen->QueryBestSize) (stuff->class, &stuff->width,

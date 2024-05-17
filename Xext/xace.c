@@ -115,6 +115,13 @@ int XaceHookServerAccess(ClientPtr client, Mask access_mode)
     return rec.status;
 }
 
+int XaceHookScreenAccess(ClientPtr client, ScreenPtr screen, Mask access_mode)
+{
+    XaceScreenAccessRec rec = { client, screen, access_mode, Success };
+    CallCallbacks(&XaceHooks[XACE_SCREEN_ACCESS], &rec);
+    return rec.status;
+}
+
 /* Entry point for hook functions.  Called by Xserver.
  */
 int
@@ -139,7 +146,6 @@ XaceHook(int hook, ...)
      * sets calldata directly to a single argument (with no return result)
      */
     switch (hook) {
-    case XACE_SCREEN_ACCESS:
     case XACE_SCREENSAVER_ACCESS:
         u.screen.client = va_arg(ap, ClientPtr);
         u.screen.screen = va_arg(ap, ScreenPtr);
