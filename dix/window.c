@@ -3113,7 +3113,7 @@ dixSaveScreens(ClientPtr client, int on, int mode)
     }
 
     for (i = 0; i < screenInfo.numScreens; i++) {
-        rc = XaceHook(XACE_SCREENSAVER_ACCESS, client, screenInfo.screens[i],
+        rc = XaceHookScreensaverAccess(client, screenInfo.screens[i],
                       DixShowAccess | DixHideAccess);
         if (rc != Success)
             return rc;
