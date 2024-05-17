@@ -86,6 +86,7 @@ int XaceHookDeviceAccess(ClientPtr client, DeviceIntPtr dev, Mask access_mode);
 
 int XaceHookSendAccess(ClientPtr client, DeviceIntPtr dev, WindowPtr win,
                        xEventPtr ev, int count);
+int XaceHookReceiveAccess(ClientPtr client, WindowPtr win, xEventPtr ev, int count);
 
 /* Register a callback for a given hook.
  */
