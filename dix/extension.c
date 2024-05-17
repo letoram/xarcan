@@ -215,7 +215,7 @@ CloseDownExtensions(void)
 static Bool
 ExtensionAvailable(ClientPtr client, ExtensionEntry *ext)
 {
-    if (XaceHook(XACE_EXT_ACCESS, client, ext) != Success)
+    if (XaceHookExtAccess(client, ext) != Success)
         return FALSE;
     if (!ext->base)
         return FALSE;

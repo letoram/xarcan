@@ -25,6 +25,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define XACE_MAJOR_VERSION		2
 #define XACE_MINOR_VERSION		0
 
+#include "extnsionst.h"
 #include "pixmap.h"
 #include "region.h"
 #include "window.h"
@@ -88,6 +89,7 @@ int XaceHookSendAccess(ClientPtr client, DeviceIntPtr dev, WindowPtr win,
                        xEventPtr ev, int count);
 int XaceHookReceiveAccess(ClientPtr client, WindowPtr win, xEventPtr ev, int count);
 int XaceHookClientAccess(ClientPtr client, ClientPtr target, Mask access_mode);
+int XaceHookExtAccess(ClientPtr client, ExtensionEntry *ext);
 
 
 /* Register a callback for a given hook.
