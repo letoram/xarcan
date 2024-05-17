@@ -550,10 +550,8 @@ can_exchange(ScrnInfoPtr scrn, DrawablePtr draw,
         drmmode_crtc_private_ptr drmmode_crtc = config->crtc[i]->driver_private;
 
         /* Don't do pageflipping if CRTCs are rotated. */
-#ifdef GLAMOR_HAS_GBM
         if (drmmode_crtc->rotate_bo.gbm)
             return FALSE;
-#endif
 
         if (xf86_crtc_on(config->crtc[i]))
             num_crtcs_on++;
