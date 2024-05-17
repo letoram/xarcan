@@ -1880,7 +1880,7 @@ ProcessDeviceEvent(InternalEvent *ev, DeviceIntPtr device)
         int count;
 
         if (EventToCore(ev, &core, &count) == Success && count > 0) {
-            XaceHook(XACE_KEY_AVAIL, core, device, 0);
+            XaceHookKeyAvail(core, device, 0);
             free(core);
         }
     }

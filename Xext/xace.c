@@ -136,43 +136,11 @@ int XaceHookAuthAvail(ClientPtr client, XID authId)
     return Success;
 }
 
-/* Entry point for hook functions.  Called by Xserver.
- */
-int
-XaceHook(int hook, ...)
+int XaceHookKeyAvail(xEventPtr ev, DeviceIntPtr dev, int count)
 {
-    union {
-        XaceKeyAvailRec key;
-    } u;
-    int *prv = NULL;            /* points to return value from callback */
-    va_list ap;                 /* argument list */
-
-    if (!XaceHooks[hook])
-        return Success;
-
-    va_start(ap, hook);
-
-    /* Marshal arguments for passing to callback.
-     * Each callback has its own case, which sets up a structure to hold
-     * the arguments and integer return parameter, or in some cases just
-     * sets calldata directly to a single argument (with no return result)
-     */
-    switch (hook) {
-    case XACE_KEY_AVAIL:
-        u.key.event = va_arg(ap, xEventPtr);
-        u.key.keybd = va_arg(ap, DeviceIntPtr);
-        u.key.count = va_arg(ap, int);
-
-        break;
-    default:
-        va_end(ap);
-        return 0;               /* unimplemented hook number */
-    }
-    va_end(ap);
-
-    /* call callbacks and return result, if any. */
-    CallCallbacks(&XaceHooks[hook], &u);
-    return prv ? *prv : Success;
+    XaceKeyAvailRec rec = { ev, dev, count };
+    CallCallbacks(&XaceHooks[XACE_KEY_AVAIL], &rec);
+    return Success;
 }
 
 /* XaceHookIsSet

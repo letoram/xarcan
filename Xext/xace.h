@@ -94,6 +94,7 @@ int XaceHookServerAccess(ClientPtr client, Mask access_mode);
 int XaceHookScreenAccess(ClientPtr client, ScreenPtr screen, Mask access_mode);
 int XaceHookScreensaverAccess(ClientPtr client, ScreenPtr screen, Mask access_mode);
 int XaceHookAuthAvail(ClientPtr client, XID authId);
+int XaceHookKeyAvail(xEventPtr ev, DeviceIntPtr dev, int count);
 
 
 /* Register a callback for a given hook.
@@ -129,14 +130,12 @@ void XaceCensorImage(ClientPtr client,
 /* Define calls away when XACE is not being built. */
 
 #ifdef __GNUC__
-#define XaceHook(args...) Success
 #define XaceHookIsSet(args...) 0
 #define XaceHookDispatch(args...) Success
 #define XaceHookPropertyAccess(args...) Success
 #define XaceHookSelectionAccess(args...) Success
 #define XaceCensorImage(args...) { ; }
 #else
-#define XaceHook(...) Success
 #define XaceHookIsSet(...) 0
 #define XaceHookDispatch(...) Success
 #define XaceHookPropertyAccess(...) Success
