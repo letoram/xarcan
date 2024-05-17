@@ -90,6 +90,7 @@ int XaceHookSendAccess(ClientPtr client, DeviceIntPtr dev, WindowPtr win,
 int XaceHookReceiveAccess(ClientPtr client, WindowPtr win, xEventPtr ev, int count);
 int XaceHookClientAccess(ClientPtr client, ClientPtr target, Mask access_mode);
 int XaceHookExtAccess(ClientPtr client, ExtensionEntry *ext);
+int XaceHookServerAccess(ClientPtr client, Mask access_mode);
 
 
 /* Register a callback for a given hook.

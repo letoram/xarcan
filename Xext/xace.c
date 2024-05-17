@@ -108,13 +108,19 @@ int XaceHookExtAccess(ClientPtr client, ExtensionEntry *ext)
     return rec.status;
 }
 
+int XaceHookServerAccess(ClientPtr client, Mask access_mode)
+{
+    XaceServerAccessRec rec = { client, access_mode, Success };
+    CallCallbacks(&XaceHooks[XACE_SERVER_ACCESS], &rec);
+    return rec.status;
+}
+
 /* Entry point for hook functions.  Called by Xserver.
  */
 int
 XaceHook(int hook, ...)
 {
     union {
-        XaceServerAccessRec server;
         XaceScreenAccessRec screen;
         XaceAuthAvailRec auth;
         XaceKeyAvailRec key;
@@ -133,13 +139,6 @@ XaceHook(int hook, ...)
      * sets calldata directly to a single argument (with no return result)
      */
     switch (hook) {
-    case XACE_SERVER_ACCESS:
-        u.server.client = va_arg(ap, ClientPtr);
-        u.server.access_mode = va_arg(ap, Mask);
-
-        u.server.status = Success;      /* default allow */
-        prv = &u.server.status;
-        break;
     case XACE_SCREEN_ACCESS:
     case XACE_SCREENSAVER_ACCESS:
         u.screen.client = va_arg(ap, ClientPtr);

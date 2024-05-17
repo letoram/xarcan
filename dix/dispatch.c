@@ -3288,7 +3288,7 @@ ProcListHosts(ClientPtr client)
     REQUEST_SIZE_MATCH(xListHostsReq);
 
     /* untrusted clients can't list hosts */
-    result = XaceHook(XACE_SERVER_ACCESS, client, DixReadAccess);
+    result = XaceHookServerAccess(client, DixReadAccess);
     if (result != Success)
         return result;
 
