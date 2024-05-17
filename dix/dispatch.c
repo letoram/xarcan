@@ -3436,7 +3436,7 @@ ProcChangeCloseDownMode(ClientPtr client)
     REQUEST(xSetCloseDownModeReq);
     REQUEST_SIZE_MATCH(xSetCloseDownModeReq);
 
-    rc = XaceHook(XACE_CLIENT_ACCESS, client, client, DixManageAccess);
+    rc = XaceHookClientAccess(client, client, DixManageAccess);
     if (rc != Success)
         return rc;
 
