@@ -75,13 +75,6 @@ THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #endif
 #endif
 
-#define	MAX_TOC	16
-typedef struct _SrvXkmInfo {
-    DeviceIntPtr dev;
-    FILE *file;
-    XkbDescPtr xkb;
-} SrvXkmInfo;
-
 /***====================================================================***/
 
 #ifndef XKB_DFLT_RULES_PROP
