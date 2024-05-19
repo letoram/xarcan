@@ -16,11 +16,18 @@ hdrs_present = [
     'presentext.h',
 ]
 
+if host_machine.system() in ['freebsd', 'openbsd']
+   epoll_dep = dependency('epoll-shim')
+else
+   epoll_dep = []
+endif
+
 libxserver_present = static_library('libxserver_present',
     srcs_present,
     include_directories: inc,
     dependencies: [
         common_dep,
+	epoll_dep,
         dependency('presentproto', version: '>= 1.2')
     ],
 )
