@@ -60,6 +60,7 @@ SOFTWARE.
 #include <limits.h>
 #include <stddef.h>
 #include <X11/Xos.h>
+#include <X11/Xmd.h>
 
 /* If EAGAIN and EWOULDBLOCK are distinct errno values, then we check errno
  * for both EAGAIN and EWOULDBLOCK, because some supposedly POSIX
