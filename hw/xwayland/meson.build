@@ -9,6 +9,7 @@ srcs = [
     'xwayland-glamor.h',
     'xwayland-pixmap.c',
     'xwayland-pixmap.h',
+    'xwayland-present.c',
     'xwayland-present.h',
     'xwayland-screen.c',
     'xwayland-screen.h',
@@ -30,10 +31,10 @@ srcs = [
 ]
 
 scanner_dep = dependency('wayland-scanner', native: true)
-scanner = find_program(scanner_dep.get_pkgconfig_variable('wayland_scanner'))
+scanner = find_program(scanner_dep.get_variable(pkgconfig : 'wayland_scanner'))
 
 protocols_dep = dependency('wayland-protocols', version: wayland_protocols_req)
-protodir = protocols_dep.get_pkgconfig_variable('pkgdatadir')
+protodir = protocols_dep.get_variable(pkgconfig : 'pkgdatadir')
 
 pointer_xml = join_paths(protodir, 'unstable', 'pointer-constraints', 'pointer-constraints-unstable-v1.xml')
 relative_xml = join_paths(protodir, 'unstable', 'relative-pointer', 'relative-pointer-unstable-v1.xml')
@@ -102,16 +103,15 @@ endif
 
 xwayland_glamor = []
 eglstream_srcs = []
-if build_glamor
+if build_xwayland_glamor
     srcs += 'xwayland-glamor.c'
     if gbm_dep.found()
         srcs += [
                   'xwayland-glamor-gbm.c',
-                  'xwayland-present.c'
                 ]
     endif
     if build_eglstream
-        eglstream_protodir = eglstream_dep.get_pkgconfig_variable('pkgdatadir')
+        eglstream_protodir = eglstream_dep.get_variable(pkgconfig : 'pkgdatadir')
         eglstream_xml = join_paths(eglstream_protodir, 'wayland-eglstream.xml')
         eglstream_controller_xml = join_paths(eglstream_protodir, 'wayland-eglstream-controller.xml')
 
@@ -210,12 +210,9 @@ datadir = join_paths(get_option('prefix'), get_option('datadir'))
 desktopdir = join_paths(datadir, 'applications')
 install_data('desktop/org.freedesktop.Xwayland.desktop', install_dir : desktopdir)
 
-if meson.version().version_compare('>= 0.56.0')
-    meson.override_find_program('Xwayland', xwayland_server)
-
-    meson.override_dependency('xwayland', declare_dependency(
-        variables: [
-            'xwayland=' + xwayland_server.full_path(),
-        ] + xwayland_vars,
-    ))
-endif
+meson.override_find_program('Xwayland', xwayland_server)
+meson.override_dependency('xwayland', declare_dependency(
+    variables: [
+        'xwayland=' + xwayland_server.full_path(),
+    ] + xwayland_vars,
+))

@@ -167,7 +167,7 @@ xf86OSInitVidMem(VidMemInfoPtr pVidMem)
 static Bool ExtendedEnabled = FALSE;
 
 Bool
-xf86EnableIO()
+xf86EnableIO(void)
 {
     if (ExtendedEnabled)
         return TRUE;
@@ -188,7 +188,7 @@ xf86EnableIO()
 }
 
 void
-xf86DisableIO()
+xf86DisableIO(void)
 {
     if (!ExtendedEnabled)
         return;
@@ -202,6 +202,9 @@ xf86DisableIO()
 #endif                          /* USE_I386_IOPL */
 
 #ifdef USE_AMD64_IOPL
+#ifdef __NetBSD__
+#define amd64_iopl(x) x86_64_iopl(x)
+#endif
 /***************************************************************************/
 /* I/O Permissions section                                                 */
 /***************************************************************************/
@@ -209,7 +212,7 @@ xf86DisableIO()
 static Bool ExtendedEnabled = FALSE;
 
 Bool
-xf86EnableIO()
+xf86EnableIO(void)
 {
     if (ExtendedEnabled)
         return TRUE;
@@ -230,7 +233,7 @@ xf86EnableIO()
 }
 
 void
-xf86DisableIO()
+xf86DisableIO(void)
 {
     if (!ExtendedEnabled)
         return;
@@ -250,7 +253,7 @@ xf86DisableIO()
 static int IoFd = -1;
 
 Bool
-xf86EnableIO()
+xf86EnableIO(void)
 {
     if (IoFd >= 0)
         return TRUE;
@@ -264,7 +267,7 @@ xf86EnableIO()
 }
 
 void
-xf86DisableIO()
+xf86DisableIO(void)
 {
     if (IoFd < 0)
         return;
@@ -304,7 +307,7 @@ xf86SetTVOut(int mode)
 }
 
 void
-xf86SetRGBOut()
+xf86SetRGBOut(void)
 {
     switch (xf86Info.consType) {
 #ifdef PCCONS_SUPPORT

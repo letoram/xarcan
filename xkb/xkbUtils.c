@@ -63,8 +63,6 @@ DEALINGS IN THE SOFTWARE.
 #include "misc.h"
 #include "inputstr.h"
 #include "eventstr.h"
-
-#define	XKBSRV_NEED_FILE_FUNCS
 #include <xkbsrv.h>
 #include "xkbgeom.h"
 

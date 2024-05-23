@@ -147,7 +147,7 @@ SecurityLabelInitial(void)
 /*
  * Looks up a request name
  */
-static _X_INLINE const char *
+static inline const char *
 SecurityLookupRequestName(ClientPtr client)
 {
     return LookupRequestName(client->majorOp, client->minorOp);

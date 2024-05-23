@@ -33,7 +33,6 @@ THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <X11/Xproto.h>
 #include "misc.h"
 #include "inputstr.h"
-#define	XKBSRV_NEED_FILE_FUNCS
 #include <xkbsrv.h>
 #include "extnsionst.h"
 #include "extinit.h"
@@ -2461,8 +2460,7 @@ _XkbSetMapCheckLength(xkbSetMapReq *req)
     if (len == req_len)
         return Success;
 bad:
-    ErrorF("[xkb] BOGUS LENGTH in SetMap: expected %ld got %ld\n",
-           len, req_len);
+    ErrorF("[xkb] BOGUS LENGTH in SetMap: expected %zd got %zd\n", len, req_len);
     return BadLength;
 }
 

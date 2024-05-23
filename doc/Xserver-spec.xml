@@ -657,14 +657,11 @@ make the server suspend until one or more of the following occurs:
 <para>
 Before WaitForSomething() computes the masks to pass to select, poll or
 similar operating system interface, it needs to
-see if there is anything to do on the work queue; if so, it must call a DIX
-routine called ProcessWorkQueue.
+see if there is anything to do on the work queue; it must call a DIX
+routine called ProcessWorkQueue().
 <blockquote>
 <programlisting>
-	extern WorkQueuePtr	workQueue;
-
-	if (workQueue)
-		ProcessWorkQueue ();
+	ProcessWorkQueue ();
 </programlisting>
 </blockquote>
 </para>

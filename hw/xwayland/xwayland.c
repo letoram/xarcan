@@ -94,6 +94,8 @@ ddxUseMsg(void)
     ErrorF("-fullscreen            run fullscreen when rootful\n");
     ErrorF("-geometry WxH          set Xwayland window size when rootful\n");
     ErrorF("-host-grab             disable host keyboard shortcuts when rootful\n");
+    ErrorF("-nokeymap              ignore keymap from the Wayland compositor\n");
+    ErrorF("-output                specify which output to use for fullscreen when rootful\n");
     ErrorF("-wm fd                 create X client for wm on given fd\n");
     ErrorF("-initfd fd             add given fd as a listen socket for initialization clients\n");
     ErrorF("-listenfd fd           add given fd as a listen socket\n");
@@ -156,9 +158,9 @@ try_raising_nofile_limit(void)
         return;
     }
 
-    LogMessageVerb(X_INFO, 3, "Raising the file descriptors limit to %li\n",
-                   rlim.rlim_max);
-#endif
+    LogMessageVerb(X_INFO, 3, "Raising the file descriptors limit to %llu\n",
+                   (long long unsigned int) rlim.rlim_max);
+#endif /* RLIMIT_NOFILE */
 }
 
 static void
@@ -260,6 +262,13 @@ ddxProcessArgument(int argc, char *argv[], int i)
         return 1;
     }
     else if (strcmp(argv[i], "-enable-ei-portal") == 0) {
+        return 1;
+    }
+    else if (strcmp(argv[i], "-output") == 0) {
+        CHECK_FOR_REQUIRED_ARGUMENTS(1);
+        return 2;
+    }
+    else if (strcmp(argv[i], "-nokeymap") == 0) {
         return 1;
     }
 

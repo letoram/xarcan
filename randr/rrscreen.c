@@ -20,7 +20,7 @@
  * OF THIS SOFTWARE.
  */
 
-#include "randrstr.h"
+#include "randrstr_priv.h"
 
 static CARD16
  RR10CurrentSizeID(ScreenPtr pScreen);

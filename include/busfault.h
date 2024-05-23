@@ -25,7 +25,7 @@
 
 #include <dix-config.h>
 
-#ifdef BUSFAULT
+#ifdef HAVE_SIGACTION
 
 #include <sys/types.h>
 
@@ -42,6 +42,11 @@ busfault_check(void);
 
 Bool
 busfault_init(void);
+
+#else
+
+static inline void busfault_check(void) {}
+static inline Bool busfault_init(void) { return FALSE; }
 
 #endif
 

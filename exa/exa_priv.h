@@ -452,7 +452,7 @@ ExaCheckAddTraps(PicturePtr pPicture,
 
 /* exa_accel.c */
 
-static _X_INLINE Bool
+static inline Bool
 exaGCReadsDestination(DrawablePtr pDrawable, unsigned long planemask,
                       unsigned int fillStyle, unsigned char alu,
                       Bool clientClip)

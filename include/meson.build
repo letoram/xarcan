@@ -91,7 +91,7 @@ endif
 
 conf_data.set('HAVE_LIBBSD', libbsd_dep.found() ? '1' : false)
 # Note: this symbol is used by libXtrans.
-conf_data.set('HAVE_SYSTEMD_DAEMON', libsystemd_daemon_dep.found() ? '1' : false)
+conf_data.set('HAVE_SYSTEMD_DAEMON', build_systemd ? '1' : false)
 conf_data.set('CONFIG_UDEV', build_udev ? '1' : false)
 conf_data.set('CONFIG_UDEV_KMS', build_udev_kms ? '1' : false)
 conf_data.set('HAVE_DBUS', build_dbus ? '1' : false)
@@ -179,8 +179,6 @@ conf_data.set('HAVE_VSNPRINTF', cc.has_function('vsnprintf') ? '1' : false)
 conf_data.set('HAVE_WALKCONTEXT', cc.has_function('walkcontext') ? '1' : false)
 conf_data.set('HAVE_XUCRED_CR_PID', cc.has_member('struct xucred', 'cr_pid', prefix : '#include <sys/ucred.h>') ? '1' : false)
 
-conf_data.set('BUSFAULT', conf_data.get('HAVE_SIGACTION'))
-
 # Don't let X dependencies typedef 'pointer'
 conf_data.set('_XTYPEDEF_POINTER', '1')
 conf_data.set('_XITYPEDEF_POINTER', '1')
@@ -212,7 +210,7 @@ conf_data.set('DPMSExtension', build_dpms ? '1' : false)
 conf_data.set('DRI2', build_dri2 ? '1' : false)
 conf_data.set('DRI3', build_dri3 ? '1' : false)
 if build_glx
-    conf_data.set_quoted('DRI_DRIVER_PATH', dri_dep.get_pkgconfig_variable('dridriverdir'))
+    conf_data.set_quoted('DRI_DRIVER_PATH', dri_dep.get_variable(pkgconfig : 'dridriverdir'))
 endif
 conf_data.set('HAS_SHM', build_mitshm ? '1' : false)
 conf_data.set('MITSHM', build_mitshm ? '1' : false)
@@ -241,6 +239,12 @@ conf_data.set('XTEST', '1')
 conf_data.set('XV', build_xv ? '1' : false)
 conf_data.set('XvExtension', build_xv ? '1' : false)
 conf_data.set('XvMCExtension', build_xvmc ? '1' : false)
+
+# needed by several extensions
+build_registry_resource = (build_xselinux or build_res)
+conf_data.set('X_REGISTRY_RESOURCE', build_registry_resource ? '1' : false)
+build_registry_request = (build_xselinux or build_xsecurity or with_dtrace)
+conf_data.set('X_REGISTRY_REQUEST', build_registry_request ? '1' : false)
 
 conf_data.set('HAVE_SHA1_IN_' + sha1.to_upper(), '1', description: 'Use @0@ SHA1 functions'.format(sha1))
 conf_data.set('HAVE_LIBUNWIND', get_option('libunwind'))
@@ -384,11 +388,7 @@ if host_machine.system() == 'freebsd' or host_machine.system() == 'dragonfly'
     if host_machine.cpu_family() == 'x86' or host_machine.cpu_family() == 'x86_64' or host_machine.cpu_family() == 'aarch64'
         xorg_data.set('USE_DEV_IO', '1')
     endif
-elif host_machine.system() == 'netbsd'
-    if host_machine.cpu_family() == 'x86' or host_machine.cpu_family() == 'x86_64'
-        xorg_data.set('USE_I386_IOPL', '1')
-    endif
-elif host_machine.system() == 'openbsd'
+elif host_machine.system() == 'netbsd' or host_machine.system() == 'openbsd'
     if host_machine.cpu_family() == 'x86'
         xorg_data.set('USE_I386_IOPL', '1')
     endif
@@ -418,8 +418,10 @@ configure_file(output : 'xwin-config.h',
                input : 'xwin-config.h.meson.in',
                configuration : xwin_data)
 
+build_xwayland_glamor = build_glamor and (gbm_dep.found() or build_eglstream)
+
 xwayland_data = configuration_data()
-xwayland_data.set('XWL_HAS_GLAMOR', build_glamor and (gbm_dep.found() or build_eglstream) ? '1' : false)
+xwayland_data.set('XWL_HAS_GLAMOR', build_xwayland_glamor ? '1' : false)
 xwayland_data.set('XWL_HAS_EGLSTREAM', build_eglstream ? '1' : false)
 
 configure_file(output : 'xwayland-config.h',

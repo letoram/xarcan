@@ -253,6 +253,7 @@ xwl_close_screen(ScreenPtr screen)
     wl_display_disconnect(xwl_screen->display);
 
     screen->CloseScreen = xwl_screen->CloseScreen;
+
     free(xwl_screen);
 
     return screen->CloseScreen(screen);
@@ -846,6 +847,9 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
             use_fixed_size = 1;
             xwl_screen->fullscreen = 1;
         }
+        else if (strcmp(argv[i], "-output") == 0) {
+            xwl_screen->output_name = argv[i + 1];
+        }
         else if (strcmp(argv[i], "-host-grab") == 0) {
             xwl_screen->host_grab = 1;
             xwl_screen->has_grab = 1;
@@ -864,6 +868,9 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
 #else
             ErrorF("This build does not have XDG portal support\n");
 #endif
+        }
+        else if (strcmp(argv[i], "-nokeymap") == 0) {
+            xwl_screen->nokeymap = 1;
         }
     }
 
@@ -1008,11 +1015,9 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
            xwl_screen->glamor = XWL_GLAMOR_NONE;
         }
     }
-#ifdef GLAMOR_HAS_GBM
-    if (xwl_screen->glamor && xwl_screen->rootless)
-        xwl_screen->present = xwl_present_init(pScreen);
-#endif /* GLAMOR_HAS_GBM */
-#endif /* XWL_HAS_GLAMOR */
+#endif
+
+    xwl_screen->present = xwl_present_init(pScreen);
 
     if (!xwl_screen->glamor) {
         xwl_screen->CreateScreenResources = pScreen->CreateScreenResources;

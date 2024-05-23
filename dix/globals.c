@@ -56,6 +56,7 @@ SOFTWARE.
 #include "input.h"
 #include "dixfont.h"
 #include "dixstruct.h"
+#include "dix_priv.h"
 #include "os.h"
 
 ScreenInfo screenInfo;

@@ -39,6 +39,7 @@
 
 #include "xwayland-types.h"
 #include "xwayland-input.h"
+#include "xwayland-pixmap.h"
 #include "xwayland-present.h"
 #include "xwayland-screen.h"
 #include "xwayland-window.h"
@@ -187,7 +188,6 @@ damage_report(DamagePtr pDamage, RegionPtr pRegion, void *data)
 
     xwl_screen = xwl_window->xwl_screen;
 
-#ifdef GLAMOR_HAS_GBM
     if (xwl_window->present_flipped) {
         /* This damage is from a Present flip, which already committed a new
          * buffer for the surface, so we don't need to do anything in response
@@ -197,7 +197,6 @@ damage_report(DamagePtr pDamage, RegionPtr pRegion, void *data)
         xwl_window->present_flipped = FALSE;
         return;
     }
-#endif
 
     if (xorg_list_is_empty(&xwl_window->link_damage))
         xorg_list_add(&xwl_window->link_damage, &xwl_screen->damage_window_list);
@@ -319,8 +318,11 @@ xwl_window_get_output(struct xwl_window *xwl_window)
     struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
     struct xwl_output *xwl_output;
 
-    xwl_output = xwl_output_from_wl_output(xwl_screen, xwl_window->wl_output);
+    xwl_output = xwl_output_get_output_from_name(xwl_screen, xwl_screen->output_name);
+    if (xwl_output)
+        return xwl_output;
 
+    xwl_output = xwl_output_from_wl_output(xwl_screen, xwl_window->wl_output);
     if (xwl_output)
         return xwl_output;
 
@@ -946,10 +948,7 @@ ensure_surface_for_window(WindowPtr window)
     dixSetPrivate(&window->devPrivates, &xwl_window_private_key, xwl_window);
     xorg_list_init(&xwl_window->link_damage);
     xorg_list_add(&xwl_window->link_window, &xwl_screen->window_list);
-
-#ifdef GLAMOR_HAS_GBM
     xorg_list_init(&xwl_window->frame_callback_list);
-#endif
 
     xwl_window_buffers_init(xwl_window);
 
@@ -1177,10 +1176,8 @@ xwl_unrealize_window(WindowPtr window)
 
     xwl_dmabuf_feedback_destroy(&xwl_window->feedback);
 
-#ifdef GLAMOR_HAS_GBM
     if (xwl_window->xwl_screen->present)
         xwl_present_for_each_frame_callback(xwl_window, xwl_present_unrealize_window);
-#endif
 
     if (xwl_window->tearing_control)
         wp_tearing_control_v1_destroy(xwl_window->tearing_control);
@@ -1191,6 +1188,9 @@ xwl_unrealize_window(WindowPtr window)
     unregister_damage(window);
 
     xwl_window_buffers_dispose(xwl_window);
+
+    if (xwl_window->window_buffers_timer)
+        TimerFree(xwl_window->window_buffers_timer);
 
     if (xwl_window->frame_callback)
         wl_callback_destroy(xwl_window->frame_callback);
@@ -1229,7 +1229,7 @@ xwl_window_set_window_pixmap(WindowPtr window,
 
     xwl_window = xwl_window_get(window);
     if (xwl_window)
-            xwl_window_buffers_recycle(xwl_window);
+        xwl_window_buffers_dispose(xwl_window);
 }
 
 Bool
@@ -1316,7 +1316,6 @@ frame_callback(void *data,
     wl_callback_destroy (xwl_window->frame_callback);
     xwl_window->frame_callback = NULL;
 
-#ifdef GLAMOR_HAS_GBM
     if (xwl_window->xwl_screen->present) {
         xwl_present_for_each_frame_callback(xwl_window, xwl_present_frame_callback);
 
@@ -1327,7 +1326,6 @@ frame_callback(void *data,
         if (xwl_window->frame_callback)
             xwl_present_for_each_frame_callback(xwl_window, xwl_present_reset_timer);
     }
-#endif
 }
 
 static const struct wl_callback_listener frame_listener = {
@@ -1341,14 +1339,12 @@ xwl_window_create_frame_callback(struct xwl_window *xwl_window)
     wl_callback_add_listener(xwl_window->frame_callback, &frame_listener,
                              xwl_window);
 
-#ifdef GLAMOR_HAS_GBM
     /* If we get called from frame_callback, it will take care of calling
      * xwl_present_reset_timer.
      */
     if (xwl_window->xwl_screen->present &&
         !xwl_present_entered_for_each_frame_callback())
         xwl_present_for_each_frame_callback(xwl_window, xwl_present_reset_timer);
-#endif
 }
 
 Bool
@@ -1358,10 +1354,8 @@ xwl_destroy_window(WindowPtr window)
     struct xwl_screen *xwl_screen = xwl_screen_get(screen);
     Bool ret;
 
-#ifdef GLAMOR_HAS_GBM
     if (xwl_screen->present)
         xwl_present_cleanup(window);
-#endif
 
     screen->DestroyWindow = xwl_screen->DestroyWindow;
 
@@ -1388,13 +1382,7 @@ xwl_window_attach_buffer(struct xwl_window *xwl_window)
 
     region = DamageRegion(window_get_damage(xwl_window->window));
     pixmap = xwl_window_buffers_get_pixmap(xwl_window, region);
-
-#ifdef XWL_HAS_GLAMOR
-    if (xwl_screen->glamor)
-        buffer = xwl_glamor_pixmap_get_wl_buffer(pixmap);
-    else
-#endif
-        buffer = xwl_shm_pixmap_get_wl_buffer(pixmap);
+    buffer = xwl_pixmap_get_wl_buffer(pixmap);
 
     if (!buffer) {
         ErrorF("Error getting buffer\n");

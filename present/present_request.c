@@ -21,7 +21,7 @@
  */
 
 #include "present_priv.h"
-#include "randrstr.h"
+#include "randrstr_priv.h"
 #include <protocol-versions.h>
 
 static int

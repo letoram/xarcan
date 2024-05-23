@@ -25,6 +25,7 @@
 #include <dix-config.h>
 #endif
 
+#include <sys/time.h>
 #include <dev/wscons/wsconsio.h>
 #include <dev/wscons/wsksymdef.h>
 

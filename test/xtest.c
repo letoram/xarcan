@@ -60,12 +60,12 @@ device_cursor_cleanup(DeviceIntPtr dev, ScreenPtr screen)
 }
 
 static void
-xtest_init_devices(void)
+xtest_init(void)
 {
-    ScreenRec screen = {0};
-    ClientRec server_client = {0};
-    WindowRec root = {{0}};
-    WindowOptRec optional = {0};
+    static ScreenRec screen = {0};
+    static ClientRec server_client = {0};
+    static WindowRec root = {{0}};
+    static WindowOptRec optional = {0};
 
     /* random stuff that needs initialization */
     root.drawable.id = 0xab;
@@ -89,6 +89,18 @@ xtest_init_devices(void)
 
     /* this also inits the xtest devices */
     InitCoreDevices();
+}
+
+static void
+xtest_cleanup(void)
+{
+    CloseDownDevices();
+}
+
+static void
+xtest_init_devices(void)
+{
+    xtest_init();
 
     assert(xtestpointer);
     assert(xtestkeyboard);
@@ -100,6 +112,8 @@ xtest_init_devices(void)
     assert(GetXTestDevice(inputInfo.pointer) == xtestpointer);
 
     assert(GetXTestDevice(inputInfo.keyboard) == xtestkeyboard);
+
+    xtest_cleanup();
 }
 
 /**
@@ -112,8 +126,11 @@ xtest_properties(void)
     int rc;
     char value = 1;
     XIPropertyValuePtr prop;
-    Atom xtest_prop = XIGetKnownProperty(XI_PROP_XTEST_DEVICE);
+    Atom xtest_prop;
 
+    xtest_init();
+
+    xtest_prop = XIGetKnownProperty(XI_PROP_XTEST_DEVICE);
     rc = XIGetDeviceProperty(xtestpointer, xtest_prop, &prop);
     assert(rc == Success);
     assert(prop);
@@ -130,13 +147,17 @@ xtest_properties(void)
                                 XA_INTEGER, 8, PropModeReplace, 1, &value,
                                 FALSE);
     assert(rc == BadAccess);
+
+    xtest_cleanup();
 }
 
-int
+const testfunc_t*
 xtest_test(void)
 {
-    xtest_init_devices();
-    xtest_properties();
-
-    return 0;
+    static const testfunc_t testfuncs[] = {
+        xtest_init_devices,
+        xtest_properties,
+        NULL,
+    };
+    return testfuncs;
 }

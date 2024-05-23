@@ -33,7 +33,7 @@
 #include "mipointer.h"
 #include "windowstr.h"
 #include "inputstr.h"
-#include <randrstr.h>
+#include "randrstr_priv.h"
 #include <X11/extensions/render.h>
 
 #include "xf86cmap.h"

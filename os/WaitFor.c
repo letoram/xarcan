@@ -180,17 +180,13 @@ WaitForSomething(Bool are_ready)
 
     were_ready = FALSE;
 
-#ifdef BUSFAULT
     busfault_check();
-#endif
 
     /* We need a while loop here to handle
        crashed connections and the screen saver timeout */
     while (1) {
         /* deal with any blocked jobs */
-        if (workQueue) {
-            ProcessWorkQueue();
-        }
+        ProcessWorkQueue();
 
         timeout = check_timers();
         are_ready = clients_are_ready();

@@ -76,6 +76,7 @@ SOFTWARE.
 #include "osdep.h"
 #include "opaque.h"
 #include "dixstruct.h"
+#include "dix_priv.h"
 #include "misc.h"
 
 CallbackListPtr ReplyCallback;
@@ -890,9 +891,6 @@ FlushClient(ClientPtr who, OsCommPtr oc, const void *__extraBuf, int extraCount)
             todo = notWritten;
         }
         else if (ETEST(errno)
-#ifdef SUNSYSV                  /* check for another brain-damaged OS bug */
-                 || (errno == 0)
-#endif
 #ifdef EMSGSIZE                 /* check for another brain-damaged OS bug */
                  || ((errno == EMSGSIZE) && (todo == 1))
 #endif

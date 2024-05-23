@@ -431,7 +431,7 @@ static miPointerScreenFuncRec xwl_pointer_screen_funcs = {
 Bool
 xwl_screen_init_cursor(struct xwl_screen *xwl_screen)
 {
-    if (!dixRegisterPrivateKey(&xwl_cursor_private_key, PRIVATE_CURSOR_BITS, 0))
+    if (!dixRegisterPrivateKey(&xwl_cursor_private_key, PRIVATE_CURSOR, 0))
         return FALSE;
 
     return miPointerInitialize(xwl_screen->screen,

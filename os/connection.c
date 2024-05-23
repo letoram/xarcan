@@ -85,16 +85,10 @@ SOFTWARE.
 #if defined(TCPCONN)
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#ifdef apollo
-#ifndef NO_TCP_H
-#include <netinet/tcp.h>
-#endif
-#else
 #ifdef CSRG_BASED
 #include <sys/param.h>
 #endif
 #include <netinet/tcp.h>
-#endif
 #include <arpa/inet.h>
 #endif
 
@@ -121,6 +115,7 @@ SOFTWARE.
 #endif
 
 #include "probes.h"
+#include "xdmcp.h"
 
 struct ospoll   *server_poll;
 

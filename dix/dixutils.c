@@ -525,6 +525,10 @@ ProcessWorkQueue(void)
 {
     WorkQueuePtr q, *p;
 
+    // don't have a work queue yet
+    if (!workQueue)
+        return;
+
     p = &workQueue;
     /*
      * Scan the work queue once, calling each function.  Those

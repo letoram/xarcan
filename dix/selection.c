@@ -101,7 +101,7 @@ InitSelections(void)
     CurrentSelections = NULL;
 }
 
-static _X_INLINE void
+static inline void
 CallSelectionCallback(Selection * pSel, ClientPtr client,
                       SelectionCallbackKind kind)
 {

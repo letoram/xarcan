@@ -27,6 +27,7 @@
 #include "../Xext/syncsdk.h"
 #include <protocol-versions.h>
 #include <drm_fourcc.h>
+#include "randrstr_priv.h"
 
 static Bool
 dri3_screen_can_one_point_two(ScreenPtr screen)

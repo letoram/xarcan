@@ -97,9 +97,6 @@ xwl_glamor_check_flip(WindowPtr present_window, PixmapPtr pixmap)
     if (pixmap->drawable.depth != backing_pixmap->drawable.depth)
         return FALSE;
 
-    if (!xwl_glamor_pixmap_get_wl_buffer(pixmap))
-        return FALSE;
-
     if (xwl_screen->egl_backend->check_flip)
         return xwl_screen->egl_backend->check_flip(pixmap);
 
@@ -215,7 +212,7 @@ xwl_screen_get_main_dev(struct xwl_screen *xwl_screen)
 
 static Bool
 xwl_get_formats(struct xwl_format *format_array, int format_array_len,
-               uint32_t *num_formats, uint32_t **formats)
+               CARD32 *num_formats, CARD32 **formats)
 {
     *num_formats = 0;
     *formats = NULL;
@@ -236,9 +233,9 @@ xwl_get_formats(struct xwl_format *format_array, int format_array_len,
 
 static Bool
 xwl_get_formats_for_device(struct xwl_dmabuf_feedback *xwl_feedback, drmDevice *device,
-                           uint32_t *num_formats, uint32_t **formats)
+                           CARD32 *num_formats, CARD32 **formats)
 {
-    uint32_t *ret = NULL;
+    CARD32 *ret = NULL;
     uint32_t count = 0;
 
     /* go through all matching sets of tranches for the window's device */
@@ -788,10 +785,11 @@ xwl_window_dmabuf_feedback_done(void *data,
             xwl_window->window->drawable.id,
             xwl_window->has_implicit_scanout_support ? "" : "not");
 
-    /* If the linux-dmabuf v4 per-surface feedback changed, recycle the
-     * window buffers so that they get re-created with appropriate parameters.
+    /* If the linux-dmabuf v4 per-surface feedback changed, make sure the
+     * window buffers get re-created with appropriate parameters.
      */
-    xwl_window_buffers_recycle(xwl_window);
+    xwl_window_buffers_dispose(xwl_window);
+    xwl_window_recycle_pixmap(xwl_window);
 }
 
 static void

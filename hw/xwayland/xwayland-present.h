@@ -33,7 +33,6 @@
 
 #include "xwayland-types.h"
 
-#ifdef GLAMOR_HAS_GBM
 struct xwl_present_window {
     WindowPtr window;
 
@@ -70,7 +69,5 @@ void xwl_present_frame_callback(struct xwl_present_window *xwl_present_window);
 Bool xwl_present_init(ScreenPtr screen);
 void xwl_present_cleanup(WindowPtr window);
 void xwl_present_unrealize_window(struct xwl_present_window *xwl_present_window);
-
-#endif /* GLAMOR_HAS_GBM */
 
 #endif /* XWAYLAND_PRESENT_H */

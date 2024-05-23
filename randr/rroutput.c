@@ -21,7 +21,7 @@
  * OF THIS SOFTWARE.
  */
 
-#include "randrstr.h"
+#include "randrstr_priv.h"
 #include <X11/Xatom.h>
 
 RESTYPE RROutputType;

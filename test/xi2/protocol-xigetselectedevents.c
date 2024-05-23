@@ -52,10 +52,11 @@
 
 #include "protocol-common.h"
 
-static void reply_XIGetSelectedEvents(ClientPtr client, int len, char *data,
-                                      void *userdata);
-static void reply_XIGetSelectedEvents_data(ClientPtr client, int len,
-                                           char *data, void *userdata);
+DECLARE_WRAP_FUNCTION(WriteToClient, void, ClientPtr client, int len, void *data);
+DECLARE_WRAP_FUNCTION(AddResource, Bool, XID id, RESTYPE type, void *value);
+
+static void reply_XIGetSelectedEvents(ClientPtr client, int len, void *data);
+static void reply_XIGetSelectedEvents_data(ClientPtr client, int len, void *data);
 
 static struct {
     int num_masks_expected;
@@ -66,14 +67,14 @@ static struct {
 extern ClientRec client_window;
 
 /* AddResource is called from XISetSEventMask, we don't need this */
-Bool
-__wrap_AddResource(XID id, RESTYPE type, void *value)
+static Bool
+override_AddResource(XID id, RESTYPE type, void *value)
 {
     return TRUE;
 }
 
 static void
-reply_XIGetSelectedEvents(ClientPtr client, int len, char *data, void *userdata)
+reply_XIGetSelectedEvents(ClientPtr client, int len, void *data)
 {
     xXIGetSelectedEventsReply *rep = (xXIGetSelectedEventsReply *) data;
 
@@ -87,12 +88,11 @@ reply_XIGetSelectedEvents(ClientPtr client, int len, char *data, void *userdata)
 
     assert(rep->num_masks == test_data.num_masks_expected);
 
-    reply_handler = reply_XIGetSelectedEvents_data;
+    wrapped_WriteToClient = reply_XIGetSelectedEvents_data;
 }
 
 static void
-reply_XIGetSelectedEvents_data(ClientPtr client, int len, char *data,
-                               void *userdata)
+reply_XIGetSelectedEvents_data(ClientPtr client, int len, void *data)
 {
     int i;
     xXIEventMask *mask;
@@ -127,12 +127,12 @@ request_XIGetSelectedEvents(xXIGetSelectedEventsReq * req, int error)
 
     client = init_client(req->length, req);
 
-    reply_handler = reply_XIGetSelectedEvents;
+    wrapped_WriteToClient = reply_XIGetSelectedEvents;
 
     rc = ProcXIGetSelectedEvents(&client);
     assert(rc == error);
 
-    reply_handler = reply_XIGetSelectedEvents;
+    wrapped_WriteToClient = reply_XIGetSelectedEvents;
     client.swapped = TRUE;
     swapl(&req->win);
     swaps(&req->length);
@@ -145,17 +145,22 @@ test_XIGetSelectedEvents(void)
 {
     int i, j;
     xXIGetSelectedEventsReq request;
-    ClientRec client = init_client(0, NULL);
+    ClientRec client;
     unsigned char *mask;
     DeviceIntRec dev;
 
+    wrapped_AddResource = override_AddResource;
+
+    init_simple();
+    client = init_client(0, NULL);
+
     request_init(&request, XIGetSelectedEvents);
 
-    printf("Testing for BadWindow on invalid window.\n");
+    dbg("Testing for BadWindow on invalid window.\n");
     request.win = None;
     request_XIGetSelectedEvents(&request, BadWindow);
 
-    printf("Testing for zero-length (unset) masks.\n");
+    dbg("Testing for zero-length (unset) masks.\n");
     /* No masks set yet */
     test_data.num_masks_expected = 0;
     request.win = ROOT_WINDOW_ID;
@@ -166,7 +171,7 @@ test_XIGetSelectedEvents(void)
 
     memset(test_data.mask, 0, sizeof(test_data.mask));
 
-    printf("Testing for valid masks\n");
+    dbg("Testing for valid masks\n");
     memset(&dev, 0, sizeof(dev));       /* dev->id is enough for XISetEventMask */
     request.win = ROOT_WINDOW_ID;
 
@@ -192,7 +197,7 @@ test_XIGetSelectedEvents(void)
         }
     }
 
-    printf("Testing removing all masks\n");
+    dbg("Testing removing all masks\n");
     /* Unset all masks one-by-one */
     for (j = MAXDEVICES - 1; j >= 0; j--) {
         if (j < devices.num_devices + 2)
@@ -208,14 +213,14 @@ test_XIGetSelectedEvents(void)
     }
 }
 
-int
+const testfunc_t*
 protocol_xigetselectedevents_test(void)
 {
-    init_simple();
-    enable_GrabButton_wrap = 0;
-    enable_XISetEventMask_wrap = 0;
-
-    test_XIGetSelectedEvents();
+    static const testfunc_t testfuncs[] = {
+        test_XIGetSelectedEvents,
+        NULL,
+    };
+    return testfuncs;
 
     return 0;
 }

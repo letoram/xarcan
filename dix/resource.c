@@ -493,7 +493,7 @@ static const struct ResourceType predefTypes[] = {
 
 CallbackListPtr ResourceStateCallback;
 
-static _X_INLINE void
+static inline void
 CallResourceStateCallback(ResourceState state, ResourceRec * res)
 {
     if (ResourceStateCallback) {
