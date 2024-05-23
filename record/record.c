@@ -36,14 +36,15 @@ and Jim Haggerty of Metheus.
 #include <dix-config.h>
 #endif
 
+#include "dix/eventconvert.h"
+
 #include "dixstruct.h"
 #include "extnsionst.h"
-#include "extinit.h"
+#include "extinit_priv.h"
 #include <X11/extensions/recordproto.h>
 #include "set.h"
 #include "swaprep.h"
 #include "inputstr.h"
-#include "eventconvert.h"
 #include "scrnintstr.h"
 
 #include <stdio.h>
@@ -2456,7 +2457,7 @@ ProcRecordFreeContext(ClientPtr client)
 
     REQUEST_SIZE_MATCH(xRecordFreeContextReq);
     VERIFY_CONTEXT(pContext, stuff->context, client);
-    FreeResource(stuff->context, RT_NONE);
+    FreeResource(stuff->context, X11_RESTYPE_NONE);
     return Success;
 }                               /* ProcRecordFreeContext */
 

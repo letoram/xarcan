@@ -33,6 +33,14 @@
 #include <X11/X.h>
 #include <X11/Xproto.h>
 #include <X11/Xatom.h>
+#include <X11/extensions/xtestproto.h>
+#include <X11/extensions/XI.h>
+#include <X11/extensions/XIproto.h>
+
+#include "dix/dix_priv.h"
+#include "dix/exevents_priv.h"
+#include "os/osdep.h"
+
 #include "misc.h"
 #include "os.h"
 #include "dixstruct.h"
@@ -45,17 +53,12 @@
 #include "mi.h"
 #include "xkbsrv.h"
 #include "xkbstr.h"
-#include <X11/extensions/xtestproto.h>
-#include <X11/extensions/XI.h>
-#include <X11/extensions/XIproto.h>
 #include "exglobals.h"
 #include "mipointer.h"
 #include "xserver-properties.h"
-#include "exevents.h"
 #include "eventstr.h"
 #include "inpututils.h"
-
-#include "extinit.h"
+#include "extinit_priv.h"
 
 /* XTest events are sent during request processing and may be interrupted by
  * a SIGIO. We need a separate event list to avoid events overwriting each
@@ -129,7 +132,7 @@ ProcXTestCompareCursor(ClientPtr client)
         pCursor = GetSpriteCursor(ptr);
     else {
         rc = dixLookupResourceByType((void **) &pCursor, stuff->cursor,
-                                     RT_CURSOR, client, DixReadAccess);
+                                     X11_RESTYPE_CURSOR, client, DixReadAccess);
         if (rc != Success) {
             client->errorValue = stuff->cursor;
             return rc;

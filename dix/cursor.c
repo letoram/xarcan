@@ -50,6 +50,9 @@ SOFTWARE.
 
 #include <X11/X.h>
 #include <X11/Xmd.h>
+
+#include "dix/dix_priv.h"
+
 #include "servermd.h"
 #include "scrnintstr.h"
 #include "dixstruct.h"
@@ -68,8 +71,6 @@ typedef struct _GlyphShare {
 } GlyphShare, *GlyphSharePtr;
 
 static GlyphSharePtr sharedGlyphs = (GlyphSharePtr) NULL;
-
-DevScreenPrivateKeyRec cursorScreenDevPriv;
 
 static CARD32 cursorSerial;
 
@@ -278,8 +279,8 @@ AllocARGBCursor(unsigned char *psrcbits, unsigned char *pmaskbits,
     pCurs->id = cid;
 
     /* security creation/labeling check */
-    rc = XaceHook(XACE_RESOURCE_ACCESS, client, cid, RT_CURSOR,
-                  pCurs, RT_NONE, NULL, DixCreateAccess);
+    rc = XaceHook(XACE_RESOURCE_ACCESS, client, cid, X11_RESTYPE_CURSOR,
+                  pCurs, X11_RESTYPE_NONE, NULL, DixCreateAccess);
     if (rc != Success)
         goto error;
 
@@ -336,13 +337,13 @@ AllocGlyphCursor(Font source, unsigned sourceChar, Font mask, unsigned maskChar,
     CursorPtr pCurs;
     GlyphSharePtr pShare;
 
-    rc = dixLookupResourceByType((void **) &sourcefont, source, RT_FONT,
+    rc = dixLookupResourceByType((void **) &sourcefont, source, X11_RESTYPE_FONT,
                                  client, DixUseAccess);
     if (rc != Success) {
         client->errorValue = source;
         return rc;
     }
-    rc = dixLookupResourceByType((void **) &maskfont, mask, RT_FONT, client,
+    rc = dixLookupResourceByType((void **) &maskfont, mask, X11_RESTYPE_FONT, client,
                                  DixUseAccess);
     if (rc != Success && mask != None) {
         client->errorValue = mask;
@@ -461,8 +462,8 @@ AllocGlyphCursor(Font source, unsigned sourceChar, Font mask, unsigned maskChar,
     pCurs->id = cid;
 
     /* security creation/labeling check */
-    rc = XaceHook(XACE_RESOURCE_ACCESS, client, cid, RT_CURSOR,
-                  pCurs, RT_NONE, NULL, DixCreateAccess);
+    rc = XaceHook(XACE_RESOURCE_ACCESS, client, cid, X11_RESTYPE_CURSOR,
+                  pCurs, X11_RESTYPE_NONE, NULL, DixCreateAccess);
     if (rc != Success)
         goto error;
 
@@ -505,7 +506,7 @@ CreateRootCursor(char *unused1, unsigned int unused2)
     if (err != Success)
         return NullCursor;
 
-    err = dixLookupResourceByType((void **) &cursorfont, fontID, RT_FONT,
+    err = dixLookupResourceByType((void **) &cursorfont, fontID, X11_RESTYPE_FONT,
                                   serverClient, DixReadAccess);
     if (err != Success)
         return NullCursor;
@@ -513,7 +514,7 @@ CreateRootCursor(char *unused1, unsigned int unused2)
                          &curs, serverClient, (XID) 0) != Success)
         return NullCursor;
 
-    if (!AddResource(FakeClientID(0), RT_CURSOR, (void *) curs))
+    if (!AddResource(FakeClientID(0), X11_RESTYPE_CURSOR, (void *) curs))
         return NullCursor;
 
     return curs;

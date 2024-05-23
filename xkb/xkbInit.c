@@ -39,14 +39,17 @@ THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <X11/Xproto.h>
 #include <X11/keysym.h>
 #include <X11/Xatom.h>
+#include <X11/extensions/XKMformat.h>
+
+#include "os/cmdline.h"
+#include "xkb/xkbsrv_priv.h"
+
 #include "misc.h"
 #include "inputstr.h"
 #include "opaque.h"
 #include "property.h"
 #include "scrnintstr.h"
-#include <xkbsrv.h>
 #include "xkbgeom.h"
-#include <X11/extensions/XKMformat.h>
 #include "xkbfile.h"
 
 #define	CREATE_ATOM(s)	MakeAtom(s,sizeof(s)-1,1)
@@ -71,13 +74,6 @@ THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #define	PHYS_LEDS	0x07
 #endif
 #endif
-
-#define	MAX_TOC	16
-typedef struct _SrvXkmInfo {
-    DeviceIntPtr dev;
-    FILE *file;
-    XkbDescPtr xkb;
-} SrvXkmInfo;
 
 /***====================================================================***/
 
@@ -662,7 +658,7 @@ InitKeyboardDeviceStructInternal(DeviceIntPtr dev, XkbRMLVOSet * rmlvo,
     return FALSE;
 }
 
-_X_EXPORT Bool
+Bool
 InitKeyboardDeviceStruct(DeviceIntPtr dev, XkbRMLVOSet * rmlvo,
                          BellProcPtr bell_func, KbdCtrlProcPtr ctrl_func)
 {
@@ -670,7 +666,7 @@ InitKeyboardDeviceStruct(DeviceIntPtr dev, XkbRMLVOSet * rmlvo,
                                             NULL, 0, bell_func, ctrl_func);
 }
 
-_X_EXPORT Bool
+Bool
 InitKeyboardDeviceStructFromString(DeviceIntPtr dev,
                                    const char *keymap, int keymap_length,
                                    BellProcPtr bell_func, KbdCtrlProcPtr ctrl_func)

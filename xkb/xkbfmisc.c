@@ -431,37 +431,3 @@ XkbConvertGetByNameComponents(Bool toXkm, unsigned orig)
     }
     return rtrn;
 }
-
-/***====================================================================***/
-
-#define	UNMATCHABLE(c)	(((c)=='(')||((c)==')')||((c)=='/'))
-
-Bool
-XkbNameMatchesPattern(char *name, char *ptrn)
-{
-    while (ptrn[0] != '\0') {
-        if (name[0] == '\0') {
-            if (ptrn[0] == '*') {
-                ptrn++;
-                continue;
-            }
-            return FALSE;
-        }
-        if (ptrn[0] == '?') {
-            if (UNMATCHABLE(name[0]))
-                return FALSE;
-        }
-        else if (ptrn[0] == '*') {
-            if ((!UNMATCHABLE(name[0])) &&
-                XkbNameMatchesPattern(name + 1, ptrn))
-                return TRUE;
-            return XkbNameMatchesPattern(name, ptrn + 1);
-        }
-        else if (ptrn[0] != name[0])
-            return FALSE;
-        name++;
-        ptrn++;
-    }
-    /* if we get here, the pattern is exhausted (-:just like me:-) */
-    return name[0] == '\0';
-}

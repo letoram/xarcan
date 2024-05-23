@@ -51,6 +51,8 @@ SOFTWARE.
 #ifndef _OSDEP_H_
 #define _OSDEP_H_ 1
 
+#include <X11/Xdefs.h>
+
 #if defined(XDMCP) || defined(HASXDMAUTH)
 #include <X11/Xdmcp.h>
 #endif
@@ -128,5 +130,72 @@ extern Bool ComputeLocalClient(ClientPtr client);
 
 /* in auth.c */
 extern void GenerateRandomData(int len, char *buf);
+
+/* OsTimer functions */
+void TimerInit(void);
+Bool TimerForce(OsTimerPtr timer);
+
+#ifdef WIN32
+#include <X11/Xwinsock.h>
+struct utsname {
+    char nodename[512];
+};
+
+static inline void uname(struct utsname *uts) {
+    gethostname(uts->nodename, sizeof(uts->nodename));
+}
+
+const char *Win32TempDir(void);
+
+int System(const char *cmdline);
+static inline void Fclose(void *f) { fclose(f); }
+static inline void *Fopen(const char *a, const char *b) { return fopen(a,b); }
+
+#else /* WIN32 */
+
+int System(const char *);
+void *Popen(const char *, const char *);
+void *Fopen(const char *, const char *);
+int Fclose(void *f);
+int Pclose(void *f);
+
+#endif /* WIN32 */
+
+void AutoResetServer(int sig);
+
+/* clone fd so it gets out of our select mask */
+int os_move_fd(int fd);
+
+/* set signal mask - either on current thread or whole process,
+   depending on whether multithreading is used */
+int xthread_sigmask(int how, const sigset_t *set, sigset_t *oldest);
+
+/* callback for DDX specific error printing, if any (may be NULL) */
+extern void (*OsVendorVErrorFProc) (const char *, va_list args)
+    _X_ATTRIBUTE_PRINTF(1, 0);
+
+typedef void (*OsSigHandlerPtr) (int sig);
+
+/* install signal handler */
+OsSigHandlerPtr OsSignal(int sig, OsSigHandlerPtr handler);
+
+void OsInit(void);
+void OsCleanup(Bool);
+void OsVendorFatalError(const char *f, va_list args) _X_ATTRIBUTE_PRINTF(1, 0);
+void OsVendorInit(void);
+void OsBlockSignals(void);
+void OsReleaseSignals(void);
+void OsResetSignals(void);
+void OsAbort(void) _X_NORETURN;
+
+void MakeClientGrabPervious(ClientPtr client);
+void MakeClientGrabImpervious(ClientPtr client);
+
+int OnlyListenToOneClient(ClientPtr client);
+
+void ListenToAllClients(void);
+
+/* allow DDX to force using another clock */
+void ForceClockId(clockid_t forced_clockid);
 
 #endif                          /* _OSDEP_H_ */

@@ -80,17 +80,6 @@ SOFTWARE.
 #include "xf86Extensions.h"
 #endif
 
-#ifdef HAVE_DMX_CONFIG_H
-#include <dmx-config.h>
-#undef XV
-#undef DBE
-#undef SCREENSAVER
-#undef RANDR
-#undef DAMAGE
-#undef COMPOSITE
-#undef MITSHM
-#endif
-
 #ifdef HAVE_XNEST_CONFIG_H
 #include <xnest-config.h>
 #undef COMPOSITE
@@ -99,7 +88,7 @@ SOFTWARE.
 
 #include "misc.h"
 #include "extension.h"
-#include "extinit.h"
+#include "extinit_priv.h"
 #include "micmap.h"
 #include "os.h"
 #include "globals.h"

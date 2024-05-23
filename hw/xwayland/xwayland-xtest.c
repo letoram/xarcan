@@ -25,12 +25,15 @@
 
 #include <xwayland-config.h>
 
+#include <errno.h>
+#include <unistd.h>
+#include <libgen.h>
+#include <libei.h>
+
+#include "dix/dix_priv.h"
+
 #include <inputstr.h>
 #include <inpututils.h>
-#include <libgen.h>
-#include <unistd.h>
-
-#include <libei.h>
 
 #ifdef XWL_HAS_EI_PORTAL
 #include "liboeffis.h"
@@ -581,6 +584,7 @@ xwl_send_event_to_ei(struct xwl_ei_client *xwl_ei_client,
                 } else if (detail == 7) {
                     ei_device_scroll_discrete(ei_device, SCROLL_STEP, 0);
                 }
+                ei_device_frame(ei_device, ei_now(ei));
             }
             break;
         case KeyPress:

@@ -21,6 +21,9 @@ is" without express or implied warranty.
 
 #include <X11/X.h>
 #include <X11/Xproto.h>
+
+#include "os/osdep.h"
+
 #include "screenint.h"
 #include "input.h"
 #include "misc.h"
@@ -41,7 +44,7 @@ XVisualInfo *xnestVisuals;
 int xnestNumVisuals;
 int xnestDefaultVisualIndex;
 Colormap *xnestDefaultColormaps;
-static unsigned int xnestNumDefaultColormaps;
+static uint16_t xnestNumDefaultColormaps;
 int *xnestDepths;
 int xnestNumDepths;
 XPixmapFormatValues *xnestPixmapFormats;

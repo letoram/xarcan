@@ -39,7 +39,7 @@ Equipment Corporation.
 #include "opaque.h"
 #include <X11/extensions/dpmsproto.h>
 #include "dpmsproc.h"
-#include "extinit.h"
+#include "extinit_priv.h"
 #include "scrnintstr.h"
 #include "windowstr.h"
 #include "protocol-versions.h"
@@ -163,7 +163,7 @@ ProcDPMSSelectInput(register ClientPtr client)
             pHead = (DPMSEventPtr *)malloc(sizeof(DPMSEventPtr));
             if (!pHead ||
                     !AddResource(eventResource, DPMSEventType, (void *)pHead)) {
-                FreeResource(clientResource, RT_NONE);
+                FreeResource(clientResource, X11_RESTYPE_NONE);
                 return BadAlloc;
             }
             *pHead = 0;

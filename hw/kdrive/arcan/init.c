@@ -28,6 +28,11 @@
 #include "arcan.h"
 #include "arcan_cursor.h"
 #include "glx_extinit.h"
+#include "os/ddx_priv.h"
+#include "os/cmdline.h"
+#include "os/osdep.h"
+#include "dix_priv.h"
+#include "extinit_priv.h"
 
 extern Bool kdHasPointer;
 extern Bool kdHasKbd;

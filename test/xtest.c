@@ -29,12 +29,15 @@
 #endif
 #include <stdint.h>
 #include <X11/Xatom.h>
+
+#include "dix/dix_priv.h"
+
 #include "input.h"
 #include "inputstr.h"
 #include "scrnintstr.h"
 #include "windowstr.h"
 #include "exevents.h"
-#include "extinit.h"
+#include "extinit_priv.h"
 #include "xkbsrv.h"
 #include "xserver-properties.h"
 #include "syncsrv.h"

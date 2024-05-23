@@ -44,7 +44,24 @@ xwl_randr_lease_cleanup_outputs(RRLeasePtr rrLease)
 
     for (i = 0; i < rrLease->numOutputs; ++i) {
         output = rrLease->outputs[i]->devPrivate;
-        output->lease = NULL;
+        if (output) {
+            output->lease = NULL;
+        }
+    }
+}
+
+static void
+xwl_randr_lease_free_outputs(RRLeasePtr rrLease)
+{
+    struct xwl_output *xwl_output;
+    int i;
+
+    for (i = 0; i < rrLease->numOutputs; ++i) {
+        xwl_output = rrLease->outputs[i]->devPrivate;
+        if (xwl_output && xwl_output->withdrawn_connector) {
+            rrLease->outputs[i]->devPrivate = NULL;
+            xwl_output_remove(xwl_output);
+        }
     }
 }
 
@@ -71,6 +88,9 @@ drm_lease_handle_finished(void *data,
         AttendClient(lease->client);
         xwl_randr_lease_cleanup_outputs(lease->rrLease);
     }
+
+    /* Free the xwl_outputs that have been withdrawn while lease-able */
+    xwl_randr_lease_free_outputs(lease->rrLease);
 }
 
 static struct wp_drm_lease_v1_listener drm_lease_listener = {
@@ -116,6 +136,13 @@ xwl_randr_request_lease(ClientPtr client, ScreenPtr screen, RRLeasePtr rrLease)
         return BadMatch;
     }
 
+    for (i = 0; i < rrLease->numOutputs; ++i) {
+        output = rrLease->outputs[i]->devPrivate;
+        if (!output || !output->lease_connector || output->lease) {
+            return BadValue;
+        }
+    }
+
     xorg_list_for_each_entry(device_data, &xwl_screen->drm_lease_devices, link) {
         Bool connectors_of_device = FALSE;
         for (i = 0; i < rrLease->numOutputs; ++i) {
@@ -131,13 +158,6 @@ xwl_randr_request_lease(ClientPtr client, ScreenPtr screen, RRLeasePtr rrLease)
                 return BadValue;
             }
             lease_device = device_data;
-        }
-    }
-
-    for (i = 0; i < rrLease->numOutputs; ++i) {
-        output = rrLease->outputs[i]->devPrivate;
-        if (!output || !output->lease_connector || output->lease) {
-            return BadValue;
         }
     }
 
@@ -189,7 +209,11 @@ lease_connector_handle_name(void *data,
                             struct wp_drm_lease_connector_v1 *wp_drm_lease_connector_v1,
                             const char *name)
 {
-    /* This space is deliberately left blank */
+    struct xwl_output *xwl_output = data;
+    char rr_output_name[MAX_OUTPUT_NAME] = { 0 };
+
+    snprintf(rr_output_name, MAX_OUTPUT_NAME, "lease-%s", name);
+    xwl_output_set_name(xwl_output, rr_output_name);
 }
 
 static void
@@ -320,7 +344,15 @@ static void
 lease_connector_handle_withdrawn(void *data,
                                  struct wp_drm_lease_connector_v1 *wp_drm_lease_connector_v1)
 {
-    xwl_output_remove(data);
+    struct xwl_output *xwl_output = data;
+
+    xwl_output->withdrawn_connector = TRUE;
+
+    /* Not removing the xwl_output if currently leased with Wayland */
+    if (xwl_output->lease)
+        return;
+
+    xwl_output_remove(xwl_output);
 }
 
 static const struct wp_drm_lease_connector_v1_listener lease_connector_listener = {
@@ -347,16 +379,13 @@ drm_lease_device_handle_connector(void *data,
     struct xwl_drm_lease_device *lease_device = data;
     struct xwl_screen *xwl_screen = lease_device->xwl_screen;
     struct xwl_output *xwl_output;
-    char name[256];
+    char name[MAX_OUTPUT_NAME] = { 0 };
 
     xwl_output = calloc(1, sizeof *xwl_output);
     if (xwl_output == NULL) {
         ErrorF("%s ENOMEM\n", __func__);
         return;
     }
-
-    snprintf(name, sizeof name, "XWAYLAND%d",
-             xwl_screen_get_next_output_serial(xwl_screen));
 
     xwl_output->lease_device = lease_device;
     xwl_output->xwl_screen = xwl_screen;
@@ -368,7 +397,11 @@ drm_lease_device_handle_connector(void *data,
     }
     RRCrtcSetRotations(xwl_output->randr_crtc, ALL_ROTATIONS);
     xwl_output->randr_output = RROutputCreate(xwl_screen->screen,
-                                              name, strlen(name), xwl_output);
+                                              name, MAX_OUTPUT_NAME, xwl_output);
+    snprintf(name, MAX_OUTPUT_NAME, "XWAYLAND%d",
+             xwl_screen_get_next_output_serial(xwl_screen));
+    xwl_output_set_name(xwl_output, name);
+
     if (!xwl_output->randr_output) {
         ErrorF("Failed creating RandR Output\n");
         goto err;

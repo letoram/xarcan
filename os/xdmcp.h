@@ -3,6 +3,7 @@
 
 #include "osdep.h"
 
+#ifdef XDMCP
 /* in xdmcp.c */
 void XdmcpUseMsg(void);
 int XdmcpOptions(int argc, char **argv, int i);
@@ -23,5 +24,6 @@ void XdmcpRegisterAuthentication(const char *name,
 
 struct sockaddr_in;
 void XdmcpRegisterBroadcastAddress(const struct sockaddr_in *addr);
+#endif /* XDMCP */
 
 #endif /* _XSERVER_OS_XDMCP_H */

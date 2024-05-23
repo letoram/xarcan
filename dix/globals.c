@@ -50,13 +50,15 @@ SOFTWARE.
 
 #include <X11/X.h>
 #include <X11/Xmd.h>
+
+#include "dix/dix_priv.h"
+
 #include "misc.h"
 #include "windowstr.h"
 #include "scrnintstr.h"
 #include "input.h"
 #include "dixfont.h"
 #include "dixstruct.h"
-#include "dix_priv.h"
 #include "os.h"
 
 ScreenInfo screenInfo;

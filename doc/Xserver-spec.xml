@@ -440,7 +440,7 @@ To free a resource, use one of the following.
 FreeResource frees all resources matching the given id, regardless of
 type; the type's deleteFunc will be called on each matching resource,
 except that skipDeleteFuncType can be set to a single type for which
-the deleteFunc should not be called (otherwise pass RT_NONE).
+the deleteFunc should not be called (otherwise pass RT_NONE / X11_RESTYPE_NONE).
 FreeResourceByType frees a specific resource matching a given id
 and type; if skipFree is true, then the deleteFunc is not called.
 </para>

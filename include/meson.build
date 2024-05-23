@@ -11,11 +11,6 @@ dri_dep = dependency('dri', required: build_glx)
 conf_data = configuration_data()
 conf_data.set('_DIX_CONFIG_H_', '1')
 
-conf_data.set('HAVE_TYPEOF', cc.compiles('''
-    int foo(int bar) { typeof(bar) baz = 1; return baz; }
-''',
-    name: 'typeof()') ? '1' : false)
-
 # For feature macros we're using either false (boolean) or '1', which correspond to the macro being
 # not defined at all and defined to 1. This is to match autotools behavior and thus preserve
 # backwards  compatibility with all the existing code that uses #ifdef to check if feature is
@@ -44,6 +39,10 @@ else
     conf_data.set('X_BYTE_ORDER', 'X_BIG_ENDIAN')
 endif
 
+# Defining _XSERVER64 on 64bit builds is VITAL, since otherwise Xlib headers
+# would define lots X types (eg. Atom, XID, etc) as 64 bit, but inside the
+# Xserver we really need them to be 32 bit (CARD32). When _SERVER64 is defined
+# the xlib headers will typedef them exactly to CARD32.
 glx_align64 = []
 if cc.sizeof('unsigned long') == 8
    conf_data.set('_XSERVER64', '1')
@@ -98,7 +97,7 @@ conf_data.set('HAVE_DBUS', build_dbus ? '1' : false)
 conf_data.set('CONFIG_HAL', build_hal ? '1' : false)
 conf_data.set('SYSTEMD_LOGIND', build_systemd_logind ? '1' : false)
 conf_data.set('NEED_DBUS', build_systemd_logind or build_hal ? '1' : false)
-conf_data.set('CONFIG_WSCONS', host_machine.system() == 'openbsd' ? '1' : false)
+conf_data.set('CONFIG_WSCONS', host_machine.system() in ['openbsd', 'netbsd'] ? '1' : false)
 
 conf_data.set('HAVE_XSHMFENCE', xshmfence_dep.found() ? '1' : false)
 conf_data.set('WITH_LIBDRM', libdrm_required ? '1' : false)
@@ -127,7 +126,6 @@ conf_data.set_quoted('COMPILEDDEFAULTFONTPATH', default_font_path)
 conf_data.set('XORG_VERSION_CURRENT', release)
 
 conf_data.set('HASXDMAUTH', has_xdm_auth ? '1' : false)
-conf_data.set('SECURE_RPC', get_option('secure-rpc') ? '1' : false)
 
 conf_data.set('HAVE_DLFCN_H', cc.has_header('dlfcn.h') ? '1' : false)
 conf_data.set('HAVE_EXECINFO_H', cc.has_header('execinfo.h') ? '1' : false)
@@ -212,7 +210,6 @@ conf_data.set('DRI3', build_dri3 ? '1' : false)
 if build_glx
     conf_data.set_quoted('DRI_DRIVER_PATH', dri_dep.get_variable(pkgconfig : 'dridriverdir'))
 endif
-conf_data.set('HAS_SHM', build_mitshm ? '1' : false)
 conf_data.set('MITSHM', build_mitshm ? '1' : false)
 conf_data.set('PANORAMIX', build_xinerama ? '1' : false)
 conf_data.set('PRESENT', '1')
@@ -252,7 +249,6 @@ conf_data.set('HAVE_LIBUNWIND', get_option('libunwind'))
 conf_data.set('HAVE_APM', (build_apm or build_acpi) ? '1' : false)
 conf_data.set('HAVE_ACPI', build_acpi ? '1' : false)
 
-conf_data.set('DDXOSVERRORF', build_xwin ? '1' : false)
 conf_data.set('DDXBEFORERESET', build_xwin ? '1' : false)
 enable_debugging = get_option('buildtype') == 'debug'
 conf_data.set('DEBUG', enable_debugging ? '1' : false)
@@ -409,20 +405,20 @@ xwin_data.set('HAS_DEVWINDOWS', host_machine.system() == 'cygwin' ? '1' : false,
               description: 'Has /dev/windows for signaling new win32 messages')
 xwin_data.set('RELOCATE_PROJECTROOT', host_machine.system() == 'windows' ? '1' : false,
               description: 'Make paths relative to the xserver installation location')
-# XXX: these three are all the same as DEBUG so we should just change to that
-xwin_data.set10('CYGDEBUG', enable_debugging)
-xwin_data.set10('CYGWINDOWING_DEBUG',enable_debugging)
-xwin_data.set10('CYGMULTIWINDOW_DEBUG', enable_debugging)
+xwin_data.set10('ENABLE_DEBUG', enable_debugging)
 
 configure_file(output : 'xwin-config.h',
                input : 'xwin-config.h.meson.in',
                configuration : xwin_data)
 
-build_xwayland_glamor = build_glamor and (gbm_dep.found() or build_eglstream)
+build_xwayland_glamor = build_glamor and gbm_dep.found()
 
 xwayland_data = configuration_data()
 xwayland_data.set('XWL_HAS_GLAMOR', build_xwayland_glamor ? '1' : false)
-xwayland_data.set('XWL_HAS_EGLSTREAM', build_eglstream ? '1' : false)
+xwayland_data.set('XWL_HAS_LIBDECOR', have_libdecor ? '1' : false)
+xwayland_data.set('XWL_HAS_XWAYLAND_EXTENSION', xwaylandproto_dep.found() ? '1' : false)
+xwayland_data.set('XWL_HAS_EI', build_ei)
+xwayland_data.set('XWL_HAS_EI_PORTAL', build_ei_portal)
 
 configure_file(output : 'xwayland-config.h',
                input : 'xwayland-config.h.meson.in',
@@ -446,7 +442,6 @@ if build_xorg
             'Xprintf.h',
             'callback.h',
             'client.h',
-            'closestr.h',
             'closure.h',
             'colormap.h',
             'colormapst.h',
@@ -469,7 +464,6 @@ if build_xorg
             'gc.h',
             'gcstruct.h',
             'globals.h',
-            'glx_extinit.h',
             'glxvndabi.h',
             'input.h',
             'inputstr.h',
@@ -488,7 +482,6 @@ if build_xorg
             'ptrveloc.h',
             'region.h',
             'regionstr.h',
-            'registry.h',
             'resource.h',
             'rgb.h',
             'screenint.h',
@@ -504,7 +497,6 @@ if build_xorg
             'xkbstr.h',
             'xkbrules.h',
             'Xprintf.h',
-            'xserver_poll.h',
             'xserver-properties.h',
         ],
         install_dir: xorgsdkdir,

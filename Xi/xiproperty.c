@@ -29,16 +29,17 @@
 #include <dix-config.h>
 #endif
 
-#include "dix.h"
-#include "inputstr.h"
-#include <X11/extensions/XI.h>
 #include <X11/Xatom.h>
+#include <X11/extensions/XI.h>
 #include <X11/extensions/XIproto.h>
 #include <X11/extensions/XI2proto.h>
-#include "exglobals.h"
-#include "exevents.h"
-#include "swaprep.h"
 
+#include "dix/exevents_priv.h"
+
+#include "dix.h"
+#include "inputstr.h"
+#include "exglobals.h"
+#include "swaprep.h"
 #include "xiproperty.h"
 #include "xserver-properties.h"
 
@@ -416,7 +417,7 @@ XIResetProperties(void)
  * @param buf_return Pointer to an array of at least @nelem_return values.
  * @return Success or the error code if an error occurred.
  */
-_X_EXPORT int
+int
 XIPropToInt(XIPropertyValuePtr val, int *nelem_return, int **buf_return)
 {
     int i;
@@ -486,7 +487,7 @@ XIPropToInt(XIPropertyValuePtr val, int *nelem_return, int **buf_return)
  * @param buf_return Pointer to an array of at least @nelem_return values.
  * @return Success or the error code if an error occurred.
  */
-_X_EXPORT int
+int
 XIPropToFloat(XIPropertyValuePtr val, int *nelem_return, float **buf_return)
 {
     int i;

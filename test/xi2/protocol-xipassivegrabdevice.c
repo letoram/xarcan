@@ -35,11 +35,13 @@
 #include <X11/X.h>
 #include <X11/Xproto.h>
 #include <X11/extensions/XI2proto.h>
+
+#include "dix/exevents_priv.h"
+
 #include "inputstr.h"
 #include "windowstr.h"
 #include "scrnintstr.h"
 #include "xipassivegrab.h"
-#include "exevents.h"
 #include "exglobals.h"
 
 #include "protocol-common.h"
@@ -81,21 +83,24 @@ override_GrabButton(ClientPtr client, DeviceIntPtr dev,
 static void
 reply_XIPassiveGrabDevice(ClientPtr client, int len, void *data)
 {
-    xXIPassiveGrabDeviceReply *rep = (xXIPassiveGrabDeviceReply *) data;
+    xXIPassiveGrabDeviceReply *reply = (xXIPassiveGrabDeviceReply *) data;
+    xXIPassiveGrabDeviceReply rep = *reply; /* copy so swapping doesn't touch the real reply */
+
+    assert(len < 0xffff); /* suspicious size, swapping bug */
 
     if (client->swapped) {
-        swaps(&rep->sequenceNumber);
-        swapl(&rep->length);
-        swaps(&rep->num_modifiers);
+        swaps(&rep.sequenceNumber);
+        swapl(&rep.length);
+        swaps(&rep.num_modifiers);
 
-        testdata.num_modifiers = rep->num_modifiers;
+        testdata.num_modifiers = rep.num_modifiers;
     }
 
-    reply_check_defaults(rep, len, XIPassiveGrabDevice);
+    reply_check_defaults(&rep, len, XIPassiveGrabDevice);
 
     /* ProcXIPassiveGrabDevice sends the data in two batches, let the second
      * handler handle the modifier data */
-    if (rep->num_modifiers > 0)
+    if (rep.num_modifiers > 0)
         wrapped_WriteToClient = reply_XIPassiveGrabDevice_data;
 }
 
@@ -105,6 +110,8 @@ reply_XIPassiveGrabDevice_data(ClientPtr client, int len, void *data)
     int i;
 
     xXIGrabModifierInfo *mods = (xXIGrabModifierInfo *) data;
+
+    assert(len < 0xffff); /* suspicious size, swapping bug */
 
     for (i = 0; i < testdata.num_modifiers; i++, mods++) {
         if (client->swapped)

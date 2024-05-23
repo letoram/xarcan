@@ -82,17 +82,22 @@ SOFTWARE.
 #include <dix-config.h>
 #endif
 
-#include "inputstr.h"
 #include <X11/X.h>
 #include <X11/Xproto.h>
+#include <X11/extensions/geproto.h>
 #include <X11/extensions/XI.h>
 #include <X11/extensions/XIproto.h>
 #include <X11/extensions/XI2proto.h>
-#include <X11/extensions/geproto.h>
+#include <X11/extensions/XKBproto.h>
+
+#include "dix/dix_priv.h"
+#include "dix/eventconvert.h"
+#include "dix/exevents_priv.h"
+
+#include "inputstr.h"
 #include "windowstr.h"
 #include "miscstruct.h"
 #include "region.h"
-#include "exevents.h"
 #include "extnsionst.h"
 #include "exglobals.h"
 #include "eventstr.h"
@@ -102,12 +107,9 @@ SOFTWARE.
 #include "listdev.h"            /* for CopySwapXXXClass */
 #include "xace.h"
 #include "xiquerydevice.h"      /* For List*Info */
-#include "eventconvert.h"
 #include "eventstr.h"
 #include "inpututils.h"
 #include "mi.h"
-
-#include <X11/extensions/XKBproto.h>
 #include "xkbsrv.h"
 
 #define WID(w) ((w) ? ((w)->drawable.id) : 0)
@@ -1536,7 +1538,7 @@ DeliverTouchEmulatedEvent(DeviceIntPtr dev, TouchPointInfoPtr ti,
             l = &ti->listeners[ti->num_listeners - 1];
             l->listener = g->resource;
             l->grab = g;
-            //l->resource_type = RT_NONE;
+            //l->resource_type = X11_RESTYPE_NONE;
 
             if (devgrab->grabtype != XI2 || devgrab->type != XI_TouchBegin)
                 l->type = TOUCH_LISTENER_POINTER_GRAB;
@@ -2502,7 +2504,7 @@ GrabButton(ClientPtr client, DeviceIntPtr dev, DeviceIntPtr modifier_device,
         cursor = NullCursor;
     else {
         rc = dixLookupResourceByType((void **) &cursor, param->cursor,
-                                     RT_CURSOR, client, DixUseAccess);
+                                     X11_RESTYPE_CURSOR, client, DixUseAccess);
         if (rc != Success) {
             client->errorValue = param->cursor;
             return rc;
@@ -2601,7 +2603,7 @@ GrabWindow(ClientPtr client, DeviceIntPtr dev, int type,
         cursor = NullCursor;
     else {
         rc = dixLookupResourceByType((void **) &cursor, param->cursor,
-                                     RT_CURSOR, client, DixUseAccess);
+                                     X11_RESTYPE_CURSOR, client, DixUseAccess);
         if (rc != Success) {
             client->errorValue = param->cursor;
             return rc;
@@ -2689,7 +2691,7 @@ SelectForWindow(DeviceIntPtr dev, WindowPtr pWin, ClientPtr client,
                     if (i == EMASKSIZE) {
                         RecalculateDeviceDeliverableEvents(pWin);
                         if (ShouldFreeInputMasks(pWin, FALSE))
-                            FreeResource(others->resource, RT_NONE);
+                            FreeResource(others->resource, X11_RESTYPE_NONE);
                         return Success;
                     }
                 }
@@ -3116,7 +3118,7 @@ DeleteWindowFromAnyExtEvents(WindowPtr pWin, Bool freeResources)
             ic = inputMasks->inputClients;
             for (i = 0; i < EMASKSIZE; i++)
                 inputMasks->dontPropagateMask[i] = 0;
-            FreeResource(ic->resource, RT_NONE);
+            FreeResource(ic->resource, X11_RESTYPE_NONE);
         }
 }
 
@@ -3239,7 +3241,7 @@ DeviceEventSuppressForWindow(WindowPtr pWin, ClientPtr client, Mask mask,
     }
     RecalculateDeviceDeliverableEvents(pWin);
     if (ShouldFreeInputMasks(pWin, FALSE))
-        FreeResource(inputMasks->inputClients->resource, RT_NONE);
+        FreeResource(inputMasks->inputClients->resource, X11_RESTYPE_NONE);
     return Success;
 }
 

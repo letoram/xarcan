@@ -33,15 +33,17 @@
 #include <dix-config.h>
 #endif
 
+#include <X11/extensions/XI2.h>
+#include <X11/extensions/XI2proto.h>
+
+#include "dix/dix_priv.h"
+#include "dix/exevents_priv.h"
+
 #include "inputstr.h"           /* DeviceIntPtr      */
 #include "windowstr.h"          /* window structure  */
 #include "mi.h"
 #include "eventstr.h"
-#include <X11/extensions/XI2.h>
-#include <X11/extensions/XI2proto.h>
-
 #include "exglobals.h"          /* BadDevice */
-#include "exevents.h"
 #include "xiallowev.h"
 
 int _X_COLD

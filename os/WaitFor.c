@@ -56,22 +56,24 @@ SOFTWARE.
 #include <dix-config.h>
 #endif
 
+#include <errno.h>
+#include <stdio.h>
 #ifdef WIN32
 #include <X11/Xwinsock.h>
 #endif
 #include <X11/Xos.h>            /* for strings, fcntl, time */
-#include <errno.h>
-#include <stdio.h>
 #include <X11/X.h>
-#include "misc.h"
 
+#include "dix/dix_priv.h"
+#include "os/busfault.h"
+
+#include "misc.h"
 #include "osdep.h"
-#include "dixstruct.h"
+#include "dixstruct_priv.h"
 #include "opaque.h"
 #ifdef DPMSExtension
 #include "dpmsproc.h"
 #endif
-#include "busfault.h"
 
 #ifdef WIN32
 /* Error codes from windows sockets differ from fileio error codes  */

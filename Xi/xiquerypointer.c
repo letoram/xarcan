@@ -35,14 +35,17 @@
 
 #include <X11/X.h>              /* for inputstr.h    */
 #include <X11/Xproto.h>         /* Request macro     */
-#include "inputstr.h"           /* DeviceIntPtr      */
-#include "windowstr.h"          /* window structure  */
 #include <X11/extensions/XI.h>
 #include <X11/extensions/XI2proto.h>
+
+#include "dix/dix_priv.h"
+#include "dix/eventconvert.h"
+#include "dix/exevents_priv.h"
+
+#include "inputstr.h"           /* DeviceIntPtr      */
+#include "windowstr.h"          /* window structure  */
 #include "extnsionst.h"
-#include "exevents.h"
 #include "exglobals.h"
-#include "eventconvert.h"
 #include "scrnintstr.h"
 #include "xkbsrv.h"
 

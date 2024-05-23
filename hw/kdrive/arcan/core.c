@@ -27,6 +27,9 @@
 #include <xcb/xcb.h>
 #include <sys/wait.h>
 #include "compint.h"
+#include "os/ddx_priv.h"
+#include "os/osdep.h"
+#include "dix_priv.h"
 
 #ifdef GLAMOR
 #define EGL_NO_X11
@@ -3092,7 +3095,7 @@ static PixmapPtr dri3PixmapFromFds(ScreenPtr pScreen,
     }
 
 /* reject invalid values outright */
-    if (!width || !height || !num_fds || depth < 16 ||
+    if (!width || !height || !num_fds || depth < 15 ||
          bpp != BitsPerPixel(depth) || strides[0] < (width * bpp / 8)){
         trace("ArcanDRI3PixmapFromFD::invalid input arguments");
         return NULL;
@@ -3140,6 +3143,8 @@ static PixmapPtr dri3PixmapFromFds(ScreenPtr pScreen,
             return NULL;
         }
     }
+    else
+        return NULL;
 
     PixmapPtr res = boToPixmap(pScreen, bo, depth);
     trace("ArcanDRI3PixmapFromFD() => %"PRIxPTR, (uintptr_t) res);
@@ -3175,6 +3180,11 @@ static Bool dri3GetFormats(ScreenPtr screen,
                            CARD32 *num_formats, CARD32 **formats)
 {
     trace("dri3GetFormats");
+/*
+ *  this information 'should' be present in the shmif extdev setup,
+ *  but we have no way of querying / extracting in the DEVICEHINT as
+ *  is.
+ */
     *num_formats = 0;
     return FALSE;
 }
@@ -3197,14 +3207,32 @@ static Bool dri3GetModifiers(ScreenPtr screen,
     return FALSE;
 }
 
+/*
+ * syncobj notes:
+ *    export: drmSyncobjCreate(dfd, 0, &uint32obj);
+ *            drmSyncobjTransfer(dfd, uint32obj, 0, sobj->handle, uint64point, 0)
+ *            drmSyncobjExportSyncFile(dfd, uint32obj, &intfd)
+ *            drmSyncobjDestroy(dfd, uint32obj);
+ *
+ *    check:  drmSyncobjTimelineWait(dfd, &sobj->handle, &uint64point, 1,
+ *                                   timeout::0, DRM_SYNCOBJ_WAIT_FLAGS_WAIT_AVAILABLE)
+ *
+ *                                   or DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT)
+ *
+ *    import: struct dma_buf_import_sync_file import {.fd = fd, .flags = DMA_BUF_SYNC_WRITE)
+ *            drmIoctl(planefd, DMA_BUF_IOCTL_IMPORT_SYNC_FILE, &args)
+ */
 static dri3_screen_info_rec dri3_info = {
     .version = 2,
+    .open = NULL,
     .open_client = dri3Open,
     .pixmap_from_fds = dri3PixmapFromFds,
+    .fds_from_pixmap = glamor_fds_from_pixmap,
     .fd_from_pixmap = dri3FdFromPixmap,
     .get_formats = dri3GetFormats,
     .get_modifiers = dri3GetModifiers,
-    .get_drawable_modifiers = dri3GetDrawableModifiers
+    .get_drawable_modifiers = dri3GetDrawableModifiers,
+/*    .import_syncobj = NULL, */
 };
 
 Bool arcanGlamorInit(ScreenPtr pScreen)

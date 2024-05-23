@@ -35,6 +35,7 @@
 #include <dixstruct.h>
 #include <extnsionst.h>
 #include <glx_extinit.h>
+#include "extinit_priv.h"
 
 #include <GL/glxproto.h>
 #include "vndservervendor.h"
@@ -114,7 +115,7 @@ GlxMappingInit(void)
 
     idResource = CreateNewResourceType(idResourceDeleteCallback,
                                        "GLXServerIDRes");
-    if (idResource == RT_NONE)
+    if (idResource == X11_RESTYPE_NONE)
     {
         GlxMappingReset();
         return FALSE;

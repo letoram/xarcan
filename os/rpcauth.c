@@ -39,6 +39,9 @@ from The Open Group.
 
 #include <X11/X.h>
 #include <X11/Xauth.h>
+
+#include "os/auth.h"
+
 #include "misc.h"
 #include "os.h"
 #include "osdep.h"
@@ -156,7 +159,7 @@ SecureRPCCheck(unsigned short data_length, const char *data,
 _X_HIDDEN void
 SecureRPCInit(void)
 {
-    if (rpc_id == ~0L)
+    if (rpc_id == (XID) ~0L)
         AddAuthorization(9, "SUN-DES-1", 0, (char *) 0);
 }
 

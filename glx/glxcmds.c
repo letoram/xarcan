@@ -34,10 +34,12 @@
 
 #include <string.h>
 #include <assert.h>
-
-#include "glxserver.h"
 #include <GL/glxtokens.h>
 #include <X11/extensions/presenttokens.h>
+
+#include "dix/dix_priv.h"
+
+#include "glxserver.h"
 #include <unpack.h>
 #include <pixmapstr.h>
 #include <windowstr.h>
@@ -1393,8 +1395,8 @@ DoCreatePbuffer(ClientPtr client, int screenNum, XID fbconfigId,
     if (!pPixmap)
         return BadAlloc;
 
-    err = XaceHook(XACE_RESOURCE_ACCESS, client, glxDrawableId, RT_PIXMAP,
-                   pPixmap, RT_NONE, NULL, DixCreateAccess);
+    err = XaceHook(XACE_RESOURCE_ACCESS, client, glxDrawableId, X11_RESTYPE_PIXMAP,
+                   pPixmap, X11_RESTYPE_NONE, NULL, DixCreateAccess);
     if (err != Success) {
         (*pGlxScreen->pScreen->DestroyPixmap) (pPixmap);
         return err;
@@ -1404,7 +1406,7 @@ DoCreatePbuffer(ClientPtr client, int screenNum, XID fbconfigId,
      * resource so it and the DRI2 drawable will be reclaimed when the
      * pbuffer is destroyed. */
     pPixmap->drawable.id = glxDrawableId;
-    if (!AddResource(pPixmap->drawable.id, RT_PIXMAP, pPixmap))
+    if (!AddResource(pPixmap->drawable.id, X11_RESTYPE_PIXMAP, pPixmap))
         return BadAlloc;
 
     return DoCreateGLXDrawable(client, pGlxScreen, config, &pPixmap->drawable,

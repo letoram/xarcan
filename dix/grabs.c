@@ -50,15 +50,19 @@ SOFTWARE.
 #endif
 
 #include <X11/X.h>
-#include "misc.h"
 #include <X11/Xproto.h>
 #include <X11/extensions/XI2.h>
+
+#include "dix/dix_priv.h"
+#include "dix/exevents_priv.h"
+#include "os/auth.h"
+
+#include "misc.h"
 #include "windowstr.h"
 #include "inputstr.h"
 #include "cursorstr.h"
 #include "dixgrabs.h"
 #include "xace.h"
-#include "exevents.h"
 #include "exglobals.h"
 #include "inpututils.h"
 #include "client.h"
@@ -563,7 +567,7 @@ AddPassiveGrabToList(ClientPtr client, GrabPtr pGrab)
 
     pGrab->next = pGrab->window->optional->passiveGrabs;
     pGrab->window->optional->passiveGrabs = pGrab;
-    if (AddResource(pGrab->resource, RT_PASSIVEGRAB, (void *) pGrab))
+    if (AddResource(pGrab->resource, X11_RESTYPE_PASSIVEGRAB, (void *) pGrab))
         return Success;
     return BadAlloc;
 }
@@ -660,7 +664,7 @@ DeletePassiveGrabFromList(GrabPtr pMinuendGrab)
                 FreeGrab(pNewGrab);
                 ok = FALSE;
             }
-            else if (!AddResource(pNewGrab->resource, RT_PASSIVEGRAB,
+            else if (!AddResource(pNewGrab->resource, X11_RESTYPE_PASSIVEGRAB,
                                   (void *) pNewGrab))
                 ok = FALSE;
             else
@@ -677,13 +681,13 @@ DeletePassiveGrabFromList(GrabPtr pMinuendGrab)
 
     if (!ok) {
         for (i = 0; i < nadds; i++)
-            FreeResource(adds[i]->resource, RT_NONE);
+            FreeResource(adds[i]->resource, X11_RESTYPE_NONE);
         for (i = 0; i < nups; i++)
             free(details[i]);
     }
     else {
         for (i = 0; i < ndels; i++)
-            FreeResource(deletes[i]->resource, RT_NONE);
+            FreeResource(deletes[i]->resource, X11_RESTYPE_NONE);
         for (i = 0; i < nadds; i++) {
             grab = adds[i];
             grab->next = grab->window->optional->passiveGrabs;

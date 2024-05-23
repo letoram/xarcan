@@ -21,12 +21,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <dix-config.h>
 #endif
 
+#include "dix/dix_priv.h"
+
 #include "selection.h"
 #include "inputstr.h"
 #include "windowstr.h"
 #include "propertyst.h"
 #include "extnsionst.h"
-#include "extinit.h"
+#include "extinit_priv.h"
 #include "xselinuxint.h"
 
 #define CTX_DEV offsetof(SELinuxSubjectRec, dev_create_sid)
@@ -43,6 +45,9 @@ typedef struct {
     CARD32 dctx_len;
     CARD32 id;
 } SELinuxListItemRec;
+
+Bool noSELinuxExtension = FALSE;
+int selinuxEnforcingState = SELINUX_MODE_DEFAULT;
 
 /*
  * Extension Dispatch

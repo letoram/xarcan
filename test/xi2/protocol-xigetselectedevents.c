@@ -43,12 +43,14 @@
 #include <X11/X.h>
 #include <X11/Xproto.h>
 #include <X11/extensions/XI2proto.h>
+
+#include "dix/exevents_priv.h"
+
 #include "inputstr.h"
 #include "windowstr.h"
 #include "extinit.h"            /* for XInputExtensionInit */
 #include "scrnintstr.h"
 #include "xiselectev.h"
-#include "exevents.h"
 
 #include "protocol-common.h"
 
@@ -76,17 +78,20 @@ override_AddResource(XID id, RESTYPE type, void *value)
 static void
 reply_XIGetSelectedEvents(ClientPtr client, int len, void *data)
 {
-    xXIGetSelectedEventsReply *rep = (xXIGetSelectedEventsReply *) data;
+    xXIGetSelectedEventsReply *reply = (xXIGetSelectedEventsReply *) data;
+    xXIGetSelectedEventsReply rep = *reply; /* copy so swapping doesn't touch the real reply */
+
+    assert(len < 0xffff); /* suspicious size, swapping bug */
 
     if (client->swapped) {
-        swapl(&rep->length);
-        swaps(&rep->sequenceNumber);
-        swaps(&rep->num_masks);
+        swapl(&rep.length);
+        swaps(&rep.sequenceNumber);
+        swaps(&rep.num_masks);
     }
 
-    reply_check_defaults(rep, len, XIGetSelectedEvents);
+    reply_check_defaults(&rep, len, XIGetSelectedEvents);
 
-    assert(rep->num_masks == test_data.num_masks_expected);
+    assert(rep.num_masks == test_data.num_masks_expected);
 
     wrapped_WriteToClient = reply_XIGetSelectedEvents_data;
 }
@@ -97,6 +102,8 @@ reply_XIGetSelectedEvents_data(ClientPtr client, int len, void *data)
     int i;
     xXIEventMask *mask;
     unsigned char *bitmask;
+
+    assert(len < 0xffff); /* suspicious size, swapping bug */
 
     mask = (xXIEventMask *) data;
     for (i = 0; i < test_data.num_masks_expected; i++) {

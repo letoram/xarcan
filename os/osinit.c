@@ -48,14 +48,11 @@ SOFTWARE.
 #include <dix-config.h>
 #endif
 
-#include <stdio.h>
-#include <X11/X.h>
-#include "os.h"
-#include "osdep.h"
-#include "opaque.h"
-#include <X11/Xos.h>
-#include <signal.h>
 #include <errno.h>
+#include <stdio.h>
+#include <signal.h>
+#include <X11/X.h>
+#include <X11/Xos.h>
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>
 #endif
@@ -63,9 +60,14 @@ SOFTWARE.
 #include <execinfo.h>
 #endif
 
-#include "misc.h"
+#include "os/busfault.h"
+#include "os/osdep.h"
 
+#include "misc.h"
+#include "os.h"
+#include "opaque.h"
 #include "dixstruct.h"
+#include "dixstruct_priv.h"
 
 #if !defined(SYSV) && !defined(WIN32)
 #include <sys/resource.h>
@@ -157,8 +159,6 @@ OsSigHandler(int signo)
                signo, strsignal(signo));
 }
 #endif /* !WIN32 || __CYGWIN__ */
-
-#include "busfault.h"
 
 void
 OsInit(void)

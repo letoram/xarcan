@@ -17,7 +17,11 @@ is" without express or implied warranty.
 #endif
 
 #include <X11/X.h>
+#include <X11/Xdefs.h>
 #include <X11/Xproto.h>
+
+#include "os/ddx_priv.h"
+
 #include "screenint.h"
 #include "input.h"
 #include "misc.h"

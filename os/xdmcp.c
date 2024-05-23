@@ -34,10 +34,14 @@
 #include <netdb.h>
 #endif
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <X11/X.h>
 #include <X11/Xmd.h>
+
+#include "os/auth.h"
+
 #include "misc.h"
 #include "osdep.h"
 #include "xdmcp.h"

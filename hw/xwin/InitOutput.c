@@ -31,7 +31,14 @@ from The Open Group.
 #ifdef HAVE_XWIN_CONFIG_H
 #include <xwin-config.h>
 #endif
+
 #include "win.h"
+
+#include "dix/dix_priv.h"
+#include "dix/screenint_priv.h"
+#include "os/ddx_priv.h"
+#include "os/osdep.h"
+
 #include "winmsg.h"
 #include "winconfig.h"
 #include "winprefs.h"
@@ -58,6 +65,7 @@ typedef WINAPI HRESULT(*SHGETFOLDERPATHPROC) (HWND hwndOwner,
 
 #include "winmonitors.h"
 #include "nonsdk_extinit.h"
+#include "extinit_priv.h"
 #include "pseudoramiX/pseudoramiX.h"
 
 #include "glx_extinit.h"
@@ -111,7 +119,11 @@ static PixmapFormatRec g_PixmapFormats[] = {
     {32, 32, BITMAP_SCANLINE_PAD}
 };
 
+#ifdef GLXEXT
+#ifdef XWIN_WINDOWS_DRI
 static Bool noDriExtension;
+#endif
+#endif
 
 static const ExtensionModule xwinExtensions[] = {
 #ifdef GLXEXT
@@ -187,7 +199,7 @@ ddxGiveUp(enum ExitCode error)
 {
     int i;
 
-#if CYGDEBUG
+#if ENABLE_DEBUG
     winDebug("ddxGiveUp\n");
 #endif
 
@@ -573,9 +585,9 @@ winFixupPaths(void)
         putenv(buffer);
     }
     if (getenv("HOME") == NULL) {
-        char buffer[MAX_PATH + 5];
+        char buffer[MAX_PATH + 5] = {0};
 
-        strncpy(buffer, "HOME=", 5);
+        strncpy(buffer, "HOME=", 6);
 
         /* query appdata directory */
         if (SHGetFolderPathA
@@ -619,10 +631,8 @@ OsVendorInit(void)
 
     winFixupPaths();
 
-#ifdef DDXOSVERRORF
     if (!OsVendorVErrorFProc)
         OsVendorVErrorFProc = OsVendorVErrorF;
-#endif
 
     if (!g_fLogInited) {
         /* keep this order. If LogInit fails it calls Abort which then calls
@@ -902,7 +912,7 @@ InitOutput(ScreenInfo * pScreenInfo, int argc, char *argv[])
     /* Log the command line */
     winLogCommandLine(argc, argv);
 
-#if CYGDEBUG
+#if ENABLE_DEBUG
     winDebug("InitOutput\n");
 #endif
 
@@ -1020,7 +1030,7 @@ InitOutput(ScreenInfo * pScreenInfo, int argc, char *argv[])
         winGenerateAuthorization();
 
 
-#if CYGDEBUG || YES
+#if ENABLE_DEBUG || YES
     winDebug("InitOutput - Returning.\n");
 #endif
 }
