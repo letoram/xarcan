@@ -4377,6 +4377,9 @@ static void drmmode_probe_cursor_size(xf86CrtcPtr crtc)
     drmmode_ptr drmmode = drmmode_crtc->drmmode;
     int width, height, size;
 
+    ms->min_cursor_width = ms->max_cursor_width;
+    ms->min_cursor_height = ms->max_cursor_height;
+
     /* probe square min first */
     for (size = 1; size <= ms->max_cursor_width &&
              size <= ms->max_cursor_height; size *= 2) {
