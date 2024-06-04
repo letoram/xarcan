@@ -1351,6 +1351,9 @@ xwl_window_update_surface_window(struct xwl_window *xwl_window)
         if (!RegionEqual(&window->winSize, &surface_window->winSize))
             break;
 
+        if (!window->mapped)
+            break;
+
         /* The surface window must be top-level for its window pixmap */
         window_pixmap = screen->GetWindowPixmap(window);
         if (window_pixmap == surface_pixmap)
