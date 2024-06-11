@@ -1514,6 +1514,11 @@ xwl_glamor_gbm_init_main_dev(struct xwl_screen *xwl_screen)
     }
 
     main_dev = xwl_screen->default_feedback.main_dev;
+    if (!main_dev) {
+        ErrorF("No main linux-dmabuf device advertised by compositor\n");
+        return FALSE;
+    }
+
     if (!(main_dev->available_nodes & (1 << DRM_NODE_RENDER))) {
         ErrorF("Main linux-dmabuf device has no render node\n");
         return FALSE;
