@@ -25,10 +25,9 @@ variables:
 include:
   - project: 'freedesktop/ci-templates'
     ref: *template_sha
-    file: '/templates/debian.yml'
-  - project: 'freedesktop/ci-templates'
-    ref: *template_sha
-    file: '/templates/ci-fairy.yml'
+    file:
+      - '/templates/debian.yml'
+      - '/templates/ci-fairy.yml'
   - template: Security/SAST.gitlab-ci.yml
 
 stages:
