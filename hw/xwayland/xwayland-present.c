@@ -1284,7 +1284,7 @@ xwl_present_unrealize_window(struct xwl_present_window *xwl_present_window)
 }
 
 Bool
-xwl_present_maybe_redirect_window(WindowPtr window, PixmapPtr pixmap)
+xwl_present_maybe_redirect_window(WindowPtr window)
 {
     struct xwl_present_window *xwl_present_window = xwl_present_window_get_priv(window);
     struct xwl_window *xwl_window = xwl_window_from_window(window);

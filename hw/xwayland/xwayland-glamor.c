@@ -98,7 +98,7 @@ xwl_glamor_check_flip(WindowPtr present_window, PixmapPtr pixmap)
         if (pixmap->drawable.depth == 32)
             return FALSE;
 
-        return xwl_present_maybe_redirect_window(present_window, pixmap);
+        return xwl_present_maybe_redirect_window(present_window);
     }
 
     return TRUE;
