@@ -1370,7 +1370,8 @@ xwl_window_update_surface_window(struct xwl_window *xwl_window)
         if (window->drawable.depth == 32)
             continue;
 
-        if (window->redirectDraw == RedirectDrawManual)
+        if (window->redirectDraw == RedirectDrawManual &&
+            !xwl_present_window_redirected(window))
             break;
 
         surface_window = window;
