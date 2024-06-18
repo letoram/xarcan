@@ -32,6 +32,7 @@
 #include "xwayland-types.h"
 
 void xwl_window_buffer_add_damage_region(struct xwl_window *xwl_window);
+void xwl_window_buffer_release(struct xwl_window_buffer *xwl_window_buffer);
 void xwl_window_buffers_init(struct xwl_window *xwl_window);
 void xwl_window_buffers_dispose(struct xwl_window *xwl_window);
 void xwl_window_realloc_pixmap(struct xwl_window *xwl_window);

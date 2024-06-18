@@ -238,6 +238,12 @@ xwl_window_buffer_release_callback(void *data)
                  xwl_window);
 }
 
+void
+xwl_window_buffer_release(struct xwl_window_buffer *xwl_window_buffer)
+{
+    xwl_window_buffer_release_callback(xwl_window_buffer);
+}
+
 #ifdef XWL_HAS_GLAMOR
 static void
 xwl_window_buffers_release_fence_avail(int fd, int xevents, void *data)
