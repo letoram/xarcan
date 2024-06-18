@@ -414,6 +414,8 @@ xwl_window_swap_pixmap(struct xwl_window *xwl_window, Bool handle_sync)
         if (xwl_is_client_pixmap(window_pixmap)) {
             xwl_window_buffer->pixmap = NULL;
             xwl_window_buffer_maybe_dispose(xwl_window_buffer);
+            if (handle_sync)
+                xwl_window_handle_pixmap_sync(xwl_window, window_pixmap, NULL);
             return window_pixmap;
         }
     } else {
@@ -424,8 +426,11 @@ xwl_window_swap_pixmap(struct xwl_window *xwl_window, Bool handle_sync)
         window_pixmap->refcnt++;
         xwl_window_realloc_pixmap(xwl_window);
 
-        if (!xwl_window_buffer)
+        if (!xwl_window_buffer) {
+            if (handle_sync)
+                xwl_window_handle_pixmap_sync(xwl_window, window_pixmap, NULL);
             return window_pixmap;
+        }
     }
 
     xwl_window_buffer->pixmap = window_pixmap;
