@@ -349,6 +349,32 @@ xwl_window_realloc_pixmap(struct xwl_window *xwl_window)
     screen->DestroyPixmap(window_pixmap);
 }
 
+static Bool
+xwl_window_handle_pixmap_sync(struct xwl_window *xwl_window,
+                              PixmapPtr pixmap,
+                              struct xwl_window_buffer *xwl_window_buffer)
+{
+    Bool implicit_sync = TRUE;
+#ifdef XWL_HAS_GLAMOR
+    struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
+
+    if (!xwl_glamor_supports_implicit_sync(xwl_screen)) {
+        if (xwl_screen->explicit_sync && xwl_glamor_gbm_set_syncpts(xwl_window, pixmap)) {
+            implicit_sync = FALSE;
+            /* wait until the release fence is available before re-using this buffer */
+            xwl_glamor_gbm_wait_release_fence(xwl_window, pixmap, xwl_window_buffer);
+        } else {
+            /* If glamor does not support implicit sync and we can't use
+             * explicit sync, wait for the GPU to be idle before presenting.
+             * Note that buffer re-use will still be unsynchronized :(
+             */
+            glamor_finish(xwl_screen->screen);
+        }
+    }
+#endif /* XWL_HAS_GLAMOR */
+    return implicit_sync;
+}
+
 PixmapPtr
 xwl_window_swap_pixmap(struct xwl_window *xwl_window, Bool handle_sync)
 {
@@ -356,7 +382,6 @@ xwl_window_swap_pixmap(struct xwl_window *xwl_window, Bool handle_sync)
     WindowPtr surface_window = xwl_window->surface_window;
     struct xwl_window_buffer *xwl_window_buffer;
     PixmapPtr window_pixmap;
-    Bool implicit_sync = TRUE;
 
     window_pixmap = (*xwl_screen->screen->GetWindowPixmap) (surface_window);
 
@@ -408,23 +433,8 @@ xwl_window_swap_pixmap(struct xwl_window *xwl_window, Bool handle_sync)
     /* Hold a reference on the buffer until it's released by the compositor */
     xwl_window_buffer->refcnt++;
 
-#ifdef XWL_HAS_GLAMOR
-    if (handle_sync && !xwl_glamor_supports_implicit_sync(xwl_screen)) {
-        if (xwl_screen->explicit_sync && xwl_glamor_gbm_set_syncpts(xwl_window, window_pixmap)) {
-            implicit_sync = FALSE;
-            /* wait until the release fence is available before re-using this buffer */
-            xwl_glamor_gbm_wait_release_fence(xwl_window, window_pixmap, xwl_window_buffer);
-        } else {
-            /* If glamor does not support implicit sync and we can't use
-             * explicit sync, wait for the GPU to be idle before presenting.
-             * Note that buffer re-use will still be unsynchronized :(
-             */
-            glamor_finish(xwl_screen->screen);
-        }
-    }
-#endif /* XWL_HAS_GLAMOR */
-
-    if (implicit_sync) {
+    if (handle_sync &&
+        xwl_window_handle_pixmap_sync(xwl_window, window_pixmap, xwl_window_buffer)) {
         xwl_pixmap_set_buffer_release_cb(xwl_window_buffer->pixmap,
                                          xwl_window_buffer_release_callback,
                                          xwl_window_buffer);
