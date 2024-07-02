@@ -244,8 +244,17 @@ xwl_window_buffers_init(struct xwl_window *xwl_window)
     xorg_list_init(&xwl_window->window_buffers_unavailable);
 }
 
+static void
+xwl_window_buffer_disposal(struct xwl_window_buffer *xwl_window_buffer, Bool force)
+{
+    if (force)
+        xwl_window_buffer_dispose(xwl_window_buffer);
+    else
+        xwl_window_buffer_maybe_dispose(xwl_window_buffer);
+}
+
 void
-xwl_window_buffers_dispose(struct xwl_window *xwl_window)
+xwl_window_buffers_dispose(struct xwl_window *xwl_window, Bool force)
 {
     struct xwl_window_buffer *xwl_window_buffer, *tmp;
 
@@ -257,14 +266,14 @@ xwl_window_buffers_dispose(struct xwl_window *xwl_window)
                                   &xwl_window->window_buffers_available,
                                   link_buffer) {
         xorg_list_del(&xwl_window_buffer->link_buffer);
-        xwl_window_buffer_maybe_dispose(xwl_window_buffer);
+        xwl_window_buffer_disposal(xwl_window_buffer, force);
     }
 
     xorg_list_for_each_entry_safe(xwl_window_buffer, tmp,
                                   &xwl_window->window_buffers_unavailable,
                                   link_buffer) {
         xorg_list_del(&xwl_window_buffer->link_buffer);
-        xwl_window_buffer_maybe_dispose(xwl_window_buffer);
+        xwl_window_buffer_disposal(xwl_window_buffer, force);
     }
 
     if (xwl_window->window_buffers_timer)

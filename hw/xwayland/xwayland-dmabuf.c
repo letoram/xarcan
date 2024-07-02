@@ -752,7 +752,7 @@ xwl_window_dmabuf_feedback_done(void *data,
     /* If the linux-dmabuf v4 per-surface feedback changed, make sure the
      * window buffers get re-created with appropriate parameters.
      */
-    xwl_window_buffers_dispose(xwl_window);
+    xwl_window_buffers_dispose(xwl_window, FALSE);
     xwl_window_realloc_pixmap(xwl_window);
 }
 
