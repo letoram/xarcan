@@ -102,14 +102,9 @@ xwl_window_buffer_destroy_pixmap(struct xwl_window_buffer *xwl_window_buffer)
     xwl_window_buffer->pixmap = NullPixmap;
 }
 
-static Bool
-xwl_window_buffer_maybe_dispose(struct xwl_window_buffer *xwl_window_buffer)
+static void
+xwl_window_buffer_dispose(struct xwl_window_buffer *xwl_window_buffer)
 {
-    assert(xwl_window_buffer->refcnt > 0);
-
-    if (--xwl_window_buffer->refcnt)
-        return FALSE;
-
     RegionDestroy(xwl_window_buffer->damage_region);
 
     if (xwl_window_buffer->pixmap) {
@@ -121,6 +116,17 @@ xwl_window_buffer_maybe_dispose(struct xwl_window_buffer *xwl_window_buffer)
 
     xorg_list_del(&xwl_window_buffer->link_buffer);
     free(xwl_window_buffer);
+}
+
+static Bool
+xwl_window_buffer_maybe_dispose(struct xwl_window_buffer *xwl_window_buffer)
+{
+    assert(xwl_window_buffer->refcnt > 0);
+
+    if (--xwl_window_buffer->refcnt)
+        return FALSE;
+
+    xwl_window_buffer_dispose(xwl_window_buffer);
 
     return TRUE;
 }
