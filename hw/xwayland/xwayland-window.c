@@ -1649,6 +1649,7 @@ xwl_window_dispose(struct xwl_window *xwl_window)
     struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
     struct xwl_seat *xwl_seat;
     WindowPtr window = xwl_window->toplevel;
+    ScreenPtr screen = xwl_screen->screen;
 
     compUnredirectWindow(serverClient, window, CompositeRedirectManual);
 
@@ -1691,7 +1692,9 @@ xwl_window_dispose(struct xwl_window *xwl_window)
     xorg_list_del(&xwl_window->link_damage);
     xorg_list_del(&xwl_window->link_window);
 
-    xwl_window_buffers_dispose(xwl_window, FALSE);
+    /* Special case for the root window in rootful mode */
+    xwl_window_buffers_dispose(xwl_window,
+                               (!xwl_screen->rootless && window == screen->root));
 
     if (xwl_window->window_buffers_timer)
         TimerFree(xwl_window->window_buffers_timer);
