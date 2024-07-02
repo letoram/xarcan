@@ -318,7 +318,7 @@ damage_report(DamagePtr pDamage, RegionPtr pRegion, void *data)
 
     window_pixmap = xwl_screen->screen->GetWindowPixmap(xwl_window->surface_window);
     if (xwl_is_client_pixmap(window_pixmap))
-        xwl_screen->screen->DestroyPixmap(xwl_window_swap_pixmap(xwl_window));
+        xwl_screen->screen->DestroyPixmap(xwl_window_swap_pixmap(xwl_window, FALSE));
 }
 
 static void
@@ -1955,7 +1955,7 @@ xwl_window_attach_buffer(struct xwl_window *xwl_window)
     PixmapPtr pixmap;
     int i;
 
-    pixmap = xwl_window_swap_pixmap(xwl_window);
+    pixmap = xwl_window_swap_pixmap(xwl_window, TRUE);
     buffer = xwl_pixmap_get_wl_buffer(pixmap);
 
     if (!buffer) {

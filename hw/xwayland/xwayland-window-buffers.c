@@ -350,7 +350,7 @@ xwl_window_realloc_pixmap(struct xwl_window *xwl_window)
 }
 
 PixmapPtr
-xwl_window_swap_pixmap(struct xwl_window *xwl_window)
+xwl_window_swap_pixmap(struct xwl_window *xwl_window, Bool handle_sync)
 {
     struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
     WindowPtr surface_window = xwl_window->surface_window;
@@ -409,7 +409,7 @@ xwl_window_swap_pixmap(struct xwl_window *xwl_window)
     xwl_window_buffer->refcnt++;
 
 #ifdef XWL_HAS_GLAMOR
-    if (!xwl_glamor_supports_implicit_sync(xwl_screen)) {
+    if (handle_sync && !xwl_glamor_supports_implicit_sync(xwl_screen)) {
         if (xwl_screen->explicit_sync && xwl_glamor_gbm_set_syncpts(xwl_window, window_pixmap)) {
             implicit_sync = FALSE;
             /* wait until the release fence is available before re-using this buffer */
