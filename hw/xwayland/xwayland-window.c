@@ -1643,28 +1643,14 @@ release_wl_surface_for_window(struct xwl_window *xwl_window)
         release_wl_surface_for_window_legacy_delay(xwl_window);
 }
 
-Bool
-xwl_unrealize_window(WindowPtr window)
+static void
+xwl_window_dispose(struct xwl_window *xwl_window)
 {
-    ScreenPtr screen = window->drawable.pScreen;
-    struct xwl_screen *xwl_screen;
-    struct xwl_window *xwl_window;
+    struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
     struct xwl_seat *xwl_seat;
-    Bool ret;
+    WindowPtr window = xwl_window->toplevel;
 
-    xwl_screen = xwl_screen_get(screen);
-
-    xwl_window = xwl_window_get(window);
-    if (xwl_window)
-        compUnredirectWindow(serverClient, window, CompositeRedirectManual);
-
-    screen->UnrealizeWindow = xwl_screen->UnrealizeWindow;
-    ret = (*screen->UnrealizeWindow) (window);
-    xwl_screen->UnrealizeWindow = screen->UnrealizeWindow;
-    screen->UnrealizeWindow = xwl_unrealize_window;
-
-    if (!xwl_window)
-        return ret;
+    compUnredirectWindow(serverClient, window, CompositeRedirectManual);
 
     xorg_list_for_each_entry(xwl_seat, &xwl_screen->seat_list, link) {
         if (xwl_seat->focus_window == xwl_window)
@@ -1704,7 +1690,6 @@ xwl_unrealize_window(WindowPtr window)
     release_wl_surface_for_window(xwl_window);
     xorg_list_del(&xwl_window->link_damage);
     xorg_list_del(&xwl_window->link_window);
-    unregister_damage(xwl_window);
 
     xwl_window_buffers_dispose(xwl_window);
 
@@ -1718,6 +1703,25 @@ xwl_unrealize_window(WindowPtr window)
 
     free(xwl_window);
     dixSetPrivate(&window->devPrivates, &xwl_window_private_key, NULL);
+}
+
+Bool
+xwl_unrealize_window(WindowPtr window)
+{
+    ScreenPtr screen = window->drawable.pScreen;
+    struct xwl_screen *xwl_screen = xwl_screen_get(screen);
+    struct xwl_window *xwl_window = xwl_window_get(window);
+    Bool ret;
+
+    if (xwl_window) {
+        unregister_damage(xwl_window);
+        xwl_window_dispose(xwl_window);
+    }
+
+    screen->UnrealizeWindow = xwl_screen->UnrealizeWindow;
+    ret = (*screen->UnrealizeWindow) (window);
+    xwl_screen->UnrealizeWindow = screen->UnrealizeWindow;
+    screen->UnrealizeWindow = xwl_unrealize_window;
 
     return ret;
 }
