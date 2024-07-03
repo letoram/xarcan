@@ -1930,10 +1930,14 @@ xwl_destroy_window(WindowPtr window)
 {
     ScreenPtr screen = window->drawable.pScreen;
     struct xwl_screen *xwl_screen = xwl_screen_get(screen);
+    struct xwl_window *xwl_window = xwl_window_get(window);
     Bool ret;
 
     if (xwl_screen->present)
         xwl_present_cleanup(window);
+
+    if (xwl_window)
+        xwl_window_dispose(xwl_window);
 
     screen->DestroyWindow = xwl_screen->DestroyWindow;
 
