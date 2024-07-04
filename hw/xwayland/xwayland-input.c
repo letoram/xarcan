@@ -597,6 +597,9 @@ xwl_seat_leave_ptr(struct xwl_seat *xwl_seat, Bool focus_lost)
 {
     DeviceIntPtr dev = get_pointer_device(xwl_seat);
 
+    if (!dev)
+        return;
+
     if (focus_lost)
         CheckMotion(NULL, GetMaster(dev, POINTER_OR_FLOAT));
 
