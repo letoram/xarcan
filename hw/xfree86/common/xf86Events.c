@@ -544,7 +544,7 @@ addInputHandler(int fd, InputHandlerProc proc, void *data)
     if (fd < 0 || !proc)
         return NULL;
 
-    ih = calloc(sizeof(*ih), 1);
+    ih = calloc(1, sizeof(*ih));
     if (!ih)
         return NULL;
 

@@ -677,7 +677,7 @@ KdRemoveKeyboardDriver(KdKeyboardDriver * driver)
 KdKeyboardInfo *
 KdNewKeyboard(void)
 {
-    KdKeyboardInfo *ki = calloc(sizeof(KdKeyboardInfo), 1);
+    KdKeyboardInfo *ki = calloc(1, sizeof(KdKeyboardInfo));
 
     if (!ki)
         return NULL;
@@ -708,7 +708,7 @@ KdAddConfigKeyboard(char *keyboard)
     if (!keyboard)
         return Success;
 
-    new = (struct KdConfigDevice *) calloc(sizeof(struct KdConfigDevice), 1);
+    new = (struct KdConfigDevice *) calloc(1, sizeof(struct KdConfigDevice));
     if (!new)
         return BadAlloc;
 
@@ -772,7 +772,7 @@ KdAddConfigPointer(char *pointer)
     if (!pointer)
         return Success;
 
-    new = (struct KdConfigDevice *) calloc(sizeof(struct KdConfigDevice), 1);
+    new = (struct KdConfigDevice *) calloc(1, sizeof(struct KdConfigDevice));
     if (!new)
         return BadAlloc;
 

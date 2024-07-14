@@ -374,7 +374,7 @@ VBEGetVBEInfo(vbeInfoPtr pVbe)
     if (R16(pVbe->pInt10->ax) != 0x4f)
         return NULL;
 
-    block = calloc(sizeof(VbeInfoBlock), 1);
+    block = calloc(1, sizeof(VbeInfoBlock));
     block->VESASignature[0] = ((char *) pVbe->memory)[0];
     block->VESASignature[1] = ((char *) pVbe->memory)[1];
     block->VESASignature[2] = ((char *) pVbe->memory)[2];
@@ -886,7 +886,7 @@ VBEBuildVbeModeList(vbeInfoPtr pVbe, VbeInfoBlock * vbe)
 
         bpp = mode->BitsPerPixel;
 
-        m = xnfcalloc(sizeof(vbeModeInfoRec), 1);
+        m = xnfcalloc(1, sizeof(vbeModeInfoRec));
         m->width = mode->XResolution;
         m->height = mode->YResolution;
         m->bpp = bpp;

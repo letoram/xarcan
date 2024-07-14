@@ -769,7 +769,7 @@ xf86AllocateInput(void)
 {
     InputInfoPtr pInfo;
 
-    pInfo = calloc(sizeof(*pInfo), 1);
+    pInfo = calloc(1, sizeof(*pInfo));
     if (!pInfo)
         return NULL;
 

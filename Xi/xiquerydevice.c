@@ -88,7 +88,7 @@ ProcXIQueryDevice(ClientPtr client)
         len += SizeDeviceInfo(dev);
     }
     else {
-        skip = calloc(sizeof(Bool), inputInfo.numDevices);
+        skip = calloc(inputInfo.numDevices, sizeof(Bool));
         if (!skip)
             return BadAlloc;
 

@@ -258,7 +258,7 @@ DRIOpenDRMMaster(ScrnInfoPtr pScrn,
     tmp.resOwner = NULL;
 
     if (!pDRIEntPriv)
-        pDRIEntPriv = xnfcalloc(sizeof(*pDRIEntPriv), 1);
+        pDRIEntPriv = xnfcalloc(1, sizeof(*pDRIEntPriv));
 
     if (!pDRIEntPriv) {
         DRIDrvMsg(-1, X_INFO, "[drm] Failed to allocate memory for "
@@ -1209,7 +1209,7 @@ DRIDriverClipNotify(ScreenPtr pScreen)
     DRIScreenPrivPtr pDRIPriv = DRI_SCREEN_PRIV(pScreen);
 
     if (pDRIPriv->pDriverInfo->ClipNotify) {
-        WindowPtr *pDRIWindows = calloc(sizeof(WindowPtr), pDRIPriv->nrWindows);
+        WindowPtr *pDRIWindows = calloc(pDRIPriv->nrWindows, sizeof(WindowPtr));
         DRIInfoPtr pDRIInfo = pDRIPriv->pDriverInfo;
 
         if (pDRIPriv->nrWindows > 0) {

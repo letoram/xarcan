@@ -350,7 +350,7 @@ ProcXListInputDevices(ClientPtr client)
     };
 
     /* allocate space for saving skip value */
-    skip = calloc(sizeof(Bool), inputInfo.numDevices);
+    skip = calloc(inputInfo.numDevices, sizeof(Bool));
     if (!skip)
         return BadAlloc;
 

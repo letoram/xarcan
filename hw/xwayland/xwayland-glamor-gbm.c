@@ -1850,7 +1850,7 @@ xwl_glamor_init_gbm(struct xwl_screen *xwl_screen)
     if (!dixRegisterPrivateKey(&xwl_gbm_private_key, PRIVATE_SCREEN, 0))
         return FALSE;
 
-    xwl_gbm = calloc(sizeof(*xwl_gbm), 1);
+    xwl_gbm = calloc(1, sizeof(*xwl_gbm));
     if (!xwl_gbm) {
         ErrorF("glamor: Not enough memory to setup GBM, disabling\n");
         return FALSE;

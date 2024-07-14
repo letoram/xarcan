@@ -117,7 +117,7 @@ __GLXconfig *__glXAquaCreateVisualConfigs(int *numConfigsPtr, int screenNumber) 
      * __glXScreenDestroy now walks all the fbconfigs and frees them one at a time.
      * See 4b0a3cbab131eb453e2b3fc0337121969258a7be.
      */
-    visualConfigs = calloc(sizeof(*visualConfigs), 1);
+    visualConfigs = calloc(1, sizeof(*visualConfigs));
 
     l = NULL;
     c = visualConfigs; /* current buffer */
@@ -136,7 +136,7 @@ __GLXconfig *__glXAquaCreateVisualConfigs(int *numConfigsPtr, int screenNumber) 
                                         // Global
                                         c->visualID = -1;
                                         c->visualType = GLX_TRUE_COLOR;
-                                        c->next = calloc(sizeof(*visualConfigs), 1);
+                                        c->next = calloc(1, sizeof(*visualConfigs));
                                         assert(c->next);
 
                                         c->level = 0;

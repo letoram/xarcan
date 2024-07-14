@@ -7837,7 +7837,7 @@ ZZZGetRec(ScrnInfoPtr pScrn)
 {
     if (pScrn-&gt;driverPrivate != NULL)
         return TRUE;
-    pScrn-&gt;driverPrivate = xnfcalloc(sizeof(ZZZRec), 1);
+    pScrn-&gt;driverPrivate = xnfcalloc(1, sizeof(ZZZRec));
     /* Initialise as required */
     ...
     return TRUE;

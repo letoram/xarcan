@@ -88,7 +88,7 @@ xf86CrtcCreate(ScrnInfoPtr scrn, const xf86CrtcFuncsRec * funcs)
     xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
     xf86CrtcPtr crtc, *crtcs;
 
-    crtc = calloc(sizeof(xf86CrtcRec), 1);
+    crtc = calloc(1, sizeof(xf86CrtcRec));
     if (!crtc)
         return NULL;
     crtc->version = XF86_CRTC_VERSION;
@@ -640,7 +640,7 @@ xf86OutputCreate(ScrnInfoPtr scrn,
     else
         len = 0;
 
-    output = calloc(sizeof(xf86OutputRec) + len, 1);
+    output = calloc(1, sizeof(xf86OutputRec) + len);
     if (!output)
         return NULL;
     output->scrn = scrn;

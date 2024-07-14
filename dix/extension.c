@@ -89,7 +89,7 @@ AddExtension(const char *name, int NumEvents, int NumErrors,
         return ((ExtensionEntry *) NULL);
     }
 
-    ext = calloc(sizeof(ExtensionEntry), 1);
+    ext = calloc(1, sizeof(ExtensionEntry));
     if (!ext)
         return NULL;
     if (!dixAllocatePrivates(&ext->devPrivates, PRIVATE_EXTENSION)) {

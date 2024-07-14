@@ -172,7 +172,7 @@ xf86AllocateScreen(DriverPtr drv, int flags)
         i = xf86NumGPUScreens++;
         xf86GPUScreens = xnfreallocarray(xf86GPUScreens, xf86NumGPUScreens,
                                          sizeof(ScrnInfoPtr));
-        xf86GPUScreens[i] = xnfcalloc(sizeof(ScrnInfoRec), 1);
+        xf86GPUScreens[i] = xnfcalloc(1, sizeof(ScrnInfoRec));
         pScrn = xf86GPUScreens[i];
         pScrn->scrnIndex = i + GPU_SCREEN_OFFSET;      /* Changes when a screen is removed */
         pScrn->is_gpu = TRUE;
@@ -183,14 +183,14 @@ xf86AllocateScreen(DriverPtr drv, int flags)
         i = xf86NumScreens++;
         xf86Screens = xnfreallocarray(xf86Screens, xf86NumScreens,
                                       sizeof(ScrnInfoPtr));
-        xf86Screens[i] = xnfcalloc(sizeof(ScrnInfoRec), 1);
+        xf86Screens[i] = xnfcalloc(1, sizeof(ScrnInfoRec));
         pScrn = xf86Screens[i];
 
         pScrn->scrnIndex = i;      /* Changes when a screen is removed */
     }
 
     pScrn->origIndex = pScrn->scrnIndex;      /* This never changes */
-    pScrn->privates = xnfcalloc(sizeof(DevUnion), xf86ScrnInfoPrivateCount);
+    pScrn->privates = xnfcalloc(xf86ScrnInfoPrivateCount, sizeof(DevUnion));
     /*
      * EnableDisableFBAccess now gets initialized in InitOutput()
      * pScrn->EnableDisableFBAccess = xf86EnableDisableFBAccess;
