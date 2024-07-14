@@ -200,7 +200,7 @@ xf86-driver-build-test:
         - unset MESON_EXTRA_ARGS
         - DRIVER=$(basename $REPO)
         - git clone "$REPO" "$DRIVER"
-        - GIT_DIR="$DRIVER/.git" git checkout -f "$SHA"
+        - git -C "$DRIVER" checkout "$SHA"
         - |
           if [[ -e "$DRIVER/meson.build" ]]; then
             .gitlab-ci/meson-build.sh -C "$DRIVER" --skip-test
