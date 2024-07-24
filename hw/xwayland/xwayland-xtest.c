@@ -859,7 +859,7 @@ xwl_handle_ei_event(int fd, int ready, void *data)
                 /* Don't care */
                 break;
             default:
-                error_ei("Unhandled event %d\n", type);
+                error_ei("Unhandled event %s (%d)\n", ei_event_type_to_string(type), type);
                 break;
         }
         ei_event_unref(e);
