@@ -496,6 +496,18 @@ window_get_client_toplevel(WindowPtr window)
     return window;
 }
 
+static Bool
+is_output_suitable_for_fullscreen(struct xwl_output *xwl_output)
+{
+    if (xwl_output == NULL)
+        return FALSE;
+
+    if (xwl_output->width == 0 || xwl_output->height == 0)
+        return FALSE;
+
+    return TRUE;
+}
+
 static struct xwl_output *
 xwl_window_get_output(struct xwl_window *xwl_window)
 {
@@ -503,11 +515,11 @@ xwl_window_get_output(struct xwl_window *xwl_window)
     struct xwl_output *xwl_output;
 
     xwl_output = xwl_output_get_output_from_name(xwl_screen, xwl_screen->output_name);
-    if (xwl_output)
+    if (is_output_suitable_for_fullscreen(xwl_output))
         return xwl_output;
 
     xwl_output = xwl_output_from_wl_output(xwl_screen, xwl_window->wl_output);
-    if (xwl_output)
+    if (is_output_suitable_for_fullscreen(xwl_output))
         return xwl_output;
 
     return xwl_screen_get_first_output(xwl_screen);
