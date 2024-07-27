@@ -291,7 +291,7 @@ have_AF_INET6 = cc.compiles('''
 #else
 #include <sys/socket.h>
 #endif
-int main() { int foo = AF_INET6; }''')
+int main(void) { int foo = AF_INET6; return foo; }''')
 if get_option('ipv6') == 'auto'
     build_ipv6 = cc.has_function('getaddrinfo') and have_AF_INET6
 else
