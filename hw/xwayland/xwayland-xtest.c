@@ -743,6 +743,20 @@ xwl_ei_update_caps(struct xwl_ei_client *xwl_ei_client,
     }
 }
 
+static bool
+xwl_ei_devices_are_ready(struct xwl_ei_client *xwl_ei_client)
+{
+    if ((xwl_ei_client->accept_keyboard ||
+         !ei_seat_has_capability(xwl_ei_client->ei_seat, EI_DEVICE_CAP_KEYBOARD)) &&
+        (xwl_ei_client->accept_pointer ||
+         !ei_seat_has_capability(xwl_ei_client->ei_seat, EI_DEVICE_CAP_POINTER)) &&
+        (xwl_ei_client->accept_abs ||
+         !ei_seat_has_capability(xwl_ei_client->ei_seat, EI_DEVICE_CAP_POINTER_ABSOLUTE)))
+        return true;
+
+    return false;
+}
+
 static void
 xwl_handle_ei_event(int fd, int ready, void *data)
 {
@@ -852,8 +866,10 @@ xwl_handle_ei_event(int fd, int ready, void *data)
                 /* Server has accepted our device (or resumed them),
                  * we can now start sending events */
                 /* FIXME: Maybe add a timestamp and discard old events? */
-                xwl_ei_start_emulating(xwl_ei_client);
-                xwl_dequeue_emulated_events(xwl_ei_client);
+                if (xwl_ei_devices_are_ready(xwl_ei_client)) {
+                    xwl_ei_start_emulating(xwl_ei_client);
+                    xwl_dequeue_emulated_events(xwl_ei_client);
+                }
                 if (!xwl_ei_client->client &&
                     xorg_list_is_empty(&xwl_ei_client->pending_emulated_events))
                     /* All events dequeued and client has disconnected in the meantime */
