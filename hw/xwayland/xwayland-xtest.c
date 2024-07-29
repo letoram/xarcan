@@ -726,6 +726,24 @@ xwl_dequeue_emulated_events(struct xwl_ei_client *xwl_ei_client)
 }
 
 static void
+xwl_ei_update_caps(struct xwl_ei_client *xwl_ei_client,
+                   struct ei_device *ei_device)
+{
+    struct xwl_abs_device *abs;
+
+    if (ei_device == xwl_ei_client->ei_pointer)
+        xwl_ei_client->accept_pointer = true;
+
+    if (ei_device == xwl_ei_client->ei_keyboard)
+        xwl_ei_client->accept_keyboard = true;
+
+    xorg_list_for_each_entry(abs, &xwl_ei_client->abs_devices, link) {
+        if (ei_device == abs->device)
+            xwl_ei_client->accept_abs = true;
+    }
+}
+
+static void
 xwl_handle_ei_event(int fd, int ready, void *data)
 {
     struct xwl_ei_client *xwl_ei_client = data;
@@ -830,20 +848,7 @@ xwl_handle_ei_event(int fd, int ready, void *data)
                 break;
             case EI_EVENT_DEVICE_RESUMED:
                 debug_ei("Device resumed\n");
-                if (ei_device == xwl_ei_client->ei_pointer)
-                    xwl_ei_client->accept_pointer = true;
-                if (ei_device == xwl_ei_client->ei_keyboard)
-                    xwl_ei_client->accept_keyboard = true;
-                {
-                    struct xwl_abs_device *abs;
-
-                    xorg_list_for_each_entry(abs, &xwl_ei_client->abs_devices,
-                        link) {
-                        if (ei_device == abs->device)
-                            xwl_ei_client->accept_abs = true;
-                    }
-                }
-
+                xwl_ei_update_caps(xwl_ei_client, ei_device);
                 /* Server has accepted our device (or resumed them),
                  * we can now start sending events */
                 /* FIXME: Maybe add a timestamp and discard old events? */
