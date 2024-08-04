@@ -61,6 +61,8 @@ SOFTWARE.
 #include <bsd/string.h>       /* for strlcpy, strlcat */
 #endif
 
+#include <X11/Xfuncproto.h>
+
 #define SCREEN_SAVER_ON   0
 #define SCREEN_SAVER_OFF  1
 #define SCREEN_SAVER_FORCER 2
@@ -82,8 +84,6 @@ typedef struct _NewClientRec *NewClientPtr;
 #define xnfstrdup(s) XNFstrdup(s)
 
 #define xallocarray(num, size) reallocarray(NULL, (num), (size))
-#define xnfallocarray(num, size) XNFreallocarray(NULL, (num), (size))
-#define xnfreallocarray(ptr, num, size) XNFreallocarray((ptr), (num), (size))
 #endif
 
 #include <stdio.h>
@@ -257,11 +257,6 @@ typedef int (*OsSigWrapperPtr) (int /* sig */ );
 
 extern _X_EXPORT OsSigWrapperPtr
 OsRegisterSigWrapper(OsSigWrapperPtr newWrap);
-
-extern _X_EXPORT void
-LockServer(void);
-extern _X_EXPORT void
-UnlockServer(void);
 
 extern _X_EXPORT Bool
 PrivsElevated(void);

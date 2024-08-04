@@ -1284,7 +1284,7 @@ xwl_present_unrealize_window(struct xwl_present_window *xwl_present_window)
 }
 
 Bool
-xwl_present_maybe_redirect_window(WindowPtr window, PixmapPtr pixmap)
+xwl_present_maybe_redirect_window(WindowPtr window)
 {
     struct xwl_present_window *xwl_present_window = xwl_present_window_get_priv(window);
     struct xwl_window *xwl_window = xwl_window_from_window(window);
@@ -1297,9 +1297,12 @@ xwl_present_maybe_redirect_window(WindowPtr window, PixmapPtr pixmap)
         return FALSE;
     }
 
+    xwl_present_window->redirected = TRUE;
+
     xwl_window_update_surface_window(xwl_window);
     if (xwl_window->surface_window != window) {
         compUnredirectWindow(serverClient, window, CompositeRedirectManual);
+        xwl_present_window->redirected = FALSE;
         xwl_present_window->redirect_failed = TRUE;
         return FALSE;
     }
@@ -1307,7 +1310,6 @@ xwl_present_maybe_redirect_window(WindowPtr window, PixmapPtr pixmap)
     if (!xwl_window->surface_window_damage)
         xwl_window->surface_window_damage = RegionCreate(NullBox, 1);
 
-    xwl_present_window->redirected = TRUE;
     return TRUE;
 }
 
@@ -1342,6 +1344,14 @@ xwl_present_maybe_unredirect_window(WindowPtr window)
     }
 
     return TRUE;
+}
+
+Bool
+xwl_present_window_redirected(WindowPtr window)
+{
+    struct xwl_present_window *xwl_present_window = xwl_present_window_get_priv(window);
+
+    return xwl_present_window->redirected;
 }
 
 Bool

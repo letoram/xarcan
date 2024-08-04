@@ -336,7 +336,7 @@ AnimCursorCreate(CursorPtr *cursors, CARD32 *deltas, int ncursor,
 
     /* security creation/labeling check */
     if (ac->timer)
-        rc = XaceHook(XACE_RESOURCE_ACCESS, client, cid, X11_RESTYPE_CURSOR, pCursor,
+        rc = XaceHookResourceAccess(client, cid, X11_RESTYPE_CURSOR, pCursor,
                       X11_RESTYPE_NONE, NULL, DixCreateAccess);
 
     if (rc != Success) {

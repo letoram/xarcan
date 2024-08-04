@@ -549,7 +549,7 @@ CreateGC(DrawablePtr pDrawable, BITS32 mask, XID *pval, int *pStatus,
     }
 
     /* security creation/labeling check */
-    *pStatus = XaceHook(XACE_RESOURCE_ACCESS, client, gcid, X11_RESTYPE_GC, pGC,
+    *pStatus = XaceHookResourceAccess(client, gcid, X11_RESTYPE_GC, pGC,
                         X11_RESTYPE_NONE, NULL, DixCreateAccess | DixSetAttrAccess);
     if (*pStatus != Success)
         goto out;

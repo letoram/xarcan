@@ -232,7 +232,7 @@ dixLookupClient(ClientPtr *pClient, XID rid, ClientPtr client, Mask access)
     if (rc != Success)
         goto bad;
 
-    rc = XaceHook(XACE_CLIENT_ACCESS, client, clients[clientIndex], access);
+    rc = XaceHookClientAccess(client, clients[clientIndex], access);
     if (rc != Success)
         goto bad;
 
@@ -800,7 +800,7 @@ CreateCallbackList(CallbackListPtr *pcbl)
         }
     }
 
-    listsToCleanup = (CallbackListPtr **) xnfrealloc(listsToCleanup,
+    listsToCleanup = (CallbackListPtr **) XNFrealloc(listsToCleanup,
                                                      sizeof(CallbackListPtr *) *
                                                      (numCallbackListsToCleanup
                                                       + 1));

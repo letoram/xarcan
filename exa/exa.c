@@ -883,7 +883,7 @@ exaDriverInit(ScreenPtr pScreen, ExaDriverPtr pScreenInfo)
         return FALSE;
     }
 
-    pExaScr = calloc(sizeof(ExaScreenPrivRec), 1);
+    pExaScr = calloc(1, sizeof(ExaScreenPrivRec));
     if (!pExaScr) {
         LogMessage(X_WARNING, "EXA(%d): Failed to allocate screen private\n",
                    pScreen->myNum);

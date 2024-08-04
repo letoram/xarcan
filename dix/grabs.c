@@ -548,7 +548,7 @@ AddPassiveGrabToList(ClientPtr client, GrabPtr pGrab)
     if (pGrab->keyboardMode == GrabModeSync ||
         pGrab->pointerMode == GrabModeSync)
         access_mode |= DixFreezeAccess;
-    rc = XaceHook(XACE_DEVICE_ACCESS, client, pGrab->device, access_mode);
+    rc = XaceHookDeviceAccess(client, pGrab->device, access_mode);
     if (rc != Success)
         return rc;
 

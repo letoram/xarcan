@@ -55,6 +55,7 @@ SOFTWARE.
 #include <strings.h>
 
 #include "dix/colormap_priv.h"
+#include "os/osdep.h"
 
 #include "misc.h"
 #include "dix.h"
@@ -107,8 +108,7 @@ static void FreeCell(ColormapPtr /*pmap */ ,
                      int        /*channel */
     );
 
-static void UpdateColors(ColormapPtr    /*pmap */
-    );
+static void doUpdateColors(ColormapPtr pmap);
 
 static int AllocDirect(int /*client */ ,
                        ColormapPtr /*pmap */ ,
@@ -379,7 +379,7 @@ CreateColormap(Colormap mid, ScreenPtr pScreen, VisualPtr pVisual,
     /*
      * Security creation/labeling check
      */
-    i = XaceHook(XACE_RESOURCE_ACCESS, clients[client], mid, X11_RESTYPE_COLORMAP,
+    i = XaceHookResourceAccess(clients[client], mid, X11_RESTYPE_COLORMAP,
                  pmap, X11_RESTYPE_NONE, NULL, DixCreateAccess);
     if (i != Success) {
         FreeResource(mid, X11_RESTYPE_NONE);
@@ -558,7 +558,7 @@ CopyColormapAndFree(Colormap mid, ColormapPtr pSrc, int client)
         }
         pSrc->flags &= ~AllAllocated;
         FreePixels(pSrc, client);
-        UpdateColors(pmap);
+        doUpdateColors(pmap);
         return Success;
     }
 
@@ -568,7 +568,7 @@ CopyColormapAndFree(Colormap mid, ColormapPtr pSrc, int client)
         CopyFree(BLUEMAP, client, pSrc, pmap);
     }
     if (pmap->class & DynamicClass)
-        UpdateColors(pmap);
+        doUpdateColors(pmap);
     /* XXX should worry about removing any X11_RESTYPE_CMAPENTRY resource */
     return Success;
 }
@@ -698,7 +698,7 @@ FreeCell(ColormapPtr pmap, Pixel i, int channel)
 }
 
 static void
-UpdateColors(ColormapPtr pmap)
+doUpdateColors(ColormapPtr pmap)
 {
     xColorItem *defs;
     xColorItem *pdef;

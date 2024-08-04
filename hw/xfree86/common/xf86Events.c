@@ -58,6 +58,8 @@
 #include <X11/Xproto.h>
 #include <X11/Xatom.h>
 
+#include "dix/dix_priv.h"
+
 #include "misc.h"
 #include "xf86.h"
 #include "xf86Priv.h"
@@ -542,7 +544,7 @@ addInputHandler(int fd, InputHandlerProc proc, void *data)
     if (fd < 0 || !proc)
         return NULL;
 
-    ih = calloc(sizeof(*ih), 1);
+    ih = calloc(1, sizeof(*ih));
     if (!ih)
         return NULL;
 

@@ -413,7 +413,7 @@ dixRegisterScreenPrivateKey(DevScreenPrivateKey screenKey, ScreenPtr pScreen,
         assert(key->type == type);
         return TRUE;
     }
-    key = calloc(sizeof(DevPrivateKeyRec), 1);
+    key = calloc(1, sizeof(DevPrivateKeyRec));
     if (!key)
         return FALSE;
     if (!dixRegisterPrivateKey(key, type, size)) {

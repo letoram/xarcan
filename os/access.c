@@ -174,9 +174,7 @@ SOFTWARE.
 /* #endif */
 #endif
 
-#if defined(IPv6) && defined(AF_INET6)
 #include <arpa/inet.h>
-#endif
 
 #endif                          /* WIN32 */
 
@@ -193,7 +191,6 @@ SOFTWARE.
 #include "osdep.h"
 
 #include "xace.h"
-#include "rpcauth.h"
 #include "xdmcp.h"
 
 Bool defeatAccessControl = FALSE;
@@ -458,13 +455,13 @@ DefineSelf(int fd)
     union {
         struct sockaddr sa;
         struct sockaddr_in in;
-#if defined(IPv6) && defined(AF_INET6)
+#if defined(IPv6)
         struct sockaddr_in6 in6;
 #endif
     } saddr;
 
     struct sockaddr_in *inetaddr;
-#if defined(IPv6) && defined(AF_INET6)
+#if defined(IPv6)
     struct sockaddr_in6 *inet6addr;
 #endif
     struct sockaddr_in broad_addr;
@@ -489,7 +486,7 @@ DefineSelf(int fd)
             memcpy(&(inetaddr->sin_addr), hp->h_addr, hp->h_length);
             len = sizeof(saddr.sa);
             break;
-#if defined(IPv6) && defined(AF_INET6)
+#if defined(IPv6)
         case AF_INET6:
             inet6addr = (struct sockaddr_in6 *) (&(saddr.sa));
             memcpy(&(inet6addr->sin6_addr), hp->h_addr, hp->h_length);
@@ -533,7 +530,7 @@ DefineSelf(int fd)
                     XdmcpRegisterBroadcastAddress((struct sockaddr_in *)
                                                   &broad_addr);
                 }
-#if defined(IPv6) && defined(AF_INET6)
+#if defined(IPv6)
                 else if (family == FamilyInternet6 &&
                          !(IN6_IS_ADDR_LOOPBACK((struct in6_addr *) addr))) {
                     XdmcpRegisterConnection(family, (char *) addr, len);
@@ -581,7 +578,7 @@ DefineSelf(int fd)
 #define ifraddr_size(a) (sizeof (a))
 #endif
 
-#if defined(IPv6) && defined(AF_INET6)
+#if defined(IPv6)
 static void
 in6_fillscopeid(struct sockaddr_in6 *sin6)
 {
@@ -674,7 +671,7 @@ DefineSelf(int fd)
                              &len, (void **) &addr);
         if (family == -1 || family == FamilyLocal)
             continue;
-#if defined(IPv6) && defined(AF_INET6)
+#if defined(IPv6)
         if (family == FamilyInternet6)
             in6_fillscopeid((struct sockaddr_in6 *) &IFR_IFR_ADDR);
 #endif
@@ -702,7 +699,7 @@ DefineSelf(int fd)
              * If this isn't an Internet Address, don't register it.
              */
             if (family != FamilyInternet
-#if defined(IPv6) && defined(AF_INET6)
+#if defined(IPv6)
                 && family != FamilyInternet6
 #endif
                 )
@@ -715,7 +712,7 @@ DefineSelf(int fd)
             if (family == FamilyInternet &&
                 addr[0] == 127 && addr[1] == 0 && addr[2] == 0 && addr[3] == 1)
                 continue;
-#if defined(IPv6) && defined(AF_INET6)
+#if defined(IPv6)
             else if (family == FamilyInternet6 &&
                      IN6_IS_ADDR_LOOPBACK((struct in6_addr *) addr))
                 continue;
@@ -732,7 +729,7 @@ DefineSelf(int fd)
 
             XdmcpRegisterConnection(family, (char *) addr, len);
 
-#if defined(IPv6) && defined(AF_INET6)
+#if defined(IPv6)
             /* IPv6 doesn't support broadcasting, so we drop out here */
             if (family == FamilyInternet6)
                 continue;
@@ -799,7 +796,7 @@ DefineSelf(int fd)
                              (void **) &addr);
         if (family == -1 || family == FamilyLocal)
             continue;
-#if defined(IPv6) && defined(AF_INET6)
+#if defined(IPv6)
         if (family == FamilyInternet6)
             in6_fillscopeid((struct sockaddr_in6 *) ifr->ifa_addr);
 #endif
@@ -823,7 +820,7 @@ DefineSelf(int fd)
              * If this isn't an Internet Address, don't register it.
              */
             if (family != FamilyInternet
-#if defined(IPv6) && defined(AF_INET6)
+#if defined(IPv6)
                 && family != FamilyInternet6
 #endif
                 )
@@ -848,13 +845,13 @@ DefineSelf(int fd)
             if (len == 4 &&
                 addr[0] == 0 && addr[1] == 0 && addr[2] == 0 && addr[3] == 0)
                 continue;
-#if defined(IPv6) && defined(AF_INET6)
+#if defined(IPv6)
             else if (family == FamilyInternet6 &&
                      IN6_IS_ADDR_LOOPBACK((struct in6_addr *) addr))
                 continue;
 #endif
             XdmcpRegisterConnection(family, (char *) addr, len);
-#if defined(IPv6) && defined(AF_INET6)
+#if defined(IPv6)
             if (family == FamilyInternet6)
                 /* IPv6 doesn't support broadcasting, so we drop out here */
                 continue;
@@ -942,12 +939,10 @@ ResetHosts(const char *display)
     char *ptr;
     int i, hostlen;
 
-#if defined(TCPCONN) &&  (!defined(IPv6) || !defined(AF_INET6))
+#if defined(TCPCONN) &&  (!defined(IPv6))
     union {
         struct sockaddr sa;
-#if defined(TCPCONN)
         struct sockaddr_in in;
-#endif                          /* TCPCONN */
     } saddr;
 #endif
     int family = 0;
@@ -996,18 +991,12 @@ ResetHosts(const char *display)
                 family = FamilyInternet;
                 hostname = ohostname + 5;
             }
-#if defined(IPv6) && defined(AF_INET6)
+#if defined(IPv6)
             else if (!strncmp("inet6:", lhostname, 6)) {
                 family = FamilyInternet6;
                 hostname = ohostname + 6;
             }
 #endif
-#endif
-#ifdef SECURE_RPC
-            else if (!strncmp("nis:", lhostname, 4)) {
-                family = FamilyNetname;
-                hostname = ohostname + 4;
-            }
 #endif
             else if (!strncmp("si:", lhostname, 3)) {
                 family = FamilyServerInterpreted;
@@ -1022,17 +1011,9 @@ ResetHosts(const char *display)
                 }
             }
             else
-#ifdef SECURE_RPC
-            if ((family == FamilyNetname) || (strchr(hostname, '@'))) {
-                SecureRPCInit();
-                (void) NewHost(FamilyNetname, hostname, strlen(hostname),
-                               FALSE);
-            }
-            else
-#endif                          /* SECURE_RPC */
 #if defined(TCPCONN)
             {
-#if defined(IPv6) && defined(AF_INET6)
+#if defined(IPv6)
                 if ((family == FamilyInternet) || (family == FamilyInternet6) ||
                     (family == FamilyWild)) {
                     struct addrinfo *addresses;
@@ -1318,7 +1299,7 @@ AuthorizedClient(ClientPtr client)
         return Success;
 
     /* untrusted clients can't change host access */
-    rc = XaceHook(XACE_SERVER_ACCESS, client, DixManageAccess);
+    rc = XaceHookServerAccess(client, DixManageAccess);
     if (rc != Success)
         return rc;
 
@@ -1342,14 +1323,8 @@ AddHost(ClientPtr client, int family, unsigned length,  /* of bytes in pAddr */
         len = length;
         LocalHostEnabled = TRUE;
         break;
-#ifdef SECURE_RPC
-    case FamilyNetname:
-        len = length;
-        SecureRPCInit();
-        break;
-#endif
     case FamilyInternet:
-#if defined(IPv6) && defined(AF_INET6)
+#if defined(IPv6)
     case FamilyInternet6:
 #endif
     case FamilyDECnet:
@@ -1431,13 +1406,8 @@ RemoveHost(ClientPtr client, int family, unsigned length,       /* of bytes in p
         len = length;
         LocalHostEnabled = FALSE;
         break;
-#ifdef SECURE_RPC
-    case FamilyNetname:
-        len = length;
-        break;
-#endif
     case FamilyInternet:
-#if defined(IPv6) && defined(AF_INET6)
+#if defined(IPv6)
     case FamilyInternet6:
 #endif
     case FamilyDECnet:
@@ -1521,7 +1491,7 @@ CheckAddr(int family, const void *pAddr, unsigned length)
         else
             len = -1;
         break;
-#if defined(IPv6) && defined(AF_INET6)
+#if defined(IPv6)
     case FamilyInternet6:
         if (length == sizeof(struct in6_addr))
             len = length;
@@ -1606,7 +1576,7 @@ ConvertAddr(register struct sockaddr *saddr, int *len, void **addr)
         *len = sizeof(struct in_addr);
         *addr = (void *) &(((struct sockaddr_in *) saddr)->sin_addr);
         return FamilyInternet;
-#if defined(IPv6) && defined(AF_INET6)
+#if defined(IPv6)
     case AF_INET6:
     {
         struct sockaddr_in6 *saddr6 = (struct sockaddr_in6 *) saddr;
@@ -1836,7 +1806,7 @@ siHostnameAddrMatch(int family, void *addr, int len,
  * support for other address families, such as DECnet, could be added if
  * desired.
  */
-#if defined(IPv6) && defined(AF_INET6)
+#if defined(IPv6)
     if ((family == FamilyInternet) || (family == FamilyInternet6)) {
         char hostname[SI_HOSTNAME_MAXLEN];
         struct addrinfo *addresses;
@@ -1872,7 +1842,7 @@ siHostnameAddrMatch(int family, void *addr, int len,
         char hostname[SI_HOSTNAME_MAXLEN];
         int f, hostaddrlen;
         void *hostaddr;
-        const char **addrlist;
+        char **addrlist;
 
         if (siAddrLen >= sizeof(hostname))
             return FALSE;
@@ -1897,7 +1867,9 @@ siHostnameAddrMatch(int family, void *addr, int len,
                 if ((f == family) && (len == hostaddrlen) &&
                     (memcmp(addr, hostaddr, len) == 0)) {
                     res = TRUE;
+#ifdef h_addr
                     break;
+#endif
                 }
             }
         }
@@ -1959,7 +1931,7 @@ siHostnameCheckAddr(const char *valueString, int length, void *typePriv)
     return len;
 }
 
-#if defined(IPv6) && defined(AF_INET6)
+#if defined(IPv6)
 /***
  * "ipv6" server interpreted type
  *
@@ -2169,7 +2141,7 @@ static void
 siTypesInitialize(void)
 {
     siTypeAdd("hostname", siHostnameAddrMatch, siHostnameCheckAddr, NULL);
-#if defined(IPv6) && defined(AF_INET6)
+#if defined(IPv6)
     siTypeAdd("ipv6", siIPv6AddrMatch, siIPv6CheckAddr, NULL);
 #endif
 #if !defined(NO_LOCAL_CLIENT_CRED)

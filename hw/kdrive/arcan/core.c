@@ -2623,15 +2623,6 @@ int arcanInit(void)
     if (!con)
         return 0;
 
-/* With -wmexec we may need sparse allocation of X11 displays, and
- * CreateWellKnownSockets will be called after OsInit. If displayfd is notset
- * and no display has been explicity set, it will exit if the 0 display is
- * already taken. By setting displayfd here we force the sparse allocation path
- * to be taken. */
-        if (-1 == displayfd){
-            displayfd = open("/dev/null", O_WRONLY);
-        }
-
 /* windisplay.c */
     trace("ArcanInit");
     if (_XSERVTransIsListening("local")){

@@ -25,10 +25,9 @@ variables:
 include:
   - project: 'freedesktop/ci-templates'
     ref: *template_sha
-    file: '/templates/debian.yml'
-  - project: 'freedesktop/ci-templates'
-    ref: *template_sha
-    file: '/templates/ci-fairy.yml'
+    file:
+      - '/templates/debian.yml'
+      - '/templates/ci-fairy.yml'
   - template: Security/SAST.gitlab-ci.yml
 
 stages:
@@ -113,7 +112,7 @@ debian-bullseye:
             - $MESON_BUILDDIR/meson-logs/
             - $MESON_BUILDDIR/test/piglit-results/
     variables:
-        MESON_ARGS: -Dc_args="-fno-common" -Dprefix=/usr -Dxephyr=true -Dwerror=true
+        MESON_ARGS: -Dc_args="-fno-common" -Dprefix=/usr -Dxephyr=true -Dwerror=true -Dxcsecurity=true
         CCACHE_COMPILERCHECK: content
         CCACHE_DIR: /cache/xserver/cache
         LC_ALL: C.UTF-8
@@ -152,7 +151,7 @@ mingw-cross-build:
     script:
         - .gitlab-ci/meson-build.sh --run-install
     variables:
-      MESON_ARGS: --cross-file=.gitlab-ci/cross-i686-w64-mingw32.txt -Dglx=false -Dsecure-rpc=false -Dlisten_tcp=true
+      MESON_ARGS: --cross-file=.gitlab-ci/cross-i686-w64-mingw32.txt -Dglx=false -Dlisten_tcp=true
 
 meson-dist:
     extends: .common-build-and-test
@@ -201,7 +200,7 @@ xf86-driver-build-test:
         - unset MESON_EXTRA_ARGS
         - DRIVER=$(basename $REPO)
         - git clone "$REPO" "$DRIVER"
-        - GIT_DIR="$DRIVER/.git" git checkout -f "$SHA"
+        - git -C "$DRIVER" checkout "$SHA"
         - |
           if [[ -e "$DRIVER/meson.build" ]]; then
             .gitlab-ci/meson-build.sh -C "$DRIVER" --skip-test

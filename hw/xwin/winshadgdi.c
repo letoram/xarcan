@@ -1162,8 +1162,8 @@ winCreateColormapShadowGDI(ColormapPtr pColormap)
     dwEntriesMax = pVisual->ColormapEntries;
 
     /* Allocate a Windows logical color palette with max entries */
-    lpPaletteNew = calloc(sizeof(LOGPALETTE)
-                          + (dwEntriesMax - 1) * sizeof(PALETTEENTRY), 1);
+    lpPaletteNew = calloc(1, sizeof(LOGPALETTE)
+                          + (dwEntriesMax - 1) * sizeof(PALETTEENTRY));
     if (lpPaletteNew == NULL) {
         ErrorF("winCreateColormapShadowGDI - Couldn't allocate palette "
                "with %d entries\n", (int) dwEntriesMax);

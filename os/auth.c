@@ -50,7 +50,6 @@ from The Open Group.
 
 #include "os/auth.h"
 
-#include "rpcauth.h"
 #include "xdmcp.h"
 #include "xdmauth.h"
 #include "mitauth.h"
@@ -80,15 +79,6 @@ static struct protocol protocols[] = {
     {(unsigned short) 19, "XDM-AUTHORIZATION-1",
      XdmAddCookie, XdmCheckCookie, XdmResetCookie,
      XdmFromID, XdmRemoveCookie,
-#ifdef XCSECURITY
-     NULL
-#endif
-     },
-#endif
-#ifdef SECURE_RPC
-    {(unsigned short) 9, "SUN-DES-1",
-     SecureRPCAdd, SecureRPCCheck, SecureRPCReset,
-     SecureRPCFromID, SecureRPCRemove,
 #ifdef XCSECURITY
      NULL
 #endif

@@ -40,6 +40,7 @@ THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <X11/extensions/XI.h>
 #include <X11/extensions/XKM.h>
 
+#include "dix/dix_priv.h"
 #include "os/osdep.h"
 
 #include "inputstr.h"
@@ -192,7 +193,7 @@ RunXkbComp(xkbcomp_buffer_callback callback, void *userdata)
 #ifdef WIN32
             unlink(tmpname);
 #endif
-            return xnfstrdup(keymap);
+            return XNFstrdup(keymap);
         }
         else {
             LogMessage(X_ERROR, "Error compiling keymap (%s) executing '%s'\n",

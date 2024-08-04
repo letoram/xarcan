@@ -117,7 +117,7 @@ QuartzAddScreen(int index,
     // The clang static analyzer thinks we leak displayInfo here
 #ifndef __clang_analyzer__
     // allocate space for private per screen Quartz specific storage
-    QuartzScreenPtr displayInfo = calloc(sizeof(QuartzScreenRec), 1);
+    QuartzScreenPtr displayInfo = calloc(1, sizeof(QuartzScreenRec));
 
     // QUARTZ_PRIV(pScreen) = displayInfo;
     dixSetPrivate(&pScreen->devPrivates, quartzScreenKey, displayInfo);

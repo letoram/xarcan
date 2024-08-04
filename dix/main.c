@@ -108,7 +108,6 @@ Equipment Corporation.
 #include <X11/fonts/font.h>
 #include <X11/fonts/fontstruct.h>
 #include <X11/fonts/libxfont2.h>
-#include "opaque.h"
 #include "servermd.h"
 #include "hotplug.h"
 #include "dixfont.h"
@@ -163,7 +162,7 @@ dix_main(int argc, char *argv[], char *envp[])
             CreateWellKnownSockets();
             for (i = 1; i < LimitClients; i++)
                 clients[i] = NullClient;
-            serverClient = calloc(sizeof(ClientRec), 1);
+            serverClient = calloc(1, sizeof(ClientRec));
             if (!serverClient)
                 FatalError("couldn't create server client");
             InitClient(serverClient, 0, (void *) NULL);
@@ -237,7 +236,7 @@ dix_main(int argc, char *argv[], char *envp[])
             FatalError("could not open default font");
         }
 
-        if (!(rootCursor = CreateRootCursor(NULL, 0))) {
+        if (!(rootCursor = CreateRootCursor())) {
             FatalError("could not open default cursor font");
         }
 

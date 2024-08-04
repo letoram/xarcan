@@ -23,6 +23,8 @@
 #include <dix-config.h>
 #endif
 
+#include <errno.h>
+
 #include "os.h"
 #include "mipointer.h"
 #include "arcan.h"
@@ -195,6 +197,23 @@ ddxProcessArgument(int argc, char **argv, int i)
     if (strcmp(argv[i], "-exec") == 0){
         NotifyParentProcess = arcanNotifyReady;
         dispatchExceptionAtReset = 0;
+
+/* for -exec we need to find a free Display and set that now since libx11
+ * doesn't seem to allow us to pass a descriptor to a preopened socket (!) and
+ * even if it does, some processes create multiple connections and fighting
+ * that legacy isn't worth it. This would still be racy for multiple Xarcan
+ * instances spawning in parallel. */
+				char tmp[PATH_MAX];
+				for (int j = 0; j < 1000; j++){
+					snprintf(tmp, sizeof(tmp), "/tmp/.X11-unix/X%d", j);
+					struct stat sbuf;
+					if (-1 == stat(tmp, &sbuf) && errno == ENOENT){
+						snprintf(tmp, sizeof(tmp), "%d", j);
+						display = strdup(tmp);
+						break;
+					}
+				}
+
         if ((i+1) < argc){
         arcanConfigPriv.exec = strdup(argv[i+1]);
         return 2;

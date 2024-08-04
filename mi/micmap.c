@@ -39,6 +39,11 @@
 #include "globals.h"
 #include "micmap.h"
 
+#define ALL_VISUALS     (StaticGrayMask|GrayScaleMask|StaticColorMask|\
+                         PseudoColorMask|TrueColorMask|DirectColorMask)
+#define LARGE_VISUALS   (TrueColorMask|DirectColorMask)
+#define SMALL_VISUALS   (StaticGrayMask|GrayScaleMask|StaticColorMask|PseudoColorMask)
+
 DevPrivateKeyRec micmapScrPrivateKeyRec;
 
 int

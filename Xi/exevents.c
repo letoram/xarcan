@@ -615,7 +615,7 @@ DeepCopyPointerClasses(DeviceIntPtr from, DeviceIntPtr to)
 
         if (from->button->xkb_acts) {
             size_t maxbuttons = max(to->button->numButtons, from->button->numButtons);
-            to->button->xkb_acts = xnfreallocarray(to->button->xkb_acts,
+            to->button->xkb_acts = XNFreallocarray(to->button->xkb_acts,
                                                    maxbuttons,
                                                    sizeof(XkbAction));
             memset(to->button->xkb_acts, 0, maxbuttons * sizeof(XkbAction));
@@ -1094,7 +1094,7 @@ DeliverOneTouchEvent(ClientPtr client, DeviceIntPtr dev, TouchPointInfoPtr ti,
 
     FixUpEventFromWindow(&ti->sprite, xi2, win, child, FALSE);
     filter = GetEventFilter(dev, xi2);
-    if (XaceHook(XACE_RECEIVE_ACCESS, client, win, xi2, 1) != Success)
+    if (XaceHookReceiveAccess(client, win, xi2, 1) != Success)
         return FALSE;
     err = TryClientEvents(client, dev, xi2, 1, filter, filter, NullGrab);
     free(xi2);
@@ -1880,7 +1880,7 @@ ProcessDeviceEvent(InternalEvent *ev, DeviceIntPtr device)
         int count;
 
         if (EventToCore(ev, &core, &count) == Success && count > 0) {
-            XaceHook(XACE_KEY_AVAIL, core, device, 0);
+            XaceHookKeyAvail(core, device, 0);
             free(core);
         }
     }
@@ -2240,7 +2240,7 @@ DeliverOneGestureEvent(ClientPtr client, DeviceIntPtr dev, GestureInfoPtr gi,
 
     FixUpEventFromWindow(&gi->sprite, xi2, win, child, FALSE);
     filter = GetEventFilter(dev, xi2);
-    if (XaceHook(XACE_RECEIVE_ACCESS, client, win, xi2, 1) != Success)
+    if (XaceHookReceiveAccess(client, win, xi2, 1) != Success)
         return FALSE;
     err = TryClientEvents(client, dev, xi2, 1, filter, filter, NullGrab);
     free(xi2);
@@ -2514,7 +2514,7 @@ GrabButton(ClientPtr client, DeviceIntPtr dev, DeviceIntPtr modifier_device,
     if (param->this_device_mode == GrabModeSync ||
         param->other_devices_mode == GrabModeSync)
         access_mode |= DixFreezeAccess;
-    rc = XaceHook(XACE_DEVICE_ACCESS, client, dev, access_mode);
+    rc = XaceHookDeviceAccess(client, dev, access_mode);
     if (rc != Success)
         return rc;
     rc = dixLookupWindow(&pWin, param->grabWindow, client, DixSetAttrAccess);
@@ -2570,7 +2570,7 @@ GrabKey(ClientPtr client, DeviceIntPtr dev, DeviceIntPtr modifier_device,
     if (param->this_device_mode == GrabModeSync ||
         param->other_devices_mode == GrabModeSync)
         access_mode |= DixFreezeAccess;
-    rc = XaceHook(XACE_DEVICE_ACCESS, client, dev, access_mode);
+    rc = XaceHookDeviceAccess(client, dev, access_mode);
     if (rc != Success)
         return rc;
 
@@ -2613,7 +2613,7 @@ GrabWindow(ClientPtr client, DeviceIntPtr dev, int type,
     if (param->this_device_mode == GrabModeSync ||
         param->other_devices_mode == GrabModeSync)
         access_mode |= DixFreezeAccess;
-    rc = XaceHook(XACE_DEVICE_ACCESS, client, dev, access_mode);
+    rc = XaceHookDeviceAccess(client, dev, access_mode);
     if (rc != Success)
         return rc;
 
@@ -2644,7 +2644,7 @@ GrabTouchOrGesture(ClientPtr client, DeviceIntPtr dev, DeviceIntPtr mod_dev,
     rc = dixLookupWindow(&pWin, param->grabWindow, client, DixSetAttrAccess);
     if (rc != Success)
         return rc;
-    rc = XaceHook(XACE_DEVICE_ACCESS, client, dev, DixGrabAccess);
+    rc = XaceHookDeviceAccess(client, dev, DixGrabAccess);
     if (rc != Success)
         return rc;
 
@@ -2957,7 +2957,7 @@ SendEvent(ClientPtr client, DeviceIntPtr d, Window dest, Bool propagate,
                 break;
         }
     }
-    else if (!XaceHook(XACE_SEND_ACCESS, client, NULL, pWin, ev, count))
+    else if (!XaceHookSendAccess(client, NULL, pWin, ev, count))
         DeliverEventsToWindow(d, pWin, ev, count, mask, NullGrab);
     return Success;
 }

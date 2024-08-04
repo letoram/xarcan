@@ -125,6 +125,7 @@ Equipment Corporation.
 
 #include "dix/gc_priv.h"
 #include "dix/registry_priv.h"
+#include "os/osdep.h"
 
 #include "misc.h"
 #include "os.h"
@@ -1223,7 +1224,7 @@ dixLookupResourceByType(void **result, XID id, RESTYPE rtype,
         return resourceTypes[rtype & TypeMask].errorValue;
 
     if (client) {
-        cid = XaceHook(XACE_RESOURCE_ACCESS, client, id, res->type,
+        cid = XaceHookResourceAccess(client, id, res->type,
                        res->value, X11_RESTYPE_NONE, NULL, mode);
         if (cid == BadValue)
             return resourceTypes[rtype & TypeMask].errorValue;
@@ -1258,7 +1259,7 @@ dixLookupResourceByClass(void **result, XID id, RESTYPE rclass,
         return BadValue;
 
     if (client) {
-        cid = XaceHook(XACE_RESOURCE_ACCESS, client, id, res->type,
+        cid = XaceHookResourceAccess(client, id, res->type,
                        res->value, X11_RESTYPE_NONE, NULL, mode);
         if (cid != Success)
             return cid;

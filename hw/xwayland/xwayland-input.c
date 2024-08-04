@@ -597,6 +597,9 @@ xwl_seat_leave_ptr(struct xwl_seat *xwl_seat, Bool focus_lost)
 {
     DeviceIntPtr dev = get_pointer_device(xwl_seat);
 
+    if (!dev)
+        return;
+
     if (focus_lost)
         CheckMotion(NULL, GetMaster(dev, POINTER_OR_FLOAT));
 
@@ -1343,7 +1346,7 @@ keyboard_check_repeat (DeviceIntPtr dev, XkbSrvInfoPtr xkbi, unsigned key)
         }
     }
 
-    p = xnfalloc(sizeof(struct sync_pending));
+    p = XNFalloc(sizeof(struct sync_pending));
     p->pending_dev = dev;
     callback = wl_display_sync (xwl_screen->display);
     xorg_list_add(&p->l, &xwl_seat->sync_pending);
@@ -2869,7 +2872,7 @@ tablet_seat_handle_add_tablet(void *data, struct zwp_tablet_seat_v2 *tablet_seat
     struct xwl_seat *xwl_seat = data;
     struct xwl_tablet *xwl_tablet;
 
-    xwl_tablet = calloc(sizeof *xwl_tablet, 1);
+    xwl_tablet = calloc(1, sizeof *xwl_tablet);
     if (xwl_tablet == NULL) {
         ErrorF("%s ENOMEM\n", __func__);
         return;
@@ -2900,7 +2903,7 @@ tablet_seat_handle_add_tool(void *data, struct zwp_tablet_seat_v2 *tablet_seat,
     struct xwl_screen *xwl_screen = xwl_seat->xwl_screen;
     struct xwl_tablet_tool *xwl_tablet_tool;
 
-    xwl_tablet_tool = calloc(sizeof *xwl_tablet_tool, 1);
+    xwl_tablet_tool = calloc(1, sizeof *xwl_tablet_tool);
     if (xwl_tablet_tool == NULL) {
         ErrorF("%s ENOMEM\n", __func__);
         return;
@@ -2923,7 +2926,7 @@ tablet_seat_handle_add_pad(void *data, struct zwp_tablet_seat_v2 *tablet_seat,
     struct xwl_seat *xwl_seat = data;
     struct xwl_tablet_pad *xwl_tablet_pad;
 
-    xwl_tablet_pad = calloc(sizeof *xwl_tablet_pad, 1);
+    xwl_tablet_pad = calloc(1, sizeof *xwl_tablet_pad);
     if (xwl_tablet_pad == NULL) {
         ErrorF("%s ENOMEM\n", __func__);
         return;

@@ -175,15 +175,18 @@ else
     default_font_path = dfp
 endif
 
-hal_option = get_option('hal')
 glamor_option = get_option('glamor')
+
+hal_option = get_option('hal')
+if ['windows', 'darwin', 'cygwin'].contains(host_machine.system())
+    hal_option = 'false'
+endif
 
 build_udev = get_option('udev')
 build_udev_kms = get_option('udev_kms')
-if ['windows',  'darwin', 'cygwin'].contains(host_machine.system())
+if ['windows', 'darwin', 'cygwin', 'freebsd', 'netbsd', 'openbsd', 'sunos'].contains(host_machine.system())
     build_udev = false
     build_udev_kms = false
-    hal_option = 'false'
 endif
 
 if get_option('systemd_logind') == 'auto'
@@ -227,7 +230,6 @@ if (host_machine.system() != 'darwin' and
         dependency('wayland-protocols', version: wayland_protocols_req, required: xwayland_required),
         dependency('libxcvt', fallback: ['libxcvt', 'libxcvt_dep'], required: xwayland_required),
     ]
-
     if build_glamor
         xwayland_dep += dependency('xshmfence', version: xshmfence_req, required: xwayland_required)
         xwayland_dep += dependency('libdrm', version: libdrm_req, required: xwayland_required)
@@ -263,26 +265,21 @@ if (host_machine.system() != 'darwin' and
     endif
 endif
 
-build_xnest = false
-if (host_machine.system() != 'darwin' and
-    host_machine.system() != 'windows')
-    if get_option('xnest') != 'false'
-        xnest_required = get_option('xnest') == 'true'
-
-        xnest_dep = [
-            dependency('xext', version: xext_req, required: xnest_required),
-            dependency('x11', required: xnest_required),
-            dependency('xau', required: xnest_required),
-        ]
-
-        build_xnest = true
-        # check for all the deps being found, to handle 'auto' mode.
-        foreach d: xnest_dep
-            if not d.found()
-                build_xnest = false
-            endif
-        endforeach
-    endif
+## configure Xnest - nesting X server
+build_xnest = get_option('xnest') != 'false'
+xnest_required = get_option('xnest') == 'true'
+xnest_dep = [
+    dependency('xext', version: xext_req, required: xnest_required),
+    dependency('x11', required: xnest_required),
+    dependency('xau', required: xnest_required),
+]
+if get_option('xnest') == 'auto'
+    # check for all the deps being found, to handle 'auto' mode.
+    foreach d: xnest_dep
+        if not d.found()
+            build_xnest = false
+        endif
+    endforeach
 endif
 
 build_xwin = false
@@ -316,11 +313,23 @@ if build_xquartz
     build_rootless = true
 endif
 
+# IPv6 support
+have_AF_INET6 = cc.compiles('''
+#ifdef WIN32
+#include <winsock2.h>
+#else
+#include <sys/socket.h>
+#endif
+int main(void) { int foo = AF_INET6; return foo; }''')
 if get_option('ipv6') == 'auto'
-    build_ipv6 = cc.has_function('getaddrinfo')
+    build_ipv6 = cc.has_function('getaddrinfo') and have_AF_INET6
 else
     build_ipv6 = get_option('ipv6') == 'true'
 endif
+if build_ipv6 and not have_AF_INET6
+    error('ipv6 support needs AF_INET6')
+endif
+message('IPv6 support: ' + (build_ipv6 ? 'YES' : 'NO'))
 
 int10 = get_option('int10')
 if int10 == 'auto'
