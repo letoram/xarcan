@@ -295,10 +295,10 @@ XkbDDXLoadKeymapFromString(DeviceIntPtr keybd,
     map_name = RunXkbComp(xkb_write_keymap_string_cb, &map);
     if (!map_name) {
         LogMessage(X_ERROR, "XKB: Couldn't compile keymap\n");
-        return 0;
+        have = LoadXKM(want, need, NULL, xkbRtrn);
     }
-
-    have = LoadXKM(want, need, map_name, xkbRtrn);
+    else
+        have = LoadXKM(want, need, map_name, xkbRtrn);
     free(map_name);
 
     return have;
@@ -340,6 +340,7 @@ XkbDDXOpenConfigFile(const char *mapName, char *fileNameRtrn, int fileNameRtrnLe
     return file;
 }
 
+#include "xkbdef.h"
 static unsigned
 LoadXKM(unsigned want, unsigned need, const char *keymap, XkbDescPtr *xkbRtrn)
 {
@@ -347,7 +348,12 @@ LoadXKM(unsigned want, unsigned need, const char *keymap, XkbDescPtr *xkbRtrn)
     char fileName[PATH_MAX];
     unsigned missing;
 
-    file = XkbDDXOpenConfigFile(keymap, fileName, PATH_MAX);
+    if (!keymap){
+        file = fmemopen(xkm_default, xkm_default_len, "r");
+    }
+    else
+        file = XkbDDXOpenConfigFile(keymap, fileName, PATH_MAX);
+
     if (file == NULL) {
         LogMessage(X_ERROR, "Couldn't open compiled keymap file %s\n",
                    fileName);
@@ -394,7 +400,7 @@ XkbDDXLoadKeymapByNames(DeviceIntPtr keybd,
     else if (!XkbDDXCompileKeymapByNames(xkb, names, want, need,
                                          nameRtrn, nameRtrnLen)) {
         LogMessage(X_ERROR, "XKB: Couldn't compile keymap\n");
-        return 0;
+        return LoadXKM(want, need, NULL, xkbRtrn);
     }
 
     return LoadXKM(want, need, nameRtrn, xkbRtrn);
