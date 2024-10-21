@@ -124,7 +124,6 @@ static struct {
     Atom _NET_WM_WINDOW_TYPE_DESKTOP;
     Atom _NET_WM_WINDOW_TYPE_DOCK;
     Atom _NET_WM_WINDOW_TYPE_COMBO;
-    Atom _NET_WM_WINDOW_TYPE_DND;
     Atom _NET_WM_WINDOW_TYPE_DROPDOWN_MENU;
     Atom _NET_WM_WINDOW_TYPE_POPUP_MENU;
     Atom _NET_WM_WINDOW_TYPE_TOOLBAR;
@@ -150,7 +149,6 @@ static void resolveAtoms(void)
     wm_atoms._NET_WM_WINDOW_TYPE_DESKTOP = make("_NET_WM_WINDOW_TYPE_DESKTOP");
     wm_atoms._NET_WM_WINDOW_TYPE_DOCK = make("_NET_WM_WINDOW_TYPE_DOCK");
     wm_atoms._NET_WM_WINDOW_TYPE_COMBO = make("_NET_WM_WINDOW_TYPE_COMBO");
-    wm_atoms._NET_WM_WINDOW_TYPE_DND = make("_NET_WM_WINDOW_TYPE_DND");
     wm_atoms._NET_WM_WINDOW_TYPE_DROPDOWN_MENU = make("_NET_WM_WINDOW_TYPE_DROPDOWN_MENU");
     wm_atoms._NET_WM_WINDOW_TYPE_POPUP_MENU = make("_NET_WM_WINDOW_TYPE_POPUP_MENU");
     wm_atoms._NET_WM_WINDOW_TYPE_TOOLBAR = make("_NET_WM_WINDOW_TYPE_TOOLBAR");
@@ -161,7 +159,6 @@ static void resolveAtoms(void)
     wm_atoms._NET_WM_WINDOW_TYPE_TOOLTIP = make("_NET_WM_WINDOW_TYPE_TOOLTIP");
     wm_atoms._NET_WM_WINDOW_TYPE_NOTIFICATION = make("_NET_WM_WINDOW_TYPE_NOTIFICATION");
     wm_atoms._NET_WM_WINDOW_TYPE_NORMAL = make("_NET_WM_WINDOW_TYPE_NORMAL");
-    wm_atoms._NET_WM_WINDOW_TYPE_DND = make("_NET_WM_WINDOW_TYPE_DND");
     wm_atoms._NET_ACTIVE_WINDOW = make("_NET_ACTIVE_WINDOW");
     wm_atoms._NET_WM_NAME = make("_NET_WM_NAME");
     wm_atoms.UTF8_STRING = make("UTF8_STRING");
@@ -506,8 +503,6 @@ static void sendWndData(WindowPtr wnd, int depth, int max_depth, bool redir, voi
         }
     }
 
-/* _NET_WM_TYPE_DND + XDndAware */
-
 /* translate relative to anchor parent
  * this was removed as maintaining the stacking order didn't provide much utility
  * and can be reconstructed from stacking information anyhow
@@ -610,6 +605,7 @@ static int64_t sendSegmentToPool(arcanScrPriv *S, struct arcan_shmif_cont *C)
     i--;
     S->redirectBitmap |= (uint64_t) 1 << i;
     S->pool[i] = C;
+    InputThreadUnregisterDev(C->epipe);
     InputThreadRegisterDev(C->epipe, arcanFlushRedirectedEvents, C);
 
     return i;
@@ -789,8 +785,6 @@ static Bool arcanRealizeWindow(WindowPtr wnd)
     arcanWindowPriv *ext = ensureArcanWndPrivate(wnd);
     if (!isRedirectCandidate(ascr, wnd))
         return rv;
-
-    arcan_shmif_mousestate_setup(ascr->acon, false, NULL);
 
 /* compRedirect will create a pixmap and we do that out of a fitting per-toplevel
  * shmif segment (or request one if there is nothing in the reuse pool) */
@@ -1113,6 +1107,7 @@ TranslateInput(
                                    &mask
                                    );
             }
+            CheckMotion(NULL, arcanInputPriv.pi->dixdev);
         }
         else {
               int index = convertMouseButton(ev->subid);
@@ -1402,6 +1397,7 @@ void arcanForkExec(void)
         ErrorF("couldn't spawn wm child\n");
         return;
     }
+    trace("display=:%s", display);
 
     if (0 == pid){
         if (fork() != 0){
@@ -2161,7 +2157,7 @@ arcanEventDispatch(
 {
     struct arcan_event ev = *aev;
     if (ev.category == EVENT_IO){
-        TranslateInput(con, &ev, NULL);
+        TranslateInput(ascr->acon, &ev, NULL);
         return 0;
     }
     else if (ev.category != EVENT_TARGET)
@@ -3397,6 +3393,9 @@ updateWindowFocus(WindowPtr wnd, bool focus)
                          TRUE
                         );
         }
+
+
+        QueueKeyboardEvents(arcanInputPriv.ki->dixdev, LeaveNotify, 8);
         return;
     }
 
@@ -3501,7 +3500,8 @@ arcanFlushRedirectedEvents(int fd, int mask, void *tag)
             continue;
 
         if (ev.category == EVENT_IO){
-            TranslateInput(C, &ev, P);
+            arcanScrPriv *ascr = getArcanScreen(P->window);
+            TranslateInput(ascr->acon, &ev, P);
             continue;
         }
 
@@ -3580,6 +3580,7 @@ arcanFlushRedirectedEvents(int fd, int mask, void *tag)
         break;
         }
     }
+
     input_unlock();
 
 /* displayhint, request as a configure, possibly set FOCUS */
@@ -3769,8 +3770,8 @@ arcanFinishInitScreen(ScreenPtr pScreen)
     screen->pScreen->DestroyPixmap = arcanDestroyPixmap;
 #endif
 
+    arcan_shmif_mousestate_setup(scrpriv->acon, ARCAN_MOUSESTATE_NOCLAMP, NULL);
 /* hide the root window to indicate that we are 'rootless' */
-    arcan_shmif_mousestate_setup(scrpriv->acon, false, NULL);
     if (arcanConfigPriv.redirect){
         scrpriv->defaultRootless = true;
         ScreenSaverTime = 0;

@@ -79,6 +79,17 @@ _Thread_local static struct
     xcb_atom_t incr;
     xcb_atom_t data;
     xcb_atom_t selection_id;
+    xcb_atom_t xdnd_selection;
+    xcb_atom_t xdnd_aware;
+    xcb_atom_t xdnd_enter;
+    xcb_atom_t xdnd_leave;
+    xcb_atom_t xdnd_drop;
+    xcb_atom_t xdnd_status;
+    xcb_atom_t xdnd_finished;
+    xcb_atom_t xdnd_type_list;
+    xcb_atom_t xdnd_action_copy;
+    xcb_atom_t xdnd_proxy;
+    xcb_atom_t xdnd_position;
 } atoms;
 
 static xcb_atom_t lookupAtom(const char *name)
@@ -106,6 +117,17 @@ static void setupAtoms(void)
     atoms.data = lookupAtom("XSEL_DATA");
     atoms.selection_id = lookupAtom("_ARCAN_SELECTION");
     atoms.clipboard_mgr = lookupAtom("CLIPBOARD_MANAGER");
+    atoms.xdnd_selection = lookupAtom("XdndSelection");
+    atoms.xdnd_aware = lookupAtom("XdndAware");
+    atoms.xdnd_enter = lookupAtom("XdndEnter");
+    atoms.xdnd_leave = lookupAtom("XdndLeave");
+    atoms.xdnd_drop = lookupAtom("XdndDrop");
+    atoms.xdnd_status = lookupAtom("XdndStatus");
+    atoms.xdnd_position = lookupAtom("XdndPosition");
+    atoms.xdnd_finished = lookupAtom("XdndFinished");
+    atoms.xdnd_type_list = lookupAtom("XdndTypeList");
+    atoms.xdnd_action_copy = lookupAtom("XdndActionCopy");
+    atoms.xdnd_proxy = lookupAtom("XdndProxy");
 }
 
 static char *atomName(xcb_atom_t atom)
@@ -128,6 +150,7 @@ static char *atomName(xcb_atom_t atom)
 static bool buildWindow(struct proxyWindowData* inWnd)
 {
     xcon = xcb_connect_to_fd(inWnd->socket, NULL);
+    setupAtoms();
 
     if (xcb_connection_has_error(xcon)){
         free(inWnd);
@@ -140,13 +163,13 @@ static bool buildWindow(struct proxyWindowData* inWnd)
     xcb_void_cookie_t cookie =
                       xcb_create_window(
                           xcon,
-                          screen->root_depth,
+                          XCB_COPY_FROM_PARENT,
                           xwnd, screen->root,
-                          -1, -1, 1, 1, 0,
-                          XCB_WINDOW_CLASS_INPUT_OUTPUT,
+                          0, 0, 8192, 8192, 0,
+                          XCB_WINDOW_CLASS_INPUT_ONLY,
                           screen->root_visual,
                           XCB_CW_EVENT_MASK,
-                          (uint32_t[1]){XCB_EVENT_MASK_PROPERTY_CHANGE}
+                          (uint32_t[]){XCB_EVENT_MASK_PROPERTY_CHANGE | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY}
                       );
 
     xcb_generic_error_t *error = xcb_request_check(xcon, cookie);
@@ -159,7 +182,29 @@ static bool buildWindow(struct proxyWindowData* inWnd)
     xcb_icccm_set_wm_name(xcon, xwnd, XCB_ATOM_STRING,
                           8, sizeof("arcan-clip")-1, "arcan-clip");
 
-     return true;
+    if (!inWnd->paste){
+        xcb_change_property(
+            xcon,
+            XCB_PROP_MODE_REPLACE,
+            xwnd, atoms.xdnd_aware,
+            XCB_ATOM_ATOM,
+            32,
+            1, &(uint32_t){5}
+        );
+/* also set ourselves as the proxy target for root window */
+        xcb_change_property(
+            xcon,
+            XCB_PROP_MODE_REPLACE,
+            screen->root,
+            atoms.xdnd_proxy,
+            XCB_ATOM_WINDOW,
+            32,
+            1,
+            &xwnd
+        );
+    }
+
+    return true;
 }
 
 static void setOwnership(void)
@@ -204,6 +249,10 @@ static void xfixesSelectionNotify(
           xcb_get_selection_owner(xcon, event->selection),
           NULL
       );
+
+/* ->selection can be xdnd_selection,
+ *
+ */
 
 /* should also check that it isn't owned by 'the other thread' (if present) */
     if (!owner || owner->owner == 0){
@@ -349,6 +398,53 @@ static void forwardData(struct proxyWindowData *inWnd,
     }
 }
 
+/*
+ * static void sendAcceptDND()
+{
+*/
+/* clientMessage:
+ * response_type = XCB_CLIENT_MESSAGE,
+ * format = 32,
+ * window = dnd_window
+ * type = atoms.xdnd_status;
+ * data.data32[0] = dnd_window,
+ * data.data32[1] = 2; |1 if mime type
+ * [2] = 0,
+ * [3] = 0,
+ * [4] = xdnd_action_copy
+ * xcb_send_event(xcon, 0, dnd_owner, XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT, (char*) msg);
+ */
+/*}*/
+
+static void clientMessage(struct proxyWindowData *inWnd,
+                          xcb_client_message_event_t *event)
+{
+    if (event->type == atoms.xdnd_enter){
+        trace("drag enter");
+    }
+    else if (event->type == atoms.xdnd_leave){
+        trace("drag leave");
+    }
+    else if (event->type == atoms.xdnd_drop){
+        trace("drop requested");
+    }
+    else if (event->type == atoms.xdnd_position){
+        uint32_t swnd = event->data.data32[0];
+        /* [1] == flags,
+         * [2] == (x << 16) | y
+         * [3] == timestamp
+         * [4] == action
+        */
+        trace("source=%"PRIu32", x=%"PRIu16", y=%"PRIu16,
+            swnd, (uint16_t)(event->data.data32[2] >> 16),
+            (uint16_t)(event->data.data32[2] & 0xffff));
+
+/* now we can reply to the window with XdndStatus */
+    }
+    else
+        trace("clientMessage:%d", (int) event->type);
+}
+
 static void forwardTargets(struct proxyWindowData *inWnd,
                            xcb_selection_notify_event_t *event)
 {
@@ -393,7 +489,7 @@ static void propertyNotify(
         trace("propertyNotify(selectionWnd)");
 
         if (event->state == XCB_PROPERTY_NEW_VALUE){
-            trace("newValue");
+            trace("newValue %d", (int)event->atom);
             if (event->atom == atoms.selection_id){
                 xcb_get_property_cookie_t cookie;
                 cookie = xcb_get_property(xcon,
@@ -469,7 +565,6 @@ void *arcanClipboardDispatch(struct proxyWindowData* inWnd)
                 return NULL;
         }
 
-    setupAtoms();
     xcb_discard_reply(xcon, xcb_xfixes_query_version(xcon, 1, 0).sequence);
 
     xcb_prefetch_extension_data(xcon, &xcb_xfixes_id);
@@ -628,7 +723,9 @@ void *arcanClipboardDispatch(struct proxyWindowData* inWnd)
  * like behavior we should take the selection back and retrieve it from who owns it, but
  * that is problematic when there are multiples .. */
              break;
-/* for -redirect with -exec to a non-wm target we kind of want to fill that hole */
+             case XCB_CLIENT_MESSAGE:
+                 clientMessage(inWnd, (xcb_client_message_event_t*) event);
+             break;
              case XCB_MAP_REQUEST:
                  xcb_map_window(xcon, ((xcb_map_request_event_t*)event)->window);
              break;
