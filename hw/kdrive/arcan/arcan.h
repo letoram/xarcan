@@ -68,7 +68,7 @@ typedef struct _arcanScrPriv {
     int clip_mode;
 
     struct arcan_shmif_cont* pool[64];
-    uint64_t redirectBitmap, dirtyBitmap;
+    uint64_t redirectBitmap;
     Bool defaultRootless;
 
     struct xorg_list vblank_triggers;

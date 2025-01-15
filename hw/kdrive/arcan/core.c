@@ -820,7 +820,7 @@ static Bool arcanUnrealizeWindow(WindowPtr wnd)
                   (uintptr_t) shmif->window
                  );
             shmif->bound = false;
-						InputThreadUnregisterDev(apriv->shmif->epipe);
+            InputThreadUnregisterDev(apriv->shmif->epipe);
 
             if (arcanConfigPriv.present)
                 setAprivVblankPresent(apriv->shmif, shmif, false);
@@ -1796,6 +1796,7 @@ handleNewSegment(struct arcan_shmif_cont *C, arcanScrPriv *S, int kind, bool out
     else if (kind == SEGID_CURSOR){
         if (S->cursor){
             arcan_shmif_drop(S->cursor);
+            free(S->cursor);
             S->cursor = NULL;
         }
         S->cursor = malloc(sizeof(struct arcan_shmif_cont));
@@ -1831,7 +1832,7 @@ handleNewSegment(struct arcan_shmif_cont *C, arcanScrPriv *S, int kind, bool out
             .bound = false,
             .window = wnd
         };
-        *pxout = arcan_shmif_acquire(C, NULL, kind, SHMIF_DISABLE_GUARD);
+        *pxout = arcan_shmif_acquire(C, NULL, kind, 0);
         pxout->user = contpriv;
 
         sendSegmentToPool(S, pxout);
@@ -1860,13 +1861,10 @@ static int64_t requestIntoPool(arcanScrPriv* ascr, XID id, int w, int h)
             if (!C)
                 return -1;
 
-/* We can do without the guard on these ones as:
- *     a. we don't use signal to block,
- *     b. don't use a blocking event loop */
             *C = arcan_shmif_acquire(ascr->acon,
                                      NULL,
                                      SEGID_BRIDGE_X11,
-                                     SHMIF_DISABLE_GUARD);
+                                     0);
             if (!C->addr){
                 free(C);
                 return -1;
@@ -2096,52 +2094,89 @@ static PixmapPtr arcanCompNewPixmap(WindowPtr pWin, int x, int y, int w, int h)
  * then p->data
  */
 
-static void resetRecover(struct arcan_shmif_cont *con, arcanScrPriv *ascr)
+static void resetRecover(struct arcan_shmif_cont *con, int oldfd, arcanScrPriv *ascr)
 {
-/* Hide root if we are in redirected mode */
+//* reset the monitoring socket as we might have migrated connection */
+    input_unlock();
+    ascr->dirty = 1;
+    InputThreadUnregisterDev(oldfd);
+    InputThreadRegisterDev(con->epipe, arcanFlushEvents, con);
+
+/* Hide root if we are in redirected mode and resynch the pool */
     trace("resetRecover");
-    if (arcanConfigPriv.redirect){
-        trace("resetRecoverRedirect");
-        ARCAN_ENQUEUE(ascr->acon, &(struct arcan_event){
+    if (!arcanConfigPriv.redirect){
+      announceRequestBuiltins(con);
+      input_lock();
+      return;
+    }
+
+    trace("resetRecoverRedirect");
+    ARCAN_ENQUEUE(ascr->acon, &(struct arcan_event){
                       .category = EVENT_EXTERNAL,
                       .ext.kind = ARCAN_EVENT(VIEWPORT),
                       .ext.viewport.invisible = true
-        });
+    });
+
+/* kill any custom cursor, clipboard / OUTPUT will die by themselves */
+    if (ascr->cursor){
+        arcan_shmif_drop(ascr->cursor);
+        free(ascr->cursor);
+        ascr->cursor = NULL;
     }
 
-    input_unlock();
-        InputThreadUnregisterDev(con->epipe);
-        InputThreadRegisterDev(con->epipe, arcanFlushEvents, con);
+/* copy / hide the current pool and reset the 'known' bitmap */
+    struct arcan_shmif_cont* pool[64];
+    memcpy(pool, ascr->pool, sizeof(void*) * 64);
+    memset(ascr->pool, '\0', sizeof(void*) * 64);
+    ascr->redirectBitmap = 0;
 
-/* Take a copy of the redirect bitmap as is, remove each entry, repeat the
- * initial blocking requestIntoPool (which will fill the previously occupied
- * slot). */
-        uint64_t bmap = ascr->redirectBitmap;
-        while (bmap){
-            uint64_t i = __builtin_ffsll(bmap) - 1;
-            bmap &= ~((uint64_t)1 << i);
-            ascr->redirectBitmap &= ~((uint64_t)1 << i);
+/* for each segment in pool: */
+    for (size_t i = 0; i < 64; i++){
+        struct arcan_shmif_cont* old = pool[i];
+         if (!old)
+           continue;
 
-            struct arcan_shmif_cont *C = ascr->pool[i];
-            arcanShmifPriv *P = C->user;
-            P->window->unsynched = 1;
+/* ignore the ones not in active use */
+          arcanShmifPriv *P = old->user;
+          if (!P->bound){
+            arcan_shmif_drop(old);
+            continue;
+          }
 
+         InputThreadUnregisterDev(old->epipe);
+
+/* allocate a new slot */
+         int64_t ind = requestIntoPool(ascr,
+                                       P->window->drawable.id,
+                                       old->w, old->h);
+         struct arcan_shmif_cont* new = segmentIDtoContext(ascr, ind);
+
+/* synch state / flags / window reference */
+         new->hints = old->hints;
+         new->user = old->user;
+         arcanWindowPriv *aWnd = ensureArcanWndPrivate(P->window);
+         aWnd->shmif = new;
+         InputThreadRegisterDev(new->epipe, arcanFlushRedirectedEvents, new);
+
+/* copy and forward the actual contents */
+         arcan_shmif_resize(new, old->w, old->h);
+         memcpy(new->vidb, old->vidb, old->stride * old->h);
+         arcan_shmif_signal(new, SHMIF_SIGVID | SHMIF_SIGBLK_NONE);
+
+         P->window->drawable.pScreen->ModifyPixmapHeader(
+                                                         P->pixmap,
+                                                         0, 0, 0, 0, 0,
+                                                         new->vidb);
 /* PRESENT-note: For surfaces with a DMA buffer backing store we would need to
  * force an update via exposures and drop pending PRESENT state as those
  * callbacks won't fire on the segment.
  * arcanWindowPriv *awnd = dixLookupPrivate(&P->window->devPrivates, &windowPriv);
  */
+         arcan_shmif_drop(old);
+    }
 
-/* Complex dance now is to swap out the backing of the Pixmap into the new
- * shmif context. */
-/*            int64_t state = requestIntoPool( */
-/* copy old into new, drop old, swap pixmap unless GBM, signal transfer asynch */
-        }
-
-        announceRequestBuiltins(con);
+    announceRequestBuiltins(con);
     input_lock();
-
-    ascr->dirty = 1;
 }
 
 /*
@@ -2177,16 +2212,15 @@ arcanEventDispatch(
     break;
     case TARGET_COMMAND_RESET:
         switch(ev.tgt.ioevs[0].iv){
-/* not much 'state' that we can extract or track from the Xorg internals,
- * possibly input related and likely not worth it */
+/* Not much 'state' that we can extract or track from the Xorg internals,
+ * possibly input related and likely not worth it. */
         case 0:
         case 1:
+        break;
         case 2:
-            resetRecover(con, ascr);
-            if (0)
 /* swap-out monitored FD */
         case 3:
-            trace("parent_crash_recover");
+            resetRecover(con, ev.tgt.ioevs[1].iv, ascr);
             return 1;
         break;
         }
@@ -3543,7 +3577,7 @@ arcanFlushRedirectedEvents(int fd, int mask, void *tag)
 /* Treat exit and reset as basically the same for now */
         case TARGET_COMMAND_EXIT:
             trace("segmentDropped");
-						InputThreadUnregisterDev(C->epipe);
+            InputThreadUnregisterDev(C->epipe);
 
         case TARGET_COMMAND_RESET:{
             trace("segmentReset:level=%d", ev.tgt.ioevs[0].iv);
@@ -3584,6 +3618,10 @@ arcanFlushRedirectedEvents(int fd, int mask, void *tag)
         default:
         break;
         }
+    }
+
+    if (rv < 0){
+        InputThreadUnregisterDev(C->epipe);
     }
 
     input_unlock();
@@ -3653,7 +3691,6 @@ arcanScreenBlockHandler(ScreenPtr pScreen, void* timeout)
            arcan_shmif_signal(C, SHMIF_SIGVID | SHMIF_SIGBLK_NONE);
         }
     }
-    scrpriv->dirtyBitmap = 0;
 
     if (scrpriv->damage)
         arcanInternalDamageRedisplay(pScreen);
