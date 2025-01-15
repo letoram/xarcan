@@ -606,7 +606,6 @@ static int64_t sendSegmentToPool(arcanScrPriv *S, struct arcan_shmif_cont *C)
     S->redirectBitmap |= (uint64_t) 1 << i;
     S->pool[i] = C;
     InputThreadUnregisterDev(C->epipe);
-    InputThreadRegisterDev(C->epipe, arcanFlushRedirectedEvents, C);
 
     return i;
 }
@@ -821,6 +820,8 @@ static Bool arcanUnrealizeWindow(WindowPtr wnd)
                   (uintptr_t) shmif->window
                  );
             shmif->bound = false;
+						InputThreadUnregisterDev(apriv->shmif->epipe);
+
             if (arcanConfigPriv.present)
                 setAprivVblankPresent(apriv->shmif, shmif, false);
         }
@@ -1224,7 +1225,7 @@ synchTreeDepth(arcanScrPriv* scrpriv, WindowPtr wnd,
 }
 
 /*
- * terminate after 10 seconds of no active clients, only used for -exec
+ * terminate after 10 seconds of no clients with any mapped surfaces, only used for -exec
  */
 static CARD32
 shutdownTimerCheck(OsTimerPtr timer, CARD32 time, void *arg)
@@ -2075,6 +2076,8 @@ static PixmapPtr arcanCompNewPixmap(WindowPtr pWin, int x, int y, int w, int h)
 /* cause a viewport to be emitted before the frame signal */
    pWin->unsynched = true;
    shmif->bound = true;
+   InputThreadRegisterDev(C->epipe, arcanFlushRedirectedEvents, C);
+
    aWnd->shmif = C;
    dumpPool("newPixmap", ascr);
 
@@ -3540,6 +3543,8 @@ arcanFlushRedirectedEvents(int fd, int mask, void *tag)
 /* Treat exit and reset as basically the same for now */
         case TARGET_COMMAND_EXIT:
             trace("segmentDropped");
+						InputThreadUnregisterDev(C->epipe);
+
         case TARGET_COMMAND_RESET:{
             trace("segmentReset:level=%d", ev.tgt.ioevs[0].iv);
 
