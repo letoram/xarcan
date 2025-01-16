@@ -8,7 +8,7 @@ option('glamor', type: 'combo', choices: ['true', 'false', 'auto'], value: 'auto
        description: 'Enable glamor (default yes for Xorg/Xwayland builds)')
 option('xwayland_ei', type: 'combo', choices: ['socket', 'portal', 'false', 'auto'],
        value: 'auto', description: 'Enable emulated input support on Xwayland')
-option('xnest', type: 'combo', choices: ['true', 'false', 'auto'], value: 'auto',
+option('xnest', type: 'combo', choices: ['true', 'false', 'auto'], value: 'false',
        description: 'Enable Xnest nested X server')
 option('dmx', type: 'boolean', value: false,
        description: 'Enable DMX nested X server')
