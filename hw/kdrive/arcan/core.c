@@ -1413,7 +1413,10 @@ void arcanForkExec(void)
  * for some arbitrary n-Seconds without a new client connecting, let's die. */
     arcanConfigPriv.timeout = 0;
     arcanConfigPriv.exec = NULL;
-    TimerSet(arcanConfigPriv.shutdownTimer, 0, 1000, shutdownTimerCheck, NULL);
+
+		if (arcanConfigPriv.redirect){
+	    TimerSet(arcanConfigPriv.shutdownTimer, 0, 1000, shutdownTimerCheck, NULL);
+		}
     trace("ready at : %d\n", currentMaxClients);
 
     pid_t pid = fork();
