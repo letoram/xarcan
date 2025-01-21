@@ -22,6 +22,14 @@ arcan_dep = [
     dependency('xcb-shm')
 ]
 
+arcan_defs = []
+
+tracy_option = get_option('tracy')
+if tracy_option == true
+  arcan_dep += tracy_dep
+  arcan_defs += '-DHAVE_TRACY'
+endif
+
 arcan_server = executable(
     'Xarcan',
     srcs,
@@ -43,4 +51,5 @@ arcan_server = executable(
         libglxvnd
     ],
     install: true,
+    c_args: arcan_defs
 )

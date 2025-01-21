@@ -8,7 +8,7 @@ project('xserver', 'c',
 )
 release_date = '2021-07-05'
 
-add_project_arguments('-DHAVE_DIX_CONFIG_H', language: ['c', 'objc'])
+add_project_arguments('-DHAVE_DIX_CONFIG_H', language: ['c', 'objc', 'cpp'])
 cc = meson.get_compiler('c')
 
 add_project_arguments('-fno-strict-aliasing', language : 'c')
@@ -118,6 +118,14 @@ if not libsystemd_daemon_dep.found()
 endif
 
 build_hashtable = false
+
+tracy_option = get_option('tracy')
+if tracy_option == true
+  tracy_dep = dependency('Tracy', method: 'cmake', required: false, modules:['Tracy::TracyClient'])
+  if not tracy_dep.found()
+    error('tracy support requested but not found')
+   endif
+endif
 
 # Resolve default values of some options
 xkb_dir = get_option('xkb_dir')

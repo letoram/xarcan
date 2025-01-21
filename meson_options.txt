@@ -13,6 +13,7 @@ option('xnest', type: 'combo', choices: ['true', 'false', 'auto'], value: 'false
 option('dmx', type: 'boolean', value: false,
        description: 'Enable DMX nested X server')
 option('xarcan', type: 'boolean', value: true, description: 'Enable Xarcan X server')
+option('tracy', type: 'boolean', value: false, description: 'Enable tracy profiling')
 option('xvfb', type: 'boolean', value: false, description: 'Enable XVFB X server')
 option('xwin', type: 'combo', choices: ['true', 'false', 'auto'], value: 'false',
        description: 'Enable XWin X server')

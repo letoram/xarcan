@@ -49,6 +49,16 @@
 #define CURSOR_REQUEST_ID 0xfef0
 #define CLIPBOARD_REQUEST_ID 0xfafa
 
+#ifdef HAVE_TRACY
+#include "tracy/TracyC.h"
+/* ___tracy_set_thread_name
+ * TracyCZoneCtx = ___tracy_emit_zone_begin(loc, true);
+ * TracyCMessage(message, len)
+ * TracyCFrameMark;
+ * TracyCFrameMarkStart
+ * ___tracy_emit_zone_name */
+#endif
+
 /*
  * from Xwin
  */
@@ -1282,12 +1292,14 @@ arcanSignal(struct arcan_shmif_cont* con)
     arcanSynchCursor(scrpriv, false);
 
     region = DamageRegion(scrpriv->damage);
-    if (!RegionNotEmpty(region) || scrpriv->defaultRootless)
+    if (false && (!RegionNotEmpty(region) || scrpriv->defaultRootless))
         return;
 
     BoxPtr box = RegionExtents(region);
     arcan_shmif_dirty(con, box->x1, box->y1, box->x2, box->y2, 0);
 
+    trace("ScreenBlockHandler::Signal:dirty(%zu,%zu-%zu,%zu)",
+                                     box->x1, box->y1, box->x2, box->y2);
 /*
  * We don't use fine-grained dirty regions really, the data gathered gave
  * quite few benefits as cases with many dirty regions quickly exceeded the
@@ -1302,11 +1314,13 @@ arcanSignal(struct arcan_shmif_cont* con)
         int fourcc = 0;
 
         if (scrpriv->bo){
+            trace("ScreenBlockHandler::Signal::bufferObject");
             fd = gbm_bo_get_fd(scrpriv->bo);
             stride = gbm_bo_get_stride(scrpriv->bo);
             fourcc = DRM_FORMAT_XRGB8888;
         }
         else if (scrpriv->tex != -1){
+            trace("ScreenBlockHandler::Signal::exportTexture");
             uintptr_t disp;
             arcan_shmifext_egl_meta(scrpriv->acon, &disp, NULL, NULL);
             arcan_shmifext_gltex_handle(scrpriv->acon, disp,
@@ -1328,8 +1342,10 @@ arcanSignal(struct arcan_shmif_cont* con)
  * only scanout, the mechanism for that is through DEVICE_NODE providing a
  * different vbuffer, we swap the signalling buffer and then rely on the
  * VSIGNAL to carry. The dirty region is reset on signal. */
-    if (!in_glamor)
+    if (!in_glamor){
+        trace("ScreenBlockHandler::Signal::video");
         arcan_shmif_signal(con, SHMIF_SIGVID | SHMIF_SIGBLK_NONE);
+    }
 
     DamageEmpty(scrpriv->damage);
     scrpriv->dirty = false;
@@ -2251,7 +2267,7 @@ arcanEventDispatch(
                 );
     break;
     case TARGET_COMMAND_REQFAIL:
-        trace("segment-request rejected");
+        trace("arcanEventDispatch::SEGREQ fail");
         return -2;
     break;
     case TARGET_COMMAND_NEWSEGMENT:
@@ -2343,7 +2359,7 @@ arcanScreenInit(KdScreenInfo * screen)
 /* primary connection is a allocated once and then retained for the length of
  * the process */
     if (con->user){
-        ErrorF("multiple screen support still missing\n");
+        ErrorF("arcanScreenInit: multipleCalls unsupported\n");
         abort();
     }
 
@@ -2399,7 +2415,7 @@ static Bool arcanSetInternalDamage(ScreenPtr pScreen)
                                    DamageReportBoundingBox,
                                    TRUE, pScreen, pScreen);
 
-    trace("arcanSetInternalDamage(%p)", scrpriv->damage);
+    trace("arcanSetInternalDamage::BoundingBox(%p)", scrpriv->damage);
     pPixmap = (*pScreen->GetScreenPixmap) (pScreen);
 
     DamageRegister(&pPixmap->drawable, scrpriv->damage);
@@ -2547,7 +2563,7 @@ Bool arcanGlamorCreateScreenResources(ScreenPtr pScreen)
 /* get the allocation device reference */
     oldpix = pScreen->GetScreenPixmap(pScreen);
     if (-1 == arcan_shmifext_dev(scrpriv->acon, &dev, false)){
-        trace("ArcanDRI3PixmapFromFD()::Couldn't get device handle");
+        trace("ArcanDRI3PixmapFromFD::Couldn't get device handle");
         return false;
     }
 
