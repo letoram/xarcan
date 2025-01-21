@@ -746,14 +746,6 @@ static Bool arcanRealizeWindow(WindowPtr wnd)
     trace("realizeWindow(%d)", (int) wnd->drawable.id);
 /*  dumpWindowProperties(wnd); */
 
-/* For -exec mode, remember the number of clients when the first actual window
- * gets presented and use that as a bound to determine when to timeout and
- * terminate. This should cover clients that exit but leaves d-bus and similar
- * vermin around with active connections to an otherwise dead Xserver */
-    if (!arcanConfigPriv.clientShutdownBound){
-        arcanConfigPriv.clientShutdownBound = currentMaxClients;
-    }
-
 /* First let the rest of the infrastructure deal with realize, it is somewhat
  * unclear if this is better to do AFTER we've established our own patches to
  * the structure or not. */
@@ -1240,23 +1232,38 @@ synchTreeDepth(arcanScrPriv* scrpriv, WindowPtr wnd,
 static CARD32
 shutdownTimerCheck(OsTimerPtr timer, CARD32 time, void *arg)
 {
-    if (!arcanConfigPriv.clientShutdownBound ||
-        currentMaxClients > arcanConfigPriv.clientShutdownBound){
-            arcanConfigPriv.timeout = 10;
-            return 1000;
+    arcanScrPriv *ascr = arcan_shmif_primary(SHMIF_INPUT)->user;
+    Bool gotMapped = false;
+
+/* just sweep pool and check each segment if it is bound to anything */
+    for (size_t i = 0; i < 64; i++){
+      struct arcan_shmif_cont* C = ascr->pool[i];
+      if (!C)
+        continue;
+
+      arcanShmifPriv *P = C->user;
+      if (P->bound){
+        gotMapped = true;
+        arcanConfigPriv.timeout = 0;
+        break;
+      }
     }
 
+    if (gotMapped)
+      return 1000;
+
+/* start timeout or decrement it */
     if (arcanConfigPriv.timeout){
         arcanConfigPriv.timeout--;
         if (!arcanConfigPriv.timeout){
-            CloseWellKnownConnections();
-            OsCleanup(1);
-            dispatchException |= DE_TERMINATE;
-            return 0;
+          CloseWellKnownConnections();
+          OsCleanup(1);
+          dispatchException |= DE_TERMINATE;
+          return 0;
         }
     }
     else
-        arcanConfigPriv.timeout = 10;
+      arcanConfigPriv.timeout = 10;
 
     return 1000;
 }
@@ -1292,7 +1299,7 @@ arcanSignal(struct arcan_shmif_cont* con)
     arcanSynchCursor(scrpriv, false);
 
     region = DamageRegion(scrpriv->damage);
-    if (false && (!RegionNotEmpty(region) || scrpriv->defaultRootless))
+    if ((!RegionNotEmpty(region) || scrpriv->defaultRootless))
         return;
 
     BoxPtr box = RegionExtents(region);
