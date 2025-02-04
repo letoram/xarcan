@@ -24,6 +24,7 @@
 #endif
 
 #include <errno.h>
+#include <sys/stat.h>
 
 #include "os.h"
 #include "mipointer.h"

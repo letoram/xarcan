@@ -40,6 +40,15 @@
 #include <windowstr.h>
 #include <present.h>
 
+#ifdef HAVE_TRACY
+#include "tracy/TracyC.h"
+#define TRACEPOINT_MESSAGE(X) TracyCMessage(X, strlen(X))
+#define TRACEPOINT_VALUE(X, Y) TracyCPlotI(X, Y)
+#else
+#define TRACEPOINT_MESSAGE(X)
+#define TRACEPOINT_VALUE(X, y)
+#endif
+
 #include "xa-present.h"
 #include "glamor.h"
 
@@ -363,13 +372,17 @@ xa_present_msc_bump(struct xa_present_window *xa_present_window, uint64_t msc)
     xa_present_window->msc = msc;
     present_vblank_ptr vblank, tmp;
 
+		TRACEPOINT_VALUE("MSC", msc);
     xa_present_window->ust = GetTimeInMicros();
+		TRACEPOINT_VALUE("UST", xa_present_window->ust);
 
     if (flip_pending && flip_pending->sync_flip)
         xa_present_flip_notify_vblank(flip_pending, xa_present_window->ust, msc);
 
     xorg_list_for_each_entry_safe(vblank, tmp, &xa_present_window->wait_list, event_queue) {
         if (vblank->exec_msc <= msc) {
+				    TRACEPOINT_VALUE("VBLANK", vblank->event_id);
+
             DebugPresent(("\ttype=msc-reply:id=%" PRIu64 ":ust=%" PRIu64 ":msc=%" PRIu64 "\n",
                           vblank->event_id, xa_present_window->ust, msc));
 
@@ -465,55 +478,54 @@ xa_present_check_flip(RRCrtcPtr crtc,
                        PresentFlipReason *reason)
 {
     WindowPtr toplvl_window = xa_present_toplvl_pixmap_window(present_window);
-/*    struct xwl_window *xwl_window = xwl_window_from_window(present_window); */
-/*    ScreenPtr screen = pixmap->drawable.pScreen; */
 
     if (reason)
         *reason = PRESENT_FLIP_REASON_UNKNOWN;
 
-/*
- * if (!xwl_window)
+    if (!crtc){
+			  TRACEPOINT_MESSAGE("Flip-CRTC fail");
         return FALSE;
- */
-
-    if (!crtc)
-        return FALSE;
+		}
 
     /* Source pixmap must align with window exactly */
-    if (x_off || y_off)
+    if (x_off || y_off){
+		    TRACEPOINT_MESSAGE("Flip Offset Rejected");
         return FALSE;
+		}
 
     /* Valid area must contain window (for simplicity for now just never flip when one is set). */
-    if (valid)
+    if (valid){
+		    TRACEPOINT_MESSAGE("Invalid Region");
         return FALSE;
+		}
 
     /* Flip pixmap must have same dimensions as window */
     if (present_window->drawable.width != pixmap->drawable.width ||
-            present_window->drawable.height != pixmap->drawable.height)
+            present_window->drawable.height != pixmap->drawable.height){
+			  TRACEPOINT_MESSAGE("PixmapSize Mismatch");
         return FALSE;
+		}
 
     /* Window must be same region as toplevel window */
-    if ( !RegionEqual(&present_window->winSize, &toplvl_window->winSize) )
+    if ( !RegionEqual(&present_window->winSize, &toplvl_window->winSize) ){
+        TRACEPOINT_MESSAGE("WindowSize Mismatch");
         return FALSE;
+		}
 
     /* Can't flip if window clipped by children */
-    if (!RegionEqual(&present_window->clipList, &present_window->winSize))
+    if (!RegionEqual(&present_window->clipList, &present_window->winSize)){
+			  TRACEPOINT_MESSAGE("WindowClip-NoFLIP");
         return FALSE;
-
-/*
-    if (!xwl_glamor_check_flip(pixmap))
-        return FALSE;
-  */
+		}
 
     /* Can't flip if the window pixmap doesn't match the xwl_window parent
      * window's, e.g. because a client redirected this window or one of its
      * parents.
-     */
-/*
- * if (screen->GetWindowPixmap(xwl_window->window) != screen->GetWindowPixmap(present_window))
+		if (screen->GetWindowPixmap(xwl_window->window) != screen->GetWindowPixmap(present_window)){
+				TRACEPOINT_MESSAGE("PixmapMismatch");
         return FALSE;
-*/
-
+		}
+		*/
     /*
      * We currently only allow flips of windows, that have the same
      * dimensions as their xwl_window parent window. For the case of
@@ -587,6 +599,7 @@ xa_present_flip(present_vblank_ptr vblank, RegionPtr damage)
     arcanPixmapPriv* apmap = arcanPixmapFromPixmap(vblank->pixmap);
 
     if (!awnd || !apmap){
+			  TRACEPOINT_MESSAGE("FLIP No Window");
         return FALSE;
     }
 

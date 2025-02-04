@@ -51,12 +51,11 @@
 
 #ifdef HAVE_TRACY
 #include "tracy/TracyC.h"
-/* ___tracy_set_thread_name
- * TracyCZoneCtx = ___tracy_emit_zone_begin(loc, true);
- * TracyCMessage(message, len)
- * TracyCFrameMark;
- * TracyCFrameMarkStart
- * ___tracy_emit_zone_name */
+#define TRACEPOINT_MESSAGE(X) TracyCMessage(X, strlen(X))
+#define TRACEPOINT_VALUE(X, Y) TracyCPlotI(X, Y)
+#else
+#define TRACEPOINT_MESSAGE(X)
+#define TRACEPOINT_VALUE(X, y)
 #endif
 
 /*
@@ -2483,7 +2482,37 @@ int ArcanSetPixmapVisitWindow(WindowPtr window, void *data)
 #ifdef GLAMOR
 
 static
-PixmapPtr boToPixmap(ScreenPtr pScreen, struct gbm_bo* bo, int depth)
+size_t boToShmifPlanes(
+	struct gbm_bo* bo,
+	struct arcan_shmif_cont* cont,
+	int format,
+	struct shmifext_buffer_plane planes[static 4])
+{
+	size_t np = gbm_bo_get_plane_count(bo);
+	if (np > 4){
+		trace("arcanBoToShmif::too_many_planes");
+		return 0;
+	}
+
+	uint64_t mod = gbm_bo_get_modifier(bo);
+	for (size_t i = 0; i < np; i++){
+		planes[i].fd         = gbm_bo_get_fd_for_plane(bo, i);
+		planes[i].gbm.stride = gbm_bo_get_stride_for_plane(bo, i);
+		planes[i].gbm.offset = gbm_bo_get_offset(bo, i);
+		planes[i].gbm.format = format;
+		planes[i].gbm.mod_hi = (uint32_t)(mod >> 32ULL);
+		planes[i].gbm.mod_lo = (uint32_t)(mod & 0xffffffffULL);
+		planes[i].w          = gbm_bo_get_width(bo);
+		planes[i].h          = gbm_bo_get_height(bo);
+	}
+
+	return np;
+}
+
+static
+PixmapPtr boToPixmap(
+    ScreenPtr pScreen, struct gbm_bo* bo, int depth,
+		struct shmifext_buffer_plane* planes, size_t n_planes)
 {
     KdScreenPriv(pScreen);
     KdScreenInfo *screen = pScreenPriv->screen;
@@ -2512,47 +2541,47 @@ PixmapPtr boToPixmap(ScreenPtr pScreen, struct gbm_bo* bo, int depth)
         return NULL;
     }
 
+/* pixmap should actually come from the window pool if redirected */
     *ext_pixmap = (arcanPixmapPriv){0};
     arcan_shmifext_egl_meta(scrpriv->acon, &adisp, NULL, &actx);
     ext_pixmap->bo = bo;
-    ext_pixmap->image = eglCreateImageKHR((EGLDisplay) adisp,
-                                          (EGLContext) actx,
-                                          EGL_NATIVE_PIXMAP_KHR,
-                                          ext_pixmap->bo, NULL);
 
-        if (ext_pixmap->image == EGL_NO_IMAGE_KHR){
-            trace("ArcanDRI3PixmapFromFD()::eglImageFromBO failed");
-            free(ext_pixmap);
-            glamor_destroy_pixmap(pixmap);
-            return NULL;
-        }
+		if (!arcan_shmifext_import_buffer(scrpriv->acon,
+			depth_to_gbm(depth),
+			planes,
+			n_planes,
+			sizeof(struct shmifext_buffer_plane)
+		)){
+			trace("ArcanDRI3PixmapFromFD()::Couldn't import buffer into shmif");
+			gbm_bo_destroy(bo);
+			glamor_destroy_pixmap(pixmap);
+			return NULL;
+		}
 
-    glGenTextures(1, &ext_pixmap->texture);
-    glBindTexture(GL_TEXTURE_2D, ext_pixmap->texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		uintptr_t texid, imgid;
 
-    glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, ext_pixmap->image);
-        if (eglGetError() != EGL_SUCCESS){
-            trace("ArcanDRI3PixmapFromFD()::eglImageToTexture failed");
-            glamor_destroy_pixmap(pixmap);
-            eglDestroyImageKHR((EGLDisplay) adisp, ext_pixmap->image);
-            free(ext_pixmap);
-            return NULL;
-        }
+		if (!arcan_shmifext_get_egltex(scrpriv->acon, &texid, &imgid)){
+        trace("ArcanDRI3PixmapFromFD()::eglImageFromBO failed");
+        free(ext_pixmap);
+        glamor_destroy_pixmap(pixmap);
+        return NULL;
+    }
 
-    glBindTexture(GL_TEXTURE_2D, 0);
+		ext_pixmap->image = (EGLImage) imgid;
+		ext_pixmap->texture = (GLint) imgid;
 
+/* shmifext will be responsible for killing the pixmap */
     if (!glamor_set_pixmap_texture(pixmap, ext_pixmap->texture)){
             trace("ArcanDRI3PixmapFromFD()::glamor rejected pixmap<->texture");
             glamor_destroy_pixmap(pixmap);
-            eglDestroyImageKHR((EGLDisplay) adisp, ext_pixmap->image);
+/*          eglDestroyImageKHR((EGLDisplay) adisp, ext_pixmap->image); */
             free(ext_pixmap);
             return NULL;
-        }
+    }
 
     dixSetPrivate(&pixmap->devPrivates, &pixmapPriv, ext_pixmap);
     glamor_set_pixmap_type(pixmap, GLAMOR_TEXTURE_DRM);
+
     return pixmap;
 }
 #endif
@@ -2587,7 +2616,10 @@ Bool arcanGlamorCreateScreenResources(ScreenPtr pScreen)
                                           fmt,
                                           GBM_BO_USE_SCANOUT |
                                           GBM_BO_USE_RENDERING);
-        newpix = boToPixmap(pScreen, bo, pScreen->rootDepth);
+				struct shmifext_buffer_plane planes[4];
+				size_t n_planes = boToShmifPlanes(bo, scrpriv->acon, fmt, planes);
+
+        newpix = boToPixmap(pScreen, bo, pScreen->rootDepth, planes, n_planes);
         scrpriv->bo = bo;
     }
 
@@ -3196,7 +3228,10 @@ static PixmapPtr dri3PixmapFromFds(ScreenPtr pScreen,
     else
         return NULL;
 
-    PixmapPtr res = boToPixmap(pScreen, bo, depth);
+		struct shmifext_buffer_plane planes[4];
+		size_t n_planes = boToShmifPlanes(bo, scrpriv->acon, gbm_fmt, planes);
+
+    PixmapPtr res = boToPixmap(pScreen, bo, depth, planes, n_planes);
     trace("ArcanDRI3PixmapFromFD() => %"PRIxPTR, (uintptr_t) res);
 
     return res;
@@ -3231,9 +3266,9 @@ static Bool dri3GetFormats(ScreenPtr screen,
 {
     trace("dri3GetFormats");
 /*
- *  this information 'should' be present in the shmif extdev setup,
- *  but we have no way of querying / extracting in the DEVICEHINT as
- *  is.
+ *  this information 'should' be present in the shmif extdev setup, and it is
+ *  transferrable with DEVICESTATE that go with the DEVICE_NODE for setting
+ *  acceleration device.
  */
     *num_formats = 0;
     return FALSE;
@@ -3281,8 +3316,14 @@ static dri3_screen_info_rec dri3_info = {
     .fd_from_pixmap = dri3FdFromPixmap,
     .get_formats = dri3GetFormats,
     .get_modifiers = dri3GetModifiers,
-    .get_drawable_modifiers = dri3GetDrawableModifiers,
-/*    .import_syncobj = NULL, */
+    .get_drawable_modifiers = dri3GetDrawableModifiers
+
+/* if we have sync objects (kernel specific),
+ *   set version to 4
+ *   import_syncobj ->
+ *       drmSyncobjFDToHandle
+ *
+ */
 };
 
 Bool arcanGlamorInit(ScreenPtr pScreen)
@@ -3623,7 +3664,7 @@ arcanFlushRedirectedEvents(int fd, int mask, void *tag)
                     .u.clientMessage.u.l.longs1 = CurrentTime
                 };
                 DeliverEvents(P->window, &xev, 1, NullWindow);
-                P->dying = arcan_timemillis();
+                P->dying = GetTimeInMillis();
            }
 /* mimic KillClient */
            else {
@@ -3684,7 +3725,7 @@ arcanScreenBlockHandler(ScreenPtr pScreen, void* timeout)
 
 /* dying yet the client hasn't acknowledged it? */
           if (P->dying){
-              if (arcan_timemillis() - P->dying > 5000){
+              if (GetTimeInMillis() - P->dying > 5000){
                   trace("force-kill:%d", P->window->drawable.id);
                   CloseDownClient(wClient(P->window));
                   P->dying = 0;
